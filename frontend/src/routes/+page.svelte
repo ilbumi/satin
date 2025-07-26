@@ -1,41 +1,22 @@
 <script lang="ts">
-	import Counter from './Counter.svelte';
+	import AnnotationWorkspace from '$lib/components/AnnotationWorkspace.svelte';
 </script>
 
 <svelte:head>
-	<title>Satin App</title>
-	<meta name="description" content="Satin application with counter" />
+	<title>SATIn - Image Annotation Tool</title>
+	<meta name="description" content="Simple Annotation Tool for Images - Create bounding box annotations" />
 </svelte:head>
 
-<main>
-	<h1>Welcome to Satin</h1>
-	<p>A simple SvelteKit application with interactive counter</p>
-	
-	<Counter />
-</main>
+<AnnotationWorkspace />
 
 <style>
-	main {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		padding: 2rem;
-		min-height: 100vh;
-		justify-content: center;
-		gap: 2rem;
+	:global(body) {
+		margin: 0;
+		padding: 0;
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 	}
 
-	h1 {
-		color: #333;
-		font-size: 2.5rem;
-		margin: 0;
-		text-align: center;
-	}
-
-	p {
-		color: #666;
-		font-size: 1.1rem;
-		text-align: center;
-		margin: 0;
+	:global(*) {
+		box-sizing: border-box;
 	}
 </style>
