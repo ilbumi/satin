@@ -7,7 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "pydantic-settings>=2.10.1",
     "pymongo>=4.13.2",
-    "strawberry-graphql>=0.278.0",
+    "strawberry-graphql[fastapi]>=0.278.0",
 ]
 
 [project.scripts]
@@ -24,6 +24,7 @@ dev = [
     "pytest-xdist>=3.8.0",
     "ruff>=0.12.5",
     "ssort>=0.15.0",
+    "strawberry-graphql[cli]>=0.278.0",
 ]
 
 ###########
