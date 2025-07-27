@@ -1,50 +1,328 @@
-name: Build and Test
+name: CI/CD Pipeline
 
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: '3.13'
+  NODE_VERSION: '22'
+  UV_VERSION: '0.8.3'
 
 jobs:
+  # Detect changes to optimize CI execution
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.changes.outputs.backend }}
+      frontend: ${{ steps.changes.outputs.frontend }}
+      docker: ${{ steps.changes.outputs.docker }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            backend:
+              - 'src/**'
+              - 'tests/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+            frontend:
+              - 'frontend/**'
+            docker:
+              - 'docker/**'
+              - 'docker-compose*.yml'
+              - '.dockerignore'
+
   backend:
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: ${{ env.PYTHON_VERSION }}
+
       - name: Install uv
-        run: pip install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
       - name: Install dependencies
-        run: uv sync --system --group dev
+        run: uv sync --group dev
+
+      - name: Format check with ruff
+        run: uv run ruff format --check .
+
       - name: Lint with ruff
-        run: ruff check .
+        run: uv run ruff check .
+
+      - name: Sort imports with ssort
+        run: uv run ssort --check .
+
       - name: Type check with mypy
-        run: mypy src
+        run: uv run mypy src
+        continue-on-error: true
+
       - name: Test with pytest
-        run: pytest
+        run: uv run pytest --cov=src --cov-report=xml --cov-report=term-missing -x
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
 
   frontend:
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '22'
-      - name: Install pnpm
-        run: npm install -g pnpm
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
       - name: Install dependencies
         working-directory: ./frontend
-        run: pnpm install
-      - name: Lint and format check
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        working-directory: ./frontend
+        run: pnpm exec playwright install chromium
+
+      - name: Format check with prettier
+        working-directory: ./frontend
+        run: pnpm prettier --check .
+
+      - name: Lint with eslint
         working-directory: ./frontend
         run: pnpm lint
-      - name: Type check
+
+      - name: Type check with svelte-check
         working-directory: ./frontend
         run: pnpm check
+
       - name: Test with vitest
         working-directory: ./frontend
         run: pnpm test
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: pnpm build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/build/
+          retention-days: 7
+
+  # Security scanning
+  security:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python, javascript-typescript
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  # Dependency vulnerability scanning
+  dependency-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # Docker builds and tests
+  docker:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    if: always() && (needs.backend.result == 'success' || needs.frontend.result == 'success')
+    strategy:
+      matrix:
+        service: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile.${{ matrix.service }}
+          push: false
+          tags: satin-${{ matrix.service }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      - name: Test Docker image
+        run: |
+          docker run --rm -d --name test-${{ matrix.service }} satin-${{ matrix.service }}:latest
+          sleep 10
+          if [ "${{ matrix.service }}" = "backend" ]; then
+            docker exec test-${{ matrix.service }} curl -f http://localhost:8000/health || exit 1
+          else
+            docker exec test-${{ matrix.service }} curl -f http://localhost:3000/ || exit 1
+          fi
+          docker stop test-${{ matrix.service }}
+
+      - name: Run Trivy vulnerability scanner on image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: satin-${{ matrix.service }}:latest
+          format: 'sarif'
+          output: 'trivy-image-results.sarif'
+
+      - name: Upload Trivy image scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-image-results.sarif'
+
+  # Integration tests with Docker Compose
+  integration:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    if: always() && needs.backend.result == 'success' && needs.frontend.result == 'success'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create test environment file
+        run: |
+          cat > .env.test << EOF
+          MONGO_USERNAME=testuser
+          MONGO_PASSWORD=testpass
+          MONGO_DATABASE=satin_test
+          ENVIRONMENT=test
+          LOG_LEVEL=debug
+          EOF
+
+      - name: Start services with Docker Compose
+        run: |
+          docker-compose -f docker-compose.yml --env-file .env.test up -d --build
+          sleep 30
+
+      - name: Wait for services to be healthy
+        run: |
+          timeout 120 bash -c 'until docker-compose ps | grep -q "healthy"; do sleep 5; done'
+
+      - name: Run integration tests
+        run: |
+          # Test backend health
+          curl -f http://localhost:8000/health
+          
+          # Test frontend accessibility
+          curl -f http://localhost:3000/
+          
+          # Test GraphQL endpoint
+          curl -X POST http://localhost:8000/graphql \
+            -H "Content-Type: application/json" \
+            -d '{"query": "{ __schema { types { name } } }"}' \
+            | grep -q "types"
+
+      - name: Collect service logs
+        if: failure()
+        run: |
+          echo "=== Backend logs ==="
+          docker-compose logs backend
+          echo "=== Frontend logs ==="
+          docker-compose logs frontend
+          echo "=== MongoDB logs ==="
+          docker-compose logs mongodb
+
+      - name: Stop services
+        if: always()
+        run: docker-compose down -v
+
+  # Quality gates
+  quality-gate:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend, security, dependency-scan]
+    if: always()
+    steps:
+      - name: Check all jobs status
+        run: |
+          echo "Backend: ${{ needs.backend.result }}"
+          echo "Frontend: ${{ needs.frontend.result }}"
+          echo "Security: ${{ needs.security.result }}"
+          echo "Dependency Scan: ${{ needs.dependency-scan.result }}"
+          
+          if [[ "${{ needs.backend.result }}" != "success" && "${{ needs.backend.result }}" != "skipped" ]]; then
+            echo "Backend job failed"
+            exit 1
+          fi
+          
+          if [[ "${{ needs.frontend.result }}" != "success" && "${{ needs.frontend.result }}" != "skipped" ]]; then
+            echo "Frontend job failed"
+            exit 1
+          fi
+          
+          if [[ "${{ needs.security.result }}" != "success" ]]; then
+            echo "Security scan failed"
+            exit 1
+          fi
+          
+          if [[ "${{ needs.dependency-scan.result }}" != "success" ]]; then
+            echo "Dependency scan failed"
+            exit 1
+          fi
+          
+          echo "All quality gates passed!"

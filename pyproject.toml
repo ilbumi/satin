@@ -42,15 +42,17 @@ dev = [
 ###########
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.13"
 warn_unused_configs = true
 ignore_missing_imports = true
 check_untyped_defs = true
+warn_return_any = true
+warn_unreachable = true
 exclude = ["tests"]
 
 [tool.ruff]
 line-length = 120
-target-version = "py312"
+target-version = "py313"
 lint.select = [
   "ALL", # include all the rules, including new ones
 ]
