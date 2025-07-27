@@ -9,6 +9,7 @@ from satin.schema.image import Image, create_image
 from satin.schema.project import Project, create_project
 from satin.schema.task import (
     Task,
+    TaskStatus,
     create_task,
     delete_task,
     get_all_tasks,
@@ -27,14 +28,19 @@ class TestTask:
         bbox = BBox(x=10.0, y=20.0, width=100.0, height=200.0, annotation=Annotation(text="test", tags=["tag1"]))
 
         task = Task(
-            id="task123", image=image, project=project, bboxes=[bbox], status="draft", created_at=datetime.now(tz=UTC)
+            id="task123",
+            image=image,
+            project=project,
+            bboxes=[bbox],
+            status=TaskStatus.DRAFT,
+            created_at=datetime.now(tz=UTC),
         )
 
         assert task.id == "task123"
         assert task.image.id == "img123"
         assert task.project.id == "proj123"
         assert len(task.bboxes) == 1
-        assert task.status == "draft"
+        assert task.status == TaskStatus.DRAFT
 
 
 @pytest.fixture
@@ -75,12 +81,12 @@ class TestTaskFunctions:
         """Test creating a new task."""
         monkeypatch.setattr("satin.schema.task.db", test_db)
         task = await create_task(
-            image_id=sample_image.id, project_id=sample_project.id, bboxes=[sample_bbox], status="draft"
+            image_id=sample_image.id, project_id=sample_project.id, bboxes=[sample_bbox], status=TaskStatus.DRAFT
         )
         assert task.image.id == sample_image.id
         assert task.project.id == sample_project.id
         assert len(task.bboxes) == 1
-        assert task.status == "draft"
+        assert task.status == TaskStatus.DRAFT
         assert task.id is not None
         assert task.created_at is not None
 
@@ -97,7 +103,7 @@ class TestTaskFunctions:
         monkeypatch.setattr("satin.schema.task.db", test_db)
         task = await create_task(image_id=sample_image.id, project_id=sample_project.id)
         assert len(task.bboxes) == 0
-        assert task.status == "draft"
+        assert task.status == TaskStatus.DRAFT
 
     async def test_get_task(
         self, test_db, monkeypatch: pytest.MonkeyPatch, sample_image: Image, sample_project: Project, sample_bbox: BBox
@@ -106,7 +112,7 @@ class TestTaskFunctions:
         monkeypatch.setattr("satin.schema.task.db", test_db)
         # Create a test task
         created_task = await create_task(
-            image_id=sample_image.id, project_id=sample_project.id, bboxes=[sample_bbox], status="finished"
+            image_id=sample_image.id, project_id=sample_project.id, bboxes=[sample_bbox], status=TaskStatus.FINISHED
         )
 
         # Retrieve it
@@ -117,7 +123,7 @@ class TestTaskFunctions:
         assert retrieved_task.image.id == sample_image.id
         assert retrieved_task.project.id == sample_project.id
         assert len(retrieved_task.bboxes) == 1
-        assert retrieved_task.status == "finished"
+        assert retrieved_task.status == TaskStatus.FINISHED
 
     async def test_get_task_not_found(self, test_db, monkeypatch: pytest.MonkeyPatch):
         """Test retrieving a non-existent task."""
@@ -133,16 +139,16 @@ class TestTaskFunctions:
         monkeypatch.setattr("satin.schema.task.db", test_db)
 
         # Create multiple tasks
-        await create_task(sample_image.id, sample_project.id, status="draft")
-        await create_task(sample_image.id, sample_project.id, status="finished")
-        await create_task(sample_image.id, sample_project.id, status="reviewed")
+        await create_task(sample_image.id, sample_project.id, status=TaskStatus.DRAFT)
+        await create_task(sample_image.id, sample_project.id, status=TaskStatus.FINISHED)
+        await create_task(sample_image.id, sample_project.id, status=TaskStatus.REVIEWED)
 
         # Retrieve all tasks
         tasks = await get_all_tasks()
 
         assert len(tasks) == 3
         task_statuses = {t.status for t in tasks}
-        assert task_statuses == {"draft", "finished", "reviewed"}
+        assert task_statuses == {TaskStatus.DRAFT, TaskStatus.FINISHED, TaskStatus.REVIEWED}
 
     async def test_get_all_tasks_empty(self, test_db, monkeypatch: pytest.MonkeyPatch):
         """Test retrieving all tasks when none exist."""
@@ -158,15 +164,15 @@ class TestTaskFunctions:
         """Test updating a task."""
         monkeypatch.setattr("satin.schema.task.db", test_db)
         # Create a task
-        task = await create_task(image_id=sample_image.id, project_id=sample_project.id, status="draft")
+        task = await create_task(image_id=sample_image.id, project_id=sample_project.id, status=TaskStatus.DRAFT)
 
         # Update it
-        updated_task = await update_task(task.id, bboxes=[sample_bbox], status="finished")
+        updated_task = await update_task(task.id, bboxes=[sample_bbox], status=TaskStatus.FINISHED)
 
         assert updated_task is not None
         assert updated_task.id == task.id
         assert len(updated_task.bboxes) == 1
-        assert updated_task.status == "finished"
+        assert updated_task.status == TaskStatus.FINISHED
 
     async def test_update_task_partial(
         self, test_db, monkeypatch: pytest.MonkeyPatch, sample_image: Image, sample_project: Project
@@ -175,13 +181,13 @@ class TestTaskFunctions:
         monkeypatch.setattr("satin.schema.task.db", test_db)
 
         # Create a task
-        task = await create_task(image_id=sample_image.id, project_id=sample_project.id, status="draft")
+        task = await create_task(image_id=sample_image.id, project_id=sample_project.id, status=TaskStatus.DRAFT)
 
         # Update only the status
-        updated_task = await update_task(task.id, status="finished")
+        updated_task = await update_task(task.id, status=TaskStatus.FINISHED)
 
         assert updated_task is not None
-        assert updated_task.status == "finished"
+        assert updated_task.status == TaskStatus.FINISHED
         assert updated_task.image.id == sample_image.id
         assert updated_task.project.id == sample_project.id
 
@@ -189,7 +195,7 @@ class TestTaskFunctions:
         """Test updating a non-existent task."""
         monkeypatch.setattr("satin.schema.task.db", test_db)
 
-        updated_task = await update_task("507f1f77bcf86cd799439011", status="finished")
+        updated_task = await update_task("507f1f77bcf86cd799439011", status=TaskStatus.FINISHED)
         assert updated_task is None
 
     async def test_update_task_no_changes(
@@ -199,13 +205,13 @@ class TestTaskFunctions:
         monkeypatch.setattr("satin.schema.task.db", test_db)
 
         # Create a task
-        task = await create_task(image_id=sample_image.id, project_id=sample_project.id, status="draft")
+        task = await create_task(image_id=sample_image.id, project_id=sample_project.id, status=TaskStatus.DRAFT)
 
         # Update with no changes
         updated_task = await update_task(task.id)
 
         assert updated_task is not None
-        assert updated_task.status == "draft"
+        assert updated_task.status == TaskStatus.DRAFT
 
     async def test_delete_task(
         self, test_db, monkeypatch: pytest.MonkeyPatch, sample_image: Image, sample_project: Project

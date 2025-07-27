@@ -11,6 +11,12 @@ class Annotation:
         return f"Annotation(text={self.text}, tags={self.tags})"
 
 
+@strawberry.input
+class AnnotationInput:
+    text: str | None = None
+    tags: list[str] | None = None
+
+
 @strawberry.type
 class BBox:
     x: float
@@ -22,3 +28,12 @@ class BBox:
     def __str__(self):
         """Get string representation of the BBox."""
         return f"BBox(x={self.x}, y={self.y}, width={self.width}, height={self.height}, annotation={self.annotation})"
+
+
+@strawberry.input
+class BBoxInput:
+    x: float
+    y: float
+    width: float
+    height: float
+    annotation: AnnotationInput

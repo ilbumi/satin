@@ -1,13 +1,36 @@
 from datetime import UTC, datetime
-from typing import Any, Literal
+from enum import Enum
+from typing import Any
 
 import strawberry
 from bson import ObjectId
 
 from satin.db import db
-from satin.schema.annotation import BBox
+from satin.schema.annotation import Annotation, BBox, BBoxInput
 from satin.schema.image import Image, get_image
 from satin.schema.project import Project, get_project
+
+
+def _bbox_input_to_bbox(bbox_input: BBoxInput) -> BBox:
+    """Convert BBoxInput to BBox."""
+    annotation = Annotation(
+        text=bbox_input.annotation.text,
+        tags=bbox_input.annotation.tags,
+    )
+    return BBox(
+        x=bbox_input.x,
+        y=bbox_input.y,
+        width=bbox_input.width,
+        height=bbox_input.height,
+        annotation=annotation,
+    )
+
+
+@strawberry.enum
+class TaskStatus(Enum):
+    DRAFT = "draft"
+    FINISHED = "finished"
+    REVIEWED = "reviewed"
 
 
 @strawberry.type
@@ -16,7 +39,7 @@ class Task:
     image: Image
     project: Project
     bboxes: list[BBox]
-    status: Literal["draft", "finished", "reviewed"] = "draft"
+    status: TaskStatus = TaskStatus.DRAFT
     created_at: datetime
 
 
@@ -32,6 +55,10 @@ async def get_task(id: strawberry.ID) -> Task | None:  # noqa: A002
         task_data["project"] = await get_project(task_data["project_id"])
         del task_data["image_id"]
         del task_data["project_id"]
+
+        # Convert status string to enum
+        if "status" in task_data:
+            task_data["status"] = TaskStatus(task_data["status"])
 
         return Task(**task_data)
     return None
@@ -77,6 +104,10 @@ async def get_all_tasks(limit: int | None = None, offset: int = 0) -> list[Task]
         task_data.pop("image_id", None)
         task_data.pop("project_id", None)
 
+        # Convert status string to enum
+        if "status" in task_data:
+            task_data["status"] = TaskStatus(task_data["status"])
+
         results.append(Task(**task_data))
     return results
 
@@ -84,15 +115,24 @@ async def get_all_tasks(limit: int | None = None, offset: int = 0) -> list[Task]
 async def create_task(
     image_id: strawberry.ID,
     project_id: strawberry.ID,
-    bboxes: list[BBox] | None = None,
-    status: Literal["draft", "finished", "reviewed"] = "draft",
+    bboxes: list[BBox | BBoxInput] | None = None,
+    status: TaskStatus = TaskStatus.DRAFT,
 ) -> Task:
     """Create a new task in the database."""
+    # Convert BBoxInput to BBox if needed
+    converted_bboxes = []
+    if bboxes is not None:
+        for bbox in bboxes:
+            if isinstance(bbox, BBoxInput):
+                converted_bboxes.append(_bbox_input_to_bbox(bbox))
+            else:
+                converted_bboxes.append(bbox)
+
     task_data = {
         "image_id": ObjectId(image_id),
         "project_id": ObjectId(project_id),
-        "bboxes": [strawberry.asdict(x) for x in bboxes] if bboxes is not None else [],
-        "status": status,
+        "bboxes": [strawberry.asdict(x) for x in converted_bboxes],
+        "status": status.value,
         "created_at": datetime.now(tz=UTC),
     }
     result = await db["tasks"].insert_one(task_data)
@@ -106,6 +146,10 @@ async def create_task(
     del task_data["project_id"]
     task_data.pop("_id", None)
 
+    # Convert status string to enum
+    if "status" in task_data:
+        task_data["status"] = TaskStatus(task_data["status"])
+
     return Task(**task_data)  # type: ignore[arg-type]
 
 
@@ -113,8 +157,8 @@ async def update_task(
     id: strawberry.ID,  # noqa: A002
     image_id: strawberry.ID | None = None,
     project_id: strawberry.ID | None = None,
-    bboxes: list[BBox] | None = None,
-    status: Literal["draft", "finished", "reviewed"] | None = None,
+    bboxes: list[BBox | BBoxInput] | None = None,
+    status: TaskStatus | None = None,
 ) -> Task | None:
     """Update a task in the database."""
     update_data: dict[str, Any] = {}
@@ -123,9 +167,16 @@ async def update_task(
     if project_id is not None:
         update_data["project_id"] = ObjectId(project_id)
     if bboxes is not None:
-        update_data["bboxes"] = [strawberry.asdict(x) for x in bboxes]
+        # Convert BBoxInput to BBox if needed
+        converted_bboxes = []
+        for bbox in bboxes:
+            if isinstance(bbox, BBoxInput):
+                converted_bboxes.append(_bbox_input_to_bbox(bbox))
+            else:
+                converted_bboxes.append(bbox)
+        update_data["bboxes"] = [strawberry.asdict(x) for x in converted_bboxes]
     if status is not None:
-        update_data["status"] = status
+        update_data["status"] = status.value
 
     if update_data:
         await db["tasks"].update_one({"_id": ObjectId(id)}, {"$set": update_data})
