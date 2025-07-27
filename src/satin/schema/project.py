@@ -40,6 +40,7 @@ async def create_project(name: str, description: str) -> Project:
     project_data = {"name": name, "description": description}
     result = await db["projects"].insert_one(project_data)
     project_data["id"] = str(result.inserted_id)
+    project_data.pop("_id", None)
     return Project(**project_data)
 
 

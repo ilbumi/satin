@@ -63,7 +63,7 @@ async def create_task(
     task_data = {
         "image_id": ObjectId(image_id),
         "project_id": ObjectId(project_id),
-        "bboxes": bboxes or [],
+        "bboxes": [strawberry.asdict(x) for x in bboxes] if bboxes is not None else [],
         "status": status,
         "created_at": datetime.now(tz=UTC),
     }
@@ -76,6 +76,7 @@ async def create_task(
     task_data["project"] = await get_project(project_id)
     del task_data["image_id"]
     del task_data["project_id"]
+    task_data.pop("_id", None)
 
     return Task(**task_data)
 
@@ -94,7 +95,7 @@ async def update_task(
     if project_id is not None:
         update_data["project_id"] = ObjectId(project_id)
     if bboxes is not None:
-        update_data["bboxes"] = bboxes
+        update_data["bboxes"] = [strawberry.asdict(x) for x in bboxes]
     if status is not None:
         update_data["status"] = status
 

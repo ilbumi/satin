@@ -39,7 +39,8 @@ async def create_image(url: str) -> Image:
     image_data = {"url": url}
     result = await db["images"].insert_one(image_data)
     image_data["id"] = str(result.inserted_id)
-    return Image(**image_data)
+    image_data.pop("_id", None)
+    return Image(id=image_data["id"], url=image_data["url"])
 
 
 async def update_image(id: strawberry.ID, url: str | None = None) -> Image | None:  # noqa: A002
