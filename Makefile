@@ -14,6 +14,7 @@ stop_mongo:
 .PHONY: test
 test:
 	uv run pytest -n 5 --cov .
+	cd frontend && pnpm test
 
 .PHONY: format
 format:
