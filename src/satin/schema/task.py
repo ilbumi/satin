@@ -56,6 +56,21 @@ async def get_task(id: strawberry.ID) -> Task | None:  # noqa: A002
         del task_data["image_id"]
         del task_data["project_id"]
 
+        # Convert bbox dicts to BBox objects with proper Annotation objects
+        bboxes = []
+        for bbox_data in task_data.get("bboxes", []):
+            annotation_data = bbox_data.get("annotation", {})
+            annotation = Annotation(text=annotation_data.get("text"), tags=annotation_data.get("tags"))
+            bbox = BBox(
+                x=bbox_data["x"],
+                y=bbox_data["y"],
+                width=bbox_data["width"],
+                height=bbox_data["height"],
+                annotation=annotation,
+            )
+            bboxes.append(bbox)
+        task_data["bboxes"] = bboxes
+
         # Convert status string to enum
         if "status" in task_data:
             task_data["status"] = TaskStatus(task_data["status"])
@@ -99,7 +114,32 @@ async def get_all_tasks(limit: int | None = None, offset: int = 0) -> list[Task]
 
     results: list[Task] = []
     async for task_data in db["tasks"].aggregate(pipeline):
-        task_data["bboxes"] = [BBox(**bbox) for bbox in task_data.get("bboxes", [])]
+        # Convert bbox dicts to BBox objects with proper Annotation objects
+        bboxes = []
+        for bbox_data in task_data.get("bboxes", []):
+            annotation_data = bbox_data.get("annotation", {})
+            annotation = Annotation(text=annotation_data.get("text"), tags=annotation_data.get("tags"))
+            bbox = BBox(
+                x=bbox_data["x"],
+                y=bbox_data["y"],
+                width=bbox_data["width"],
+                height=bbox_data["height"],
+                annotation=annotation,
+            )
+            bboxes.append(bbox)
+        task_data["bboxes"] = bboxes
+
+        # Convert joined image and project data to proper objects
+        if "image" in task_data:
+            image_data = task_data["image"]
+            task_data["image"] = Image(id=str(image_data["_id"]), url=image_data["url"])
+
+        if "project" in task_data:
+            project_data = task_data["project"]
+            task_data["project"] = Project(
+                id=str(project_data["_id"]), name=project_data["name"], description=project_data["description"]
+            )
+
         task_data.pop("_id", None)
         task_data.pop("image_id", None)
         task_data.pop("project_id", None)
@@ -145,6 +185,9 @@ async def create_task(
     del task_data["image_id"]
     del task_data["project_id"]
     task_data.pop("_id", None)
+
+    # Convert bboxes back to BBox objects
+    task_data["bboxes"] = converted_bboxes
 
     # Convert status string to enum
     if "status" in task_data:
