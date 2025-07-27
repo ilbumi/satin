@@ -41,7 +41,7 @@ async def create_project(name: str, description: str) -> Project:
     result = await db["projects"].insert_one(project_data)
     project_data["id"] = str(result.inserted_id)
     project_data.pop("_id", None)
-    return Project(**project_data)
+    return Project(**project_data)  # type: ignore[arg-type]
 
 
 async def update_project(id: strawberry.ID, name: str | None = None, description: str | None = None) -> Project | None:  # noqa: A002

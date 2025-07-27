@@ -24,8 +24,8 @@ format:
 
 .PHONY: lint
 lint:
-	uv run ruff check ${CODE_PATHS} ${TESTS_PATH}
-	uv run mypy ${CODE_PATHS}
+	uv run ruff check ${PYCODE_PATHS} ${PYTESTS_PATH}
+	uv run mypy ${PYCODE_PATHS}
 
 .PHONY: sync
 sync:

@@ -1,6 +1,6 @@
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Any, Literal
 
 import strawberry
 from bson import ObjectId
@@ -78,7 +78,7 @@ async def create_task(
     del task_data["project_id"]
     task_data.pop("_id", None)
 
-    return Task(**task_data)
+    return Task(**task_data)  # type: ignore[arg-type]
 
 
 async def update_task(
@@ -89,7 +89,7 @@ async def update_task(
     status: Literal["draft", "finished", "reviewed"] | None = None,
 ) -> Task | None:
     """Update a task in the database."""
-    update_data = {}
+    update_data: dict[str, Any] = {}
     if image_id is not None:
         update_data["image_id"] = ObjectId(image_id)
     if project_id is not None:
