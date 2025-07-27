@@ -26,20 +26,24 @@ async def get_project(id: strawberry.ID) -> Project | None:  # noqa: A002
 
 
 async def get_all_projects(limit: int | None = None, offset: int = 0) -> list[Project]:
-    """Fetch paginated projects and total count."""
-    # Build query with pagination
-    query = db["projects"].find().skip(offset)
-    if limit is not None:
-        query = query.limit(limit)
+    """Fetch paginated projects using MongoDB aggregation pipeline."""
+    # Build aggregation pipeline with pagination
+    pipeline = [
+        {"$skip": offset},
+        {"$limit": limit if limit is not None else 1000},
+        {
+            "$addFields": {
+                "id": {"$toString": "$_id"},
+            }
+        },
+    ]
 
-    # Get results
-    projects = []
-    async for project_data in query:
-        project_data["id"] = str(project_data["_id"])
-        del project_data["_id"]
-        projects.append(Project(**project_data))
+    results: list[Project] = []
+    async for project_data in db["projects"].aggregate(pipeline):
+        project_data.pop("_id", None)
+        results.append(Project(**project_data))
 
-    return projects
+    return results
 
 
 async def create_project(name: str, description: str) -> Project:

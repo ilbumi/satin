@@ -40,25 +40,45 @@ async def get_task(id: strawberry.ID) -> Task | None:  # noqa: A002
 async def get_all_tasks(limit: int | None = None, offset: int = 0) -> list[Task]:
     """Fetch paginated tasks and total count."""
     # Build query with pagination
-    query = db["tasks"].find().skip(offset)
-    if limit is not None:
-        query = query.limit(limit)
+    pipeline = [
+        {"$skip": offset},
+        {"$limit": limit if limit is not None else 1000},
+        {
+            "$lookup": {
+                "from": "images",
+                "localField": "image_id",
+                "foreignField": "_id",
+                "as": "image",
+            }
+        },
+        {"$unwind": "$image"},
+        {
+            "$lookup": {
+                "from": "projects",
+                "localField": "project_id",
+                "foreignField": "_id",
+                "as": "project",
+            }
+        },
+        {"$unwind": "$project"},
+        {
+            "$addFields": {
+                "id": {"$toString": "$_id"},
+                "image.id": {"$toString": "$image._id"},
+                "project.id": {"$toString": "$project._id"},
+            }
+        },
+    ]
 
-    # Get results
-    tasks = []
-    async for task_data in query:
-        task_data["id"] = str(task_data["_id"])
-        del task_data["_id"]
+    results: list[Task] = []
+    async for task_data in db["tasks"].aggregate(pipeline):
+        task_data["bboxes"] = [BBox(**bbox) for bbox in task_data.get("bboxes", [])]
+        task_data.pop("_id", None)
+        task_data.pop("image_id", None)
+        task_data.pop("project_id", None)
 
-        # Load related objects
-        task_data["image"] = await get_image(task_data["image_id"])
-        task_data["project"] = await get_project(task_data["project_id"])
-        del task_data["image_id"]
-        del task_data["project_id"]
-
-        tasks.append(Task(**task_data))
-
-    return tasks
+        results.append(Task(**task_data))
+    return results
 
 
 async def create_task(
