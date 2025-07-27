@@ -1,5 +1,3 @@
-from collections.abc import AsyncIterator
-
 import strawberry
 from bson import ObjectId
 
@@ -27,12 +25,21 @@ async def get_project(id: strawberry.ID) -> Project | None:  # noqa: A002
     return None
 
 
-async def get_all_projects() -> AsyncIterator[Project]:
-    """Fetch all projects from the database as async generator."""
-    async for project_data in db["projects"].find():
+async def get_all_projects(limit: int | None = None, offset: int = 0) -> list[Project]:
+    """Fetch paginated projects and total count."""
+    # Build query with pagination
+    query = db["projects"].find().skip(offset)
+    if limit is not None:
+        query = query.limit(limit)
+
+    # Get results
+    projects = []
+    async for project_data in query:
         project_data["id"] = str(project_data["_id"])
         del project_data["_id"]
-        yield Project(**project_data)
+        projects.append(Project(**project_data))
+
+    return projects
 
 
 async def create_project(name: str, description: str) -> Project:

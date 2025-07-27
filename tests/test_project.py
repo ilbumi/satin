@@ -94,7 +94,7 @@ class TestProjectFunctions:
         await create_project("Project 3", "Description 3")
 
         # Retrieve all projects
-        projects = [project async for project in get_all_projects()]
+        projects = await get_all_projects()
 
         assert len(projects) == 3
         project_names = {p.name for p in projects}
@@ -105,7 +105,7 @@ class TestProjectFunctions:
         """Test retrieving all projects when none exist."""
         monkeypatch.setattr("satin.schema.project.db", test_db)
 
-        projects = [project async for project in get_all_projects()]
+        projects = await get_all_projects()
 
         assert len(projects) == 0
 

@@ -1,5 +1,3 @@
-from collections.abc import AsyncIterator
-
 import strawberry
 from bson import ObjectId
 
@@ -26,12 +24,21 @@ async def get_image(id: strawberry.ID) -> Image | None:  # noqa: A002
     return None
 
 
-async def get_all_images() -> AsyncIterator[Image]:
-    """Fetch all images from the database as async generator."""
-    async for image_data in db["images"].find():
+async def get_all_images(limit: int | None = None, offset: int = 0) -> list[Image]:
+    """Fetch paginated images and total count."""
+    # Build query with pagination
+    query = db["images"].find().skip(offset)
+    if limit is not None:
+        query = query.limit(limit)
+
+    # Get results
+    images = []
+    async for image_data in query:
         image_data["id"] = str(image_data["_id"])
         del image_data["_id"]
-        yield Image(**image_data)
+        images.append(Image(**image_data))
+
+    return images
 
 
 async def create_image(url: str) -> Image:

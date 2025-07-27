@@ -138,7 +138,7 @@ class TestTaskFunctions:
         await create_task(sample_image.id, sample_project.id, status="reviewed")
 
         # Retrieve all tasks
-        tasks = [task async for task in get_all_tasks()]
+        tasks = await get_all_tasks()
 
         assert len(tasks) == 3
         task_statuses = {t.status for t in tasks}
@@ -148,7 +148,7 @@ class TestTaskFunctions:
         """Test retrieving all tasks when none exist."""
         monkeypatch.setattr("satin.schema.task.db", test_db)
 
-        tasks = [task async for task in get_all_tasks()]
+        tasks = await get_all_tasks()
 
         assert len(tasks) == 0
 

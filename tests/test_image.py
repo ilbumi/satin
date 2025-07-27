@@ -79,7 +79,7 @@ class TestImageFunctions:
         await create_image("https://example.com/image3.jpg")
 
         # Retrieve all images
-        images = [image async for image in get_all_images()]
+        images = await get_all_images()
 
         assert len(images) == 3
         image_urls = {img.url for img in images}
@@ -95,7 +95,7 @@ class TestImageFunctions:
         """Test retrieving all images when none exist."""
         monkeypatch.setattr("satin.schema.image.db", test_db)
 
-        images = [image async for image in get_all_images()]
+        images = await get_all_images()
 
         assert len(images) == 0
 

@@ -1,4 +1,3 @@
-from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Any, Literal
 
@@ -38,9 +37,16 @@ async def get_task(id: strawberry.ID) -> Task | None:  # noqa: A002
     return None
 
 
-async def get_all_tasks() -> AsyncIterator[Task]:
-    """Fetch all tasks from the database as async generator."""
-    async for task_data in db["tasks"].find():
+async def get_all_tasks(limit: int | None = None, offset: int = 0) -> list[Task]:
+    """Fetch paginated tasks and total count."""
+    # Build query with pagination
+    query = db["tasks"].find().skip(offset)
+    if limit is not None:
+        query = query.limit(limit)
+
+    # Get results
+    tasks = []
+    async for task_data in query:
         task_data["id"] = str(task_data["_id"])
         del task_data["_id"]
 
@@ -50,7 +56,9 @@ async def get_all_tasks() -> AsyncIterator[Task]:
         del task_data["image_id"]
         del task_data["project_id"]
 
-        yield Task(**task_data)
+        tasks.append(Task(**task_data))
+
+    return tasks
 
 
 async def create_task(
