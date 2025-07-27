@@ -20,7 +20,8 @@
 	let selectedAnnotationId = $state<string | null>(null);
 
 	// Sample demo image URL (you can replace with actual image upload)
-	const demoImageUrl = 'https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=800&h=600&fit=crop';
+	const demoImageUrl =
+		'https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=800&h=600&fit=crop';
 
 	function generateId(): string {
 		return Math.random().toString(36).substring(2) + Date.now().toString(36);
@@ -63,20 +64,18 @@
 	}
 
 	function handleAnnotationDelete(id: string) {
-		annotations = annotations.filter(ann => ann.id !== id);
+		annotations = annotations.filter((ann) => ann.id !== id);
 		if (selectedAnnotationId === id) {
 			selectedAnnotationId = null;
 		}
 	}
 
 	function handleAnnotationUpdate(id: string, updates: Partial<BoundingBox>) {
-		annotations = annotations.map(ann => 
-			ann.id === id ? { ...ann, ...updates } : ann
-		);
+		annotations = annotations.map((ann) => (ann.id === id ? { ...ann, ...updates } : ann));
 	}
 
 	function updateAnnotationSelection() {
-		annotations = annotations.map(ann => ({
+		annotations = annotations.map((ann) => ({
 			...ann,
 			isSelected: ann.id === selectedAnnotationId
 		}));
@@ -122,19 +121,17 @@
 			onToolChange={handleToolChange}
 			onImageUpload={handleImageUpload}
 		/>
-		
+
 		<div class="demo-section">
-			<button class="demo-button" onclick={loadDemoImage}>
-				Load Demo Image
-			</button>
+			<button class="demo-button" onclick={loadDemoImage}> Load Demo Image </button>
 		</div>
 	</div>
 
 	<div class="workspace-main">
 		<div class="canvas-area">
 			<ImageCanvas
-				imageUrl={imageUrl}
-				annotations={annotations}
+				{imageUrl}
+				{annotations}
 				isDrawing={currentTool === 'bbox'}
 				onAnnotationCreate={handleAnnotationCreate}
 				onAnnotationSelect={handleAnnotationSelect}
@@ -144,7 +141,7 @@
 
 	<div class="workspace-panel">
 		<AnnotationPanel
-			annotations={annotations}
+			{annotations}
 			onAnnotationSelect={handleAnnotationSelect}
 			onAnnotationDelete={handleAnnotationDelete}
 			onAnnotationUpdate={handleAnnotationUpdate}

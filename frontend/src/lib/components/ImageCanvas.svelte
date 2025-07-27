@@ -30,7 +30,7 @@
 	let canvasElement: HTMLCanvasElement;
 	let imageElement: HTMLImageElement;
 	let containerElement: HTMLDivElement;
-	
+
 	let canvasWidth = 800;
 	let canvasHeight = 600;
 	let imageScale = 1;
@@ -67,20 +67,20 @@
 
 	function loadImage() {
 		if (!imageUrl) return;
-		
+
 		imageElement = new Image();
 		imageElement.onload = () => {
 			// Calculate scale to fit image in canvas
 			const scaleX = canvasWidth / imageElement.width;
 			const scaleY = canvasHeight / imageElement.height;
 			imageScale = Math.min(scaleX, scaleY, 1); // Don't scale up
-			
+
 			// Center the image
 			const scaledWidth = imageElement.width * imageScale;
 			const scaledHeight = imageElement.height * imageScale;
 			imageOffsetX = (canvasWidth - scaledWidth) / 2;
 			imageOffsetY = (canvasHeight - scaledHeight) / 2;
-			
+
 			draw();
 		};
 		imageElement.src = imageUrl;
@@ -118,7 +118,7 @@
 		// Convert normalized coordinates to canvas coordinates
 		const scaledWidth = imageElement ? imageElement.width * imageScale : canvasWidth;
 		const scaledHeight = imageElement ? imageElement.height * imageScale : canvasHeight;
-		
+
 		const x = imageOffsetX + bbox.x * scaledWidth;
 		const y = imageOffsetY + bbox.y * scaledHeight;
 		const width = bbox.width * scaledWidth;
@@ -163,13 +163,13 @@
 
 	function canvasToNormalizedCoordinates(canvasX: number, canvasY: number) {
 		if (!imageElement) return { x: 0, y: 0 };
-		
+
 		const scaledWidth = imageElement.width * imageScale;
 		const scaledHeight = imageElement.height * imageScale;
-		
+
 		const imageX = canvasX - imageOffsetX;
 		const imageY = canvasY - imageOffsetY;
-		
+
 		return {
 			x: Math.max(0, Math.min(1, imageX / scaledWidth)),
 			y: Math.max(0, Math.min(1, imageY / scaledHeight))
@@ -178,20 +178,20 @@
 
 	function handleMouseDown(event: MouseEvent) {
 		if (!isDrawing) return;
-		
+
 		const pos = getMousePosition(event);
 		startX = pos.x;
 		startY = pos.y;
 		currentX = pos.x;
 		currentY = pos.y;
 		isMouseDown = true;
-		
+
 		event.preventDefault();
 	}
 
 	function handleMouseMove(event: MouseEvent) {
 		if (!isDrawing || !isMouseDown) return;
-		
+
 		const pos = getMousePosition(event);
 		currentX = pos.x;
 		currentY = pos.y;
@@ -200,7 +200,7 @@
 
 	function handleMouseUp(event: MouseEvent) {
 		if (!isDrawing || !isMouseDown) return;
-		
+
 		const pos = getMousePosition(event);
 		currentX = pos.x;
 		currentY = pos.y;
@@ -212,16 +212,16 @@
 		if (width > 10 && height > 10) {
 			createAnnotation();
 		}
-		
+
 		draw();
 	}
 
 	function handleCanvasClick(event: MouseEvent) {
 		if (isDrawing) return;
-		
+
 		const pos = getMousePosition(event);
 		const clickedAnnotation = findAnnotationAtPosition(pos.x, pos.y);
-		
+
 		if (clickedAnnotation && onAnnotationSelect) {
 			onAnnotationSelect(clickedAnnotation.id);
 		}
@@ -229,16 +229,16 @@
 
 	function findAnnotationAtPosition(x: number, y: number): BoundingBox | null {
 		if (!imageElement) return null;
-		
+
 		const scaledWidth = imageElement.width * imageScale;
 		const scaledHeight = imageElement.height * imageScale;
-		
+
 		for (const bbox of annotations) {
 			const bboxX = imageOffsetX + bbox.x * scaledWidth;
 			const bboxY = imageOffsetY + bbox.y * scaledHeight;
 			const bboxWidth = bbox.width * scaledWidth;
 			const bboxHeight = bbox.height * scaledHeight;
-			
+
 			if (x >= bboxX && x <= bboxX + bboxWidth && y >= bboxY && y <= bboxY + bboxHeight) {
 				return bbox;
 			}
@@ -248,15 +248,15 @@
 
 	function createAnnotation() {
 		if (!onAnnotationCreate) return;
-		
+
 		const startNorm = canvasToNormalizedCoordinates(startX, startY);
 		const endNorm = canvasToNormalizedCoordinates(currentX, currentY);
-		
+
 		const x = Math.min(startNorm.x, endNorm.x);
 		const y = Math.min(startNorm.y, endNorm.y);
 		const width = Math.abs(endNorm.x - startNorm.x);
 		const height = Math.abs(endNorm.y - startNorm.y);
-		
+
 		onAnnotationCreate({
 			x,
 			y,

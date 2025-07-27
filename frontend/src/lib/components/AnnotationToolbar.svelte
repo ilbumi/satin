@@ -33,20 +33,29 @@
 				title="Select annotations"
 			>
 				<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-					<path d="M2 2h6v6H2V2zm0 8h6v6H2v-6zm0 8h6v6H2v-6zm8-16h6v6h-6V2zm0 8h6v6h-6v-6zm0 8h6v6h-6v-6zm8-16h6v6h-6V2zm0 8h6v6h-6v-6zm0 8h6v6h-6v-6z"/>
+					<path
+						d="M2 2h6v6H2V2zm0 8h6v6H2v-6zm0 8h6v6H2v-6zm8-16h6v6h-6V2zm0 8h6v6h-6v-6zm0 8h6v6h-6v-6zm8-16h6v6h-6V2zm0 8h6v6h-6v-6zm0 8h6v6h-6v-6z"
+					/>
 				</svg>
 				Select
 			</button>
-			
+
 			<button
 				class="tool-button"
 				class:active={activeTool === 'bbox'}
 				onclick={() => onToolChange('bbox')}
 				title="Draw bounding boxes"
 			>
-				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-					<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-					<path d="M9 9h6v6H9z"/>
+				<svg
+					width="20"
+					height="20"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+				>
+					<rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+					<path d="M9 9h6v6H9z" />
 				</svg>
 				Bbox
 			</button>
@@ -56,10 +65,17 @@
 	<div class="tool-section">
 		<h3>Image</h3>
 		<button class="upload-button" onclick={triggerFileUpload}>
-			<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-				<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-				<polyline points="7,10 12,15 17,10"/>
-				<line x1="12" y1="15" x2="12" y2="3"/>
+			<svg
+				width="20"
+				height="20"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+			>
+				<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+				<polyline points="7,10 12,15 17,10" />
+				<line x1="12" y1="15" x2="12" y2="3" />
 			</svg>
 			Upload Image
 		</button>
