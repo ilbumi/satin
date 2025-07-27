@@ -1,0 +1,89 @@
+services:
+  # MongoDB database for development
+  mongodb:
+    image: mongo:7-jammy
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-password}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE:-satin_dev}
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    volumes:
+      - mongodb_dev_data:/data/db
+    networks:
+      - satin-dev-network
+
+  # Backend API service for development
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+      target: builder
+    restart: unless-stopped
+    environment:
+      - MONGODB_URL=mongodb://${MONGO_USERNAME:-admin}:${MONGO_PASSWORD:-password}@mongodb:27017/${MONGO_DATABASE:-satin_dev}?authSource=admin
+      - ENVIRONMENT=development
+      - LOG_LEVEL=debug
+      - PYTHONPATH=/app/src
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./src:/app/src:ro
+      - ./pyproject.toml:/app/pyproject.toml:ro
+      - ./uv.lock:/app/uv.lock:ro
+    depends_on:
+      - mongodb
+    networks:
+      - satin-dev-network
+    command: ["uvicorn", "satin:main", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  # Frontend development service
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+      target: builder
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
+      - HMR_PORT=24678
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    volumes:
+      - ./frontend:/app:cached
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - satin-dev-network
+    command: ["pnpm", "dev", "--host", "0.0.0.0", "--port", "3000"]
+
+  # Optional: MongoDB Express for database management
+  mongo-express:
+    image: mongo-express:1.0-20
+    restart: unless-stopped
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_USERNAME:-admin}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_PASSWORD:-password}
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_USERNAME:-admin}:${MONGO_PASSWORD:-password}@mongodb:27017/
+      ME_CONFIG_BASICAUTH: false
+    ports:
+      - "${MONGO_EXPRESS_PORT:-8081}:8081"
+    depends_on:
+      - mongodb
+    networks:
+      - satin-dev-network
+    profiles:
+      - mongo-ui
+
+networks:
+  satin-dev-network:
+    driver: bridge
+
+volumes:
+  mongodb_dev_data:
+    driver: local
+  frontend_node_modules:
+    driver: local
