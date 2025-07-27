@@ -21,6 +21,7 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
     "hypothesis>=6.136.4",
     "isort>=6.0.1",
     "mongomock-motor>=0.0.36",
@@ -29,6 +30,7 @@ dev = [
     "pytest>=8.4.1",
     "pytest-asyncio>=1.1.0",
     "pytest-cov>=6.2.1",
+    "pytest-httpx>=0.34.0",
     "pytest-xdist>=3.8.0",
     "ruff>=0.12.5",
     "ssort>=0.15.0",
