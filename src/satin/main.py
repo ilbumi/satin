@@ -12,10 +12,16 @@ def create_app() -> FastAPI:
     """Create FastAPI application with GraphQL endpoint."""
     app = FastAPI(title="SATIn API", description="Simple Annotation Tool for Images")
 
-    graphql_app = GraphQLRouter(schema, path="/graphql")
+    graphql_app = GraphQLRouter(schema)
     app.include_router(graphql_app, prefix="/graphql")
 
     return app
 
 
 app = create_app()
+
+
+@app.get("/health")
+def health_check():
+    """Health check endpoint."""
+    return {"status": "healthy"}
