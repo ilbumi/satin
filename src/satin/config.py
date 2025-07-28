@@ -7,5 +7,16 @@ class Config(BaseSettings):
 
     mongo_dsn: MongoDsn = Field(validation_alias="MONGO_DSN", default=MongoDsn("mongodb://mongo:27107/satin"))
 
+    # CORS configuration
+    cors_origins: list[str] = Field(
+        validation_alias="CORS_ORIGINS",
+        default=[
+            "http://localhost:5173",  # Vite dev server
+            "http://localhost:3000",  # Alternative frontend port
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:3000",
+        ],
+    )
+
 
 config = Config()

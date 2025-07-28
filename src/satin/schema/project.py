@@ -1,3 +1,5 @@
+from typing import Any
+
 import strawberry
 from bson import ObjectId
 
@@ -10,7 +12,7 @@ class Project:
     name: str
     description: str
 
-    def __str__(self):
+    def __str__(self) -> str:
         """Get string representation of the Project."""
         return f"Project(id={self.id}, name={self.name}, description={self.description})"
 
@@ -28,7 +30,7 @@ async def get_project(id: strawberry.ID) -> Project | None:  # noqa: A002
 async def get_all_projects(limit: int | None = None, offset: int = 0) -> list[Project]:
     """Fetch paginated projects using MongoDB aggregation pipeline."""
     # Build aggregation pipeline with pagination
-    pipeline = [
+    pipeline: list[dict[str, Any]] = [
         {"$skip": offset},
         {"$limit": limit if limit is not None else 1000},
         {
@@ -39,7 +41,8 @@ async def get_all_projects(limit: int | None = None, offset: int = 0) -> list[Pr
     ]
 
     results: list[Project] = []
-    async for project_data in db["projects"].aggregate(pipeline):
+    cursor = await db["projects"].aggregate(pipeline)
+    async for project_data in cursor:
         project_data.pop("_id", None)
         results.append(Project(**project_data))
 

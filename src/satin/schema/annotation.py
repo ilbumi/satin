@@ -6,7 +6,7 @@ class Annotation:
     text: str | None = None
     tags: list[str] | None = None
 
-    def __str__(self):
+    def __str__(self) -> str:
         """Get string representation of the Annotation."""
         return f"Annotation(text={self.text}, tags={self.tags})"
 
@@ -25,7 +25,7 @@ class BBox:
     height: float
     annotation: Annotation
 
-    def __str__(self):
+    def __str__(self) -> str:
         """Get string representation of the BBox."""
         return f"BBox(x={self.x}, y={self.y}, width={self.width}, height={self.height}, annotation={self.annotation})"
 

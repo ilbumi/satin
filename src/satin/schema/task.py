@@ -82,7 +82,7 @@ async def get_task(id: strawberry.ID) -> Task | None:  # noqa: A002
 async def get_all_tasks(limit: int | None = None, offset: int = 0) -> list[Task]:
     """Fetch paginated tasks and total count."""
     # Build query with pagination
-    pipeline = [
+    pipeline: list[dict[str, Any]] = [
         {"$skip": offset},
         {"$limit": limit if limit is not None else 1000},
         {
@@ -113,7 +113,8 @@ async def get_all_tasks(limit: int | None = None, offset: int = 0) -> list[Task]
     ]
 
     results: list[Task] = []
-    async for task_data in db["tasks"].aggregate(pipeline):
+    cursor = await db["tasks"].aggregate(pipeline)
+    async for task_data in cursor:
         # Convert bbox dicts to BBox objects with proper Annotation objects
         bboxes = []
         for bbox_data in task_data.get("bboxes", []):
@@ -132,12 +133,14 @@ async def get_all_tasks(limit: int | None = None, offset: int = 0) -> list[Task]
         # Convert joined image and project data to proper objects
         if "image" in task_data:
             image_data = task_data["image"]
-            task_data["image"] = Image(id=str(image_data["_id"]), url=image_data["url"])
+            task_data["image"] = Image(id=str(image_data["_id"]), url=image_data["url"])  # type: ignore[arg-type]
 
         if "project" in task_data:
             project_data = task_data["project"]
             task_data["project"] = Project(
-                id=str(project_data["_id"]), name=project_data["name"], description=project_data["description"]
+                id=str(project_data["_id"]),  # type: ignore[arg-type]
+                name=project_data["name"],
+                description=project_data["description"],
             )
 
         task_data.pop("_id", None)

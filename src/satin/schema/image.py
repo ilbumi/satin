@@ -1,3 +1,5 @@
+from typing import Any
+
 import strawberry
 from bson import ObjectId
 
@@ -9,7 +11,7 @@ class Image:
     id: strawberry.ID
     url: str
 
-    def __str__(self):
+    def __str__(self) -> str:
         """Get string representation of the Image."""
         return f"Image(id={self.id}, url={self.url})"
 
@@ -27,7 +29,7 @@ async def get_image(id: strawberry.ID) -> Image | None:  # noqa: A002
 async def get_all_images(limit: int | None = None, offset: int = 0) -> list[Image]:
     """Fetch paginated images using MongoDB aggregation pipeline."""
     # Build aggregation pipeline with pagination
-    pipeline = [
+    pipeline: list[dict[str, Any]] = [
         {"$skip": offset},
         {"$limit": limit if limit is not None else 1000},
         {
@@ -38,7 +40,8 @@ async def get_all_images(limit: int | None = None, offset: int = 0) -> list[Imag
     ]
 
     results: list[Image] = []
-    async for image_data in db["images"].aggregate(pipeline):
+    cursor = await db["images"].aggregate(pipeline)
+    async for image_data in cursor:
         image_data.pop("_id", None)
         results.append(Image(**image_data))
 

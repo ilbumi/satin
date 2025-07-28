@@ -20,7 +20,7 @@ class Mutation:
         status: TaskStatus = TaskStatus.DRAFT,
     ) -> Task:
         """Create a new task."""
-        return await create_task(image_id=image_id, project_id=project_id, bboxes=bboxes, status=status)
+        return await create_task(image_id=image_id, project_id=project_id, bboxes=bboxes, status=status)  # type: ignore[arg-type]
 
     @strawberry.mutation
     async def update_task(
@@ -32,7 +32,7 @@ class Mutation:
         status: TaskStatus | None = None,
     ) -> Task | None:
         """Update an existing task."""
-        return await update_task(id=id, image_id=image_id, project_id=project_id, bboxes=bboxes, status=status)
+        return await update_task(id=id, image_id=image_id, project_id=project_id, bboxes=bboxes, status=status)  # type: ignore[arg-type]
 
     @strawberry.mutation
     async def delete_task(self, id: strawberry.ID) -> bool:  # noqa: A002
