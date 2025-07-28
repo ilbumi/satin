@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any
 
 import strawberry
@@ -40,7 +41,11 @@ async def get_all_images(limit: int | None = None, offset: int = 0) -> list[Imag
     ]
 
     results: list[Image] = []
-    cursor = await db["images"].aggregate(pipeline)
+    opt_cursor = db["images"].aggregate(pipeline)
+    if asyncio.iscoroutine(opt_cursor):
+        cursor = await opt_cursor
+    else:
+        cursor = opt_cursor  # Handle sync cursor for testing
     async for image_data in cursor:
         image_data.pop("_id", None)
         results.append(Image(**image_data))

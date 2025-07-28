@@ -31,7 +31,7 @@ class TestImageFunctions:
     """Test cases for image database functions."""
 
     @pytest.mark.asyncio
-    async def test_create_image(self, test_db, monkeypatch):
+    async def test_create_image(self, test_db, monkeypatch: pytest.MonkeyPatch):
         """Test creating a new image."""
         monkeypatch.setattr("satin.schema.image.db", test_db)
 
@@ -46,7 +46,7 @@ class TestImageFunctions:
         assert stored["url"] == "https://example.com/test-image.jpg"
 
     @pytest.mark.asyncio
-    async def test_get_image(self, test_db, monkeypatch):
+    async def test_get_image(self, test_db, monkeypatch: pytest.MonkeyPatch):
         """Test retrieving an image by ID."""
         monkeypatch.setattr("satin.schema.image.db", test_db)
 
@@ -61,7 +61,7 @@ class TestImageFunctions:
         assert retrieved_image.url == "https://example.com/test-image.jpg"
 
     @pytest.mark.asyncio
-    async def test_get_image_not_found(self, test_db, monkeypatch):
+    async def test_get_image_not_found(self, test_db, monkeypatch: pytest.MonkeyPatch):
         """Test retrieving a non-existent image."""
         monkeypatch.setattr("satin.schema.image.db", test_db)
 
@@ -69,7 +69,7 @@ class TestImageFunctions:
         assert image is None
 
     @pytest.mark.asyncio
-    async def test_get_all_images(self, test_db, monkeypatch):
+    async def test_get_all_images(self, test_db, monkeypatch: pytest.MonkeyPatch):
         """Test retrieving all images."""
         monkeypatch.setattr("satin.schema.image.db", test_db)
 
@@ -91,7 +91,7 @@ class TestImageFunctions:
         assert image_urls == expected_urls
 
     @pytest.mark.asyncio
-    async def test_get_all_images_empty(self, test_db, monkeypatch):
+    async def test_get_all_images_empty(self, test_db, monkeypatch: pytest.MonkeyPatch):
         """Test retrieving all images when none exist."""
         monkeypatch.setattr("satin.schema.image.db", test_db)
 
@@ -100,7 +100,7 @@ class TestImageFunctions:
         assert len(images) == 0
 
     @pytest.mark.asyncio
-    async def test_update_image(self, test_db, monkeypatch):
+    async def test_update_image(self, test_db, monkeypatch: pytest.MonkeyPatch):
         """Test updating an image."""
         monkeypatch.setattr("satin.schema.image.db", test_db)
 
@@ -115,7 +115,7 @@ class TestImageFunctions:
         assert updated_image.url == "https://example.com/updated.jpg"
 
     @pytest.mark.asyncio
-    async def test_update_image_not_found(self, test_db, monkeypatch):
+    async def test_update_image_not_found(self, test_db, monkeypatch: pytest.MonkeyPatch):
         """Test updating a non-existent image."""
         monkeypatch.setattr("satin.schema.image.db", test_db)
 
@@ -123,7 +123,7 @@ class TestImageFunctions:
         assert updated_image is None
 
     @pytest.mark.asyncio
-    async def test_update_image_no_changes(self, test_db, monkeypatch):
+    async def test_update_image_no_changes(self, test_db, monkeypatch: pytest.MonkeyPatch):
         """Test updating an image with no actual changes."""
         monkeypatch.setattr("satin.schema.image.db", test_db)
 
@@ -137,7 +137,7 @@ class TestImageFunctions:
         assert updated_image.url == "https://example.com/test.jpg"
 
     @pytest.mark.asyncio
-    async def test_delete_image(self, test_db, monkeypatch):
+    async def test_delete_image(self, test_db, monkeypatch: pytest.MonkeyPatch):
         """Test deleting an image."""
         monkeypatch.setattr("satin.schema.image.db", test_db)
 
@@ -153,7 +153,7 @@ class TestImageFunctions:
         assert retrieved is None
 
     @pytest.mark.asyncio
-    async def test_delete_image_not_found(self, test_db, monkeypatch):
+    async def test_delete_image_not_found(self, test_db, monkeypatch: pytest.MonkeyPatch):
         """Test deleting a non-existent image."""
         monkeypatch.setattr("satin.schema.image.db", test_db)
 

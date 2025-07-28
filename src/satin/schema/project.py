@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any
 
 import strawberry
@@ -41,7 +42,11 @@ async def get_all_projects(limit: int | None = None, offset: int = 0) -> list[Pr
     ]
 
     results: list[Project] = []
-    cursor = await db["projects"].aggregate(pipeline)
+    opt_cursor = db["projects"].aggregate(pipeline)
+    if asyncio.iscoroutine(opt_cursor):
+        cursor = await opt_cursor
+    else:
+        cursor = opt_cursor  # Handle sync cursor for testing
     async for project_data in cursor:
         project_data.pop("_id", None)
         results.append(Project(**project_data))

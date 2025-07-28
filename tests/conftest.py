@@ -29,7 +29,6 @@ async def test_db() -> AsyncGenerator:
 
     yield db
 
-    # Clean up after test
     await client.drop_database(random_name)
 
     client.close()

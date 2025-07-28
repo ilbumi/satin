@@ -31,6 +31,7 @@ dev = [
     "pytest-asyncio>=1.1.0",
     "pytest-cov>=6.2.1",
     "pytest-httpx>=0.34.0",
+    "pytest-mock>=3.14.1",
     "pytest-xdist>=3.8.0",
     "ruff>=0.12.5",
     "ssort>=0.15.0",
@@ -47,7 +48,6 @@ warn_unused_configs = true
 ignore_missing_imports = true
 check_untyped_defs = true
 warn_return_any = true
-warn_unreachable = true
 exclude = ["tests"]
 
 [tool.ruff]

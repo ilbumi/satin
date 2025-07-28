@@ -23,6 +23,7 @@ format:
 	uv run ruff format ${PYCODE_PATHS} ${PYTESTS_PATH}
 	uv run ruff check --fix ${PYCODE_PATHS} ${PYTESTS_PATH}
 
+
 .PHONY: lint
 lint:
 	uv run ruff check ${PYCODE_PATHS} ${PYTESTS_PATH}

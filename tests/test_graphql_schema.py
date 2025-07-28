@@ -1,10 +1,12 @@
 """Tests for GraphQL schema introspection and validation."""
 
+from tests.conftest import GraphQLTestClient, TestDataFactory
+
 
 class TestSchemaIntrospection:
     """Test GraphQL schema introspection queries."""
 
-    def test_schema_query_types(self, gql):
+    def test_schema_query_types(self, gql: GraphQLTestClient):
         """Test that all expected query types are available."""
         query = """
         query IntrospectQuery {
@@ -29,7 +31,7 @@ class TestSchemaIntrospection:
         expected_queries = {"project", "projects", "image", "images", "task", "tasks"}
         assert expected_queries.issubset(query_fields)
 
-    def test_schema_mutation_types(self, gql):
+    def test_schema_mutation_types(self, gql: GraphQLTestClient):
         """Test that all expected mutation types are available."""
         query = """
         query IntrospectMutation {
@@ -64,7 +66,7 @@ class TestSchemaIntrospection:
         }
         assert expected_mutations.issubset(mutation_fields)
 
-    def test_task_status_enum(self, gql):
+    def test_task_status_enum(self, gql: GraphQLTestClient):
         """Test TaskStatus enum definition."""
         query = """
         query IntrospectTaskStatus {
@@ -89,7 +91,7 @@ class TestSchemaIntrospection:
         expected_values = {"DRAFT", "FINISHED", "REVIEWED"}
         assert enum_values == expected_values
 
-    def test_page_type_structure(self, gql):
+    def test_page_type_structure(self, gql: GraphQLTestClient):
         """Test Page type structure for pagination."""
         # First get all types to find the correct Page type name
         query = """
@@ -125,7 +127,7 @@ class TestSchemaIntrospection:
         expected_fields = {"objects", "count", "limit", "offset"}
         assert expected_fields.issubset(field_names)
 
-    def test_bbox_input_type(self, gql):
+    def test_bbox_input_type(self, gql: GraphQLTestClient):
         """Test BBoxInput input type structure."""
         query = """
         query IntrospectBBoxInput {
@@ -157,7 +159,7 @@ class TestSchemaIntrospection:
         expected_fields = {"x", "y", "width", "height", "annotation"}
         assert expected_fields == field_names
 
-    def test_annotation_input_type(self, gql):
+    def test_annotation_input_type(self, gql: GraphQLTestClient):
         """Test AnnotationInput input type structure."""
         query = """
         query IntrospectAnnotationInput {
@@ -189,7 +191,7 @@ class TestSchemaIntrospection:
         expected_fields = {"text", "tags"}
         assert expected_fields == field_names
 
-    def test_task_type_fields(self, gql):
+    def test_task_type_fields(self, gql: GraphQLTestClient):
         """Test Task type field definitions."""
         query = """
         query IntrospectTask {
@@ -221,7 +223,7 @@ class TestSchemaIntrospection:
         expected_fields = {"id", "image", "project", "bboxes", "status", "createdAt"}
         assert expected_fields.issubset(field_names)
 
-    def test_query_field_arguments(self, gql):
+    def test_query_field_arguments(self, gql: GraphQLTestClient):
         """Test that query fields have correct arguments."""
         query = """
         query IntrospectProjectsQuery {
@@ -259,7 +261,7 @@ class TestSchemaIntrospection:
         offset_arg = next(arg for arg in projects_field["args"] if arg["name"] == "offset")
         assert offset_arg["defaultValue"] == "0"
 
-    def test_mutation_field_arguments(self, gql):
+    def test_mutation_field_arguments(self, gql: GraphQLTestClient):
         """Test that mutation fields have correct arguments."""
         query = """
         query IntrospectCreateTaskMutation {
@@ -293,7 +295,7 @@ class TestSchemaIntrospection:
         expected_args = {"imageId", "projectId", "bboxes", "status"}
         assert expected_args.issubset(arg_names)
 
-    def test_scalar_types(self, gql):
+    def test_scalar_types(self, gql: GraphQLTestClient):
         """Test that custom scalar types are properly defined."""
         query = """
         query IntrospectScalars {
@@ -317,7 +319,7 @@ class TestSchemaIntrospection:
 class TestSchemaValidation:
     """Test schema validation and error handling."""
 
-    def test_invalid_query_field(self, gql):
+    def test_invalid_query_field(self, gql: GraphQLTestClient):
         """Test querying a non-existent field."""
         query = """
         query InvalidField {
@@ -334,7 +336,7 @@ class TestSchemaValidation:
         assert len(errors) > 0
         assert "nonExistentField" in str(errors[0])
 
-    def test_invalid_mutation_field(self, gql):
+    def test_invalid_mutation_field(self, gql: GraphQLTestClient):
         """Test calling a non-existent mutation."""
         mutation = """
         mutation InvalidMutation {
@@ -350,7 +352,7 @@ class TestSchemaValidation:
         assert errors is not None
         assert "nonExistentMutation" in str(errors[0])
 
-    def test_invalid_enum_value(self, gql, test_data):
+    def test_invalid_enum_value(self, gql: GraphQLTestClient, test_data: TestDataFactory):
         """Test using invalid enum value."""
         # First create dependencies
         create_project_mutation = """
@@ -389,7 +391,7 @@ class TestSchemaValidation:
         assert errors is not None
         assert "INVALID_STATUS" in str(errors[0])
 
-    def test_missing_required_arguments(self, gql):
+    def test_missing_required_arguments(self, gql: GraphQLTestClient):
         """Test mutation with missing required arguments."""
         mutation = """
         mutation CreateProjectMissingArgs {
@@ -406,7 +408,7 @@ class TestSchemaValidation:
         assert errors is not None
         assert "description" in str(errors[0]).lower()
 
-    def test_type_coercion_errors(self, gql):
+    def test_type_coercion_errors(self, gql: GraphQLTestClient):
         """Test invalid type coercion."""
         mutation = """
         mutation CreateImageInvalidType($url: Int!) {

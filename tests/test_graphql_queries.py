@@ -1,10 +1,12 @@
 """Tests for GraphQL queries."""
 
+from tests.conftest import GraphQLTestClient, TestDataFactory
+
 
 class TestProjectQueries:
     """Test GraphQL queries for projects."""
 
-    def test_create_and_query_project(self, gql, test_data):
+    def test_create_and_query_project(self, gql: GraphQLTestClient, test_data: TestDataFactory):
         """Test creating a project and querying it back."""
         # First create a project
         create_mutation = """
@@ -45,7 +47,7 @@ class TestProjectQueries:
         assert project["name"] == "My Project"
         assert project["description"] == "A test project"
 
-    def test_query_nonexistent_project(self, gql):
+    def test_query_nonexistent_project(self, gql: GraphQLTestClient):
         """Test querying a project that doesn't exist."""
         query = """
         query GetProject($id: ID!) {
@@ -60,7 +62,7 @@ class TestProjectQueries:
         result = gql.query(query, {"id": "507f1f77bcf86cd799439011"})
         assert result["project"] is None
 
-    def test_query_projects_pagination(self, gql, test_data):
+    def test_query_projects_pagination(self, gql: GraphQLTestClient, test_data: TestDataFactory):
         """Test paginated projects query."""
         # Create multiple projects
         create_mutation = """
@@ -110,7 +112,7 @@ class TestProjectQueries:
         assert projects_page["limit"] == 3
         assert projects_page["offset"] == 3
 
-    def test_query_projects_empty(self, gql):
+    def test_query_projects_empty(self, gql: GraphQLTestClient):
         """Test querying projects when none exist."""
         query = """
         query GetProjects {
@@ -134,7 +136,7 @@ class TestProjectQueries:
 class TestImageQueries:
     """Test GraphQL queries for images."""
 
-    def test_create_and_query_image(self, gql, test_data):
+    def test_create_and_query_image(self, gql: GraphQLTestClient, test_data: TestDataFactory):
         """Test creating an image and querying it back."""
         # Create an image
         create_mutation = """
@@ -171,7 +173,7 @@ class TestImageQueries:
         assert image["id"] == image_id
         assert image["url"] == "https://example.com/my-image.jpg"
 
-    def test_query_images_pagination(self, gql, test_data):
+    def test_query_images_pagination(self, gql: GraphQLTestClient, test_data: TestDataFactory):
         """Test paginated images query."""
         # Create multiple images
         create_mutation = """
@@ -214,7 +216,7 @@ class TestImageQueries:
 class TestTaskQueries:
     """Test GraphQL queries for tasks."""
 
-    def test_create_and_query_task(self, gql, test_data):
+    def test_create_and_query_task(self, gql: GraphQLTestClient, test_data: TestDataFactory):
         """Test creating a task and querying it back."""
         # Create dependencies first
         create_project_mutation = """
@@ -321,7 +323,7 @@ class TestTaskQueries:
         assert len(task["bboxes"]) == 1
         assert task["createdAt"]  # Should have timestamp
 
-    def test_query_tasks_pagination(self, gql, test_data):
+    def test_query_tasks_pagination(self, gql: GraphQLTestClient, test_data: TestDataFactory):
         """Test paginated tasks query."""
         # Create dependencies
         create_project_mutation = """
@@ -386,7 +388,7 @@ class TestTaskQueries:
             assert task["project"]["id"] == project_id
             assert task["status"] in ["DRAFT", "FINISHED", "REVIEWED"]
 
-    def test_query_task_field_selection(self, gql, test_data):
+    def test_query_task_field_selection(self, gql: GraphQLTestClient, test_data: TestDataFactory):
         """Test GraphQL field selection - only request specific fields."""
         # Setup data
         create_project_mutation = """

@@ -32,7 +32,7 @@ class TestProjectFunctions:
     """Test cases for project database functions."""
 
     @pytest.mark.asyncio
-    async def test_create_project(self, test_db, monkeypatch):
+    async def test_create_project(self, test_db, monkeypatch: pytest.MonkeyPatch):
         """Test creating a new project."""
         # Mock the db object
         monkeypatch.setattr("satin.schema.project.db", test_db)
@@ -50,7 +50,7 @@ class TestProjectFunctions:
         assert stored["description"] == "A test description"
 
     @pytest.mark.asyncio
-    async def test_create_project_with_default_description(self, test_db, monkeypatch):
+    async def test_create_project_with_default_description(self, test_db, monkeypatch: pytest.MonkeyPatch):
         """Test creating a project with default empty description."""
         monkeypatch.setattr("satin.schema.project.db", test_db)
 
@@ -60,7 +60,7 @@ class TestProjectFunctions:
         assert project.description == ""
 
     @pytest.mark.asyncio
-    async def test_get_project(self, test_db, monkeypatch):
+    async def test_get_project(self, test_db, monkeypatch: pytest.MonkeyPatch):
         """Test retrieving a project by ID."""
         monkeypatch.setattr("satin.schema.project.db", test_db)
 
@@ -76,7 +76,7 @@ class TestProjectFunctions:
         assert retrieved_project.description == "Test description"
 
     @pytest.mark.asyncio
-    async def test_get_project_not_found(self, test_db, monkeypatch):
+    async def test_get_project_not_found(self, test_db, monkeypatch: pytest.MonkeyPatch):
         """Test retrieving a non-existent project."""
         monkeypatch.setattr("satin.schema.project.db", test_db)
 
@@ -84,7 +84,7 @@ class TestProjectFunctions:
         assert project is None
 
     @pytest.mark.asyncio
-    async def test_get_all_projects(self, test_db, monkeypatch):
+    async def test_get_all_projects(self, test_db, monkeypatch: pytest.MonkeyPatch):
         """Test retrieving all projects."""
         monkeypatch.setattr("satin.schema.project.db", test_db)
 
@@ -101,7 +101,7 @@ class TestProjectFunctions:
         assert project_names == {"Project 1", "Project 2", "Project 3"}
 
     @pytest.mark.asyncio
-    async def test_get_all_projects_empty(self, test_db, monkeypatch):
+    async def test_get_all_projects_empty(self, test_db, monkeypatch: pytest.MonkeyPatch):
         """Test retrieving all projects when none exist."""
         monkeypatch.setattr("satin.schema.project.db", test_db)
 
@@ -110,7 +110,7 @@ class TestProjectFunctions:
         assert len(projects) == 0
 
     @pytest.mark.asyncio
-    async def test_update_project(self, test_db, monkeypatch):
+    async def test_update_project(self, test_db, monkeypatch: pytest.MonkeyPatch):
         """Test updating a project."""
         monkeypatch.setattr("satin.schema.project.db", test_db)
 
@@ -126,7 +126,7 @@ class TestProjectFunctions:
         assert updated_project.description == "Updated Description"
 
     @pytest.mark.asyncio
-    async def test_update_project_partial(self, test_db, monkeypatch):
+    async def test_update_project_partial(self, test_db, monkeypatch: pytest.MonkeyPatch):
         """Test updating only some fields of a project."""
         monkeypatch.setattr("satin.schema.project.db", test_db)
 
@@ -141,7 +141,7 @@ class TestProjectFunctions:
         assert updated_project.description == "Original Description"
 
     @pytest.mark.asyncio
-    async def test_update_project_not_found(self, test_db, monkeypatch):
+    async def test_update_project_not_found(self, test_db, monkeypatch: pytest.MonkeyPatch):
         """Test updating a non-existent project."""
         monkeypatch.setattr("satin.schema.project.db", test_db)
 
@@ -149,7 +149,7 @@ class TestProjectFunctions:
         assert updated_project is None
 
     @pytest.mark.asyncio
-    async def test_update_project_no_changes(self, test_db, monkeypatch):
+    async def test_update_project_no_changes(self, test_db, monkeypatch: pytest.MonkeyPatch):
         """Test updating a project with no actual changes."""
         monkeypatch.setattr("satin.schema.project.db", test_db)
 
@@ -164,7 +164,7 @@ class TestProjectFunctions:
         assert updated_project.description == "Test Description"
 
     @pytest.mark.asyncio
-    async def test_delete_project(self, test_db, monkeypatch):
+    async def test_delete_project(self, test_db, monkeypatch: pytest.MonkeyPatch):
         """Test deleting a project."""
         monkeypatch.setattr("satin.schema.project.db", test_db)
 
@@ -180,7 +180,7 @@ class TestProjectFunctions:
         assert retrieved is None
 
     @pytest.mark.asyncio
-    async def test_delete_project_not_found(self, test_db, monkeypatch):
+    async def test_delete_project_not_found(self, test_db, monkeypatch: pytest.MonkeyPatch):
         """Test deleting a non-existent project."""
         monkeypatch.setattr("satin.schema.project.db", test_db)
 

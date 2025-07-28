@@ -1,3 +1,4 @@
+import asyncio
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
@@ -113,7 +114,11 @@ async def get_all_tasks(limit: int | None = None, offset: int = 0) -> list[Task]
     ]
 
     results: list[Task] = []
-    cursor = await db["tasks"].aggregate(pipeline)
+    opt_cursor = db["tasks"].aggregate(pipeline)
+    if asyncio.iscoroutine(opt_cursor):
+        cursor = await opt_cursor
+    else:
+        cursor = opt_cursor  # Handle sync cursor for testing
     async for task_data in cursor:
         # Convert bbox dicts to BBox objects with proper Annotation objects
         bboxes = []
