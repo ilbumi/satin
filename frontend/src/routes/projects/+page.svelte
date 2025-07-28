@@ -1,16 +1,26 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { client } from '$lib/graphql/client';
-	import { GET_PROJECTS } from '$lib/graphql/queries';
+	import { GET_PROJECTS, CREATE_PROJECT } from '$lib/graphql/queries';
 	import type { Project } from '$lib/graphql/types';
 	import Navigation from '$lib/components/Navigation.svelte';
 
 	let projects: Project[] = $state([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
+	let showCreateModal = $state(false);
+	let createLoading = $state(false);
+	let createError = $state<string | null>(null);
+	let projectName = $state('');
+	let projectDescription = $state('');
 
 	onMount(async () => {
+		await loadProjects();
+	});
+
+	async function loadProjects() {
 		try {
+			loading = true;
 			const result = await client.query(GET_PROJECTS, { limit: 20, offset: 0 }).toPromise();
 			if (result.data?.projects) {
 				projects = result.data.projects.objects;
@@ -23,11 +33,58 @@
 		} finally {
 			loading = false;
 		}
-	});
+	}
+
+	function openCreateModal() {
+		showCreateModal = true;
+		projectName = '';
+		projectDescription = '';
+		createError = null;
+	}
+
+	function closeCreateModal() {
+		showCreateModal = false;
+		projectName = '';
+		projectDescription = '';
+		createError = null;
+	}
+
+	async function handleCreateProject() {
+		if (!projectName.trim()) {
+			createError = 'Project name is required';
+			return;
+		}
+
+		try {
+			createLoading = true;
+			createError = null;
+
+			const result = await client
+				.mutation(CREATE_PROJECT, {
+					name: projectName.trim(),
+					description: projectDescription.trim()
+				})
+				.toPromise();
+
+			if (result.error) {
+				createError = result.error.message;
+				return;
+			}
+
+			if (result.data?.createProject) {
+				// Add the new project to the list
+				projects = [result.data.createProject, ...projects];
+				closeCreateModal();
+			}
+		} catch (err) {
+			createError = err instanceof Error ? err.message : 'Failed to create project';
+		} finally {
+			createLoading = false;
+		}
+	}
 
 	function createNewProject() {
-		// TODO: Implement project creation
-		alert('Create new project functionality coming soon!');
+		openCreateModal();
 	}
 </script>
 
@@ -43,7 +100,9 @@
 		<h1>Projects</h1>
 		<button class="create-button" onclick={createNewProject}>
 			<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-				<path d="M8 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12Zm0 1.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9ZM8 5a.75.75 0 0 1 .75.75v1.5h1.5a.75.75 0 0 1 0 1.5h-1.5v1.5a.75.75 0 0 1-1.5 0v-1.5h-1.5a.75.75 0 0 1 0-1.5h1.5v-1.5A.75.75 0 0 1 8 5Z"/>
+				<path
+					d="M8 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12Zm0 1.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9ZM8 5a.75.75 0 0 1 .75.75v1.5h1.5a.75.75 0 0 1 0 1.5h-1.5v1.5a.75.75 0 0 1-1.5 0v-1.5h-1.5a.75.75 0 0 1 0-1.5h1.5v-1.5A.75.75 0 0 1 8 5Z"
+				/>
 			</svg>
 			New Project
 		</button>
@@ -58,7 +117,9 @@
 		{:else if error}
 			<div class="error-state">
 				<svg width="48" height="48" viewBox="0 0 16 16" fill="currentColor">
-					<path d="M8 16A8 8 0 1 1 8 0a8 8 0 0 1 0 16ZM5.354 4.646a.5.5 0 1 0-.708.708L7.293 8l-2.647 2.646a.5.5 0 0 0 .708.708L8 8.707l2.646 2.647a.5.5 0 0 0 .708-.708L8.707 8l2.647-2.646a.5.5 0 0 0-.708-.708L8 7.293 5.354 4.646Z"/>
+					<path
+						d="M8 16A8 8 0 1 1 8 0a8 8 0 0 1 0 16ZM5.354 4.646a.5.5 0 1 0-.708.708L7.293 8l-2.647 2.646a.5.5 0 0 0 .708.708L8 8.707l2.646 2.647a.5.5 0 0 0 .708-.708L8.707 8l2.647-2.646a.5.5 0 0 0-.708-.708L8 7.293 5.354 4.646Z"
+					/>
 				</svg>
 				<h2>Error Loading Projects</h2>
 				<p>{error}</p>
@@ -67,7 +128,9 @@
 		{:else if projects.length === 0}
 			<div class="empty-state">
 				<svg width="64" height="64" viewBox="0 0 16 16" fill="currentColor">
-					<path d="M14 1.5A1.5 1.5 0 0 0 12.5 0h-9A1.5 1.5 0 0 0 2 1.5V14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V1.5ZM4 2.5v11A.5.5 0 0 1 3.5 13h-.5a.5.5 0 0 1-.5-.5V3a1 1 0 0 1 1-1h.5a.5.5 0 0 1 .5.5Zm8 0A.5.5 0 0 1 11.5 2h-6A.5.5 0 0 1 5 2.5v10A.5.5 0 0 1 5.5 13h6a.5.5 0 0 1 .5-.5v-10Z"/>
+					<path
+						d="M14 1.5A1.5 1.5 0 0 0 12.5 0h-9A1.5 1.5 0 0 0 2 1.5V14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V1.5ZM4 2.5v11A.5.5 0 0 1 3.5 13h-.5a.5.5 0 0 1-.5-.5V3a1 1 0 0 1 1-1h.5a.5.5 0 0 1 .5.5Zm8 0A.5.5 0 0 1 11.5 2h-6A.5.5 0 0 1 5 2.5v10A.5.5 0 0 1 5.5 13h6a.5.5 0 0 1 .5-.5v-10Z"
+					/>
 				</svg>
 				<h2>No Projects Yet</h2>
 				<p>Create your first annotation project to get started.</p>
@@ -81,7 +144,9 @@
 							<h3>{project.name}</h3>
 							<button class="menu-button" aria-label="Project options">
 								<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-									<path d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"/>
+									<path
+										d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"
+									/>
 								</svg>
 							</button>
 						</div>
@@ -89,13 +154,17 @@
 						<div class="project-stats">
 							<span class="stat">
 								<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-									<path d="M8 1.5A1.5 1.5 0 0 0 6.5 0h-3A1.5 1.5 0 0 0 2 1.5V14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V1.5A1.5 1.5 0 0 0 12.5 0h-3A1.5 1.5 0 0 0 8 1.5Z"/>
+									<path
+										d="M8 1.5A1.5 1.5 0 0 0 6.5 0h-3A1.5 1.5 0 0 0 2 1.5V14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V1.5A1.5 1.5 0 0 0 12.5 0h-3A1.5 1.5 0 0 0 8 1.5Z"
+									/>
 								</svg>
 								0 images
 							</span>
 							<span class="stat">
 								<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-									<path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
+									<path
+										d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"
+									/>
 								</svg>
 								0 annotations
 							</span>
@@ -103,13 +172,17 @@
 						<div class="project-actions">
 							<button class="action-button secondary">
 								<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-									<path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
+									<path
+										d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"
+									/>
 								</svg>
 								View
 							</button>
 							<button class="action-button primary">
 								<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-									<path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
+									<path
+										d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"
+									/>
 								</svg>
 								Annotate
 							</button>
@@ -120,6 +193,83 @@
 		{/if}
 	</main>
 </div>
+
+<!-- Create Project Modal -->
+{#if showCreateModal}
+	<div class="modal-overlay" onclick={closeCreateModal}>
+		<div class="modal-content" onclick={(e) => e.stopPropagation()}>
+			<div class="modal-header">
+				<h2>Create New Project</h2>
+				<button class="close-button" onclick={closeCreateModal} aria-label="Close modal">
+					<svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor">
+						<path
+							d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"
+						/>
+					</svg>
+				</button>
+			</div>
+
+			<form
+				onsubmit={(e) => {
+					e.preventDefault();
+					handleCreateProject();
+				}}
+			>
+				<div class="form-group">
+					<label for="project-name">Project Name</label>
+					<input
+						id="project-name"
+						type="text"
+						bind:value={projectName}
+						placeholder="Enter project name"
+						required
+						disabled={createLoading}
+					/>
+				</div>
+
+				<div class="form-group">
+					<label for="project-description">Description</label>
+					<textarea
+						id="project-description"
+						bind:value={projectDescription}
+						placeholder="Enter project description (optional)"
+						rows="3"
+						disabled={createLoading}
+					></textarea>
+				</div>
+
+				{#if createError}
+					<div class="error-message">
+						{createError}
+					</div>
+				{/if}
+
+				<div class="modal-actions">
+					<button
+						type="button"
+						class="cancel-button"
+						onclick={closeCreateModal}
+						disabled={createLoading}
+					>
+						Cancel
+					</button>
+					<button
+						type="submit"
+						class="submit-button"
+						disabled={createLoading || !projectName.trim()}
+					>
+						{#if createLoading}
+							<div class="button-spinner"></div>
+							Creating...
+						{:else}
+							Create Project
+						{/if}
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
 
 <style>
 	.projects-page {
@@ -191,8 +341,12 @@
 	}
 
 	@keyframes spin {
-		0% { transform: rotate(0deg); }
-		100% { transform: rotate(360deg); }
+		0% {
+			transform: rotate(0deg);
+		}
+		100% {
+			transform: rotate(360deg);
+		}
 	}
 
 	.error-state svg,
@@ -342,6 +496,182 @@
 		border-color: #2563eb;
 	}
 
+	/* Modal Styles */
+	.modal-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background-color: rgba(0, 0, 0, 0.5);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 1000;
+		padding: 1rem;
+	}
+
+	.modal-content {
+		background: white;
+		border-radius: 12px;
+		padding: 0;
+		width: 100%;
+		max-width: 500px;
+		max-height: 90vh;
+		overflow-y: auto;
+		box-shadow:
+			0 20px 25px -5px rgba(0, 0, 0, 0.1),
+			0 10px 10px -5px rgba(0, 0, 0, 0.04);
+	}
+
+	.modal-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 1.5rem 1.5rem 0 1.5rem;
+		border-bottom: 1px solid #e2e8f0;
+		margin-bottom: 1.5rem;
+	}
+
+	.modal-header h2 {
+		font-size: 1.5rem;
+		font-weight: 600;
+		color: #1e293b;
+		margin: 0;
+	}
+
+	.close-button {
+		background: none;
+		border: none;
+		color: #64748b;
+		cursor: pointer;
+		padding: 0.5rem;
+		border-radius: 6px;
+		transition: all 0.2s;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.close-button:hover {
+		background-color: #f1f5f9;
+		color: #1e293b;
+	}
+
+	form {
+		padding: 0 1.5rem 1.5rem 1.5rem;
+	}
+
+	.form-group {
+		margin-bottom: 1.5rem;
+	}
+
+	.form-group label {
+		display: block;
+		font-weight: 500;
+		color: #374151;
+		margin-bottom: 0.5rem;
+		font-size: 0.875rem;
+	}
+
+	.form-group input,
+	.form-group textarea {
+		width: 100%;
+		padding: 0.75rem;
+		border: 1px solid #d1d5db;
+		border-radius: 6px;
+		font-size: 0.875rem;
+		transition:
+			border-color 0.2s,
+			box-shadow 0.2s;
+		box-sizing: border-box;
+	}
+
+	.form-group input:focus,
+	.form-group textarea:focus {
+		outline: none;
+		border-color: #3b82f6;
+		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+	}
+
+	.form-group input:disabled,
+	.form-group textarea:disabled {
+		background-color: #f9fafb;
+		color: #6b7280;
+		cursor: not-allowed;
+	}
+
+	.form-group textarea {
+		resize: vertical;
+	}
+
+	.error-message {
+		background-color: #fef2f2;
+		color: #dc2626;
+		padding: 0.75rem;
+		border-radius: 6px;
+		font-size: 0.875rem;
+		margin-bottom: 1.5rem;
+		border: 1px solid #fecaca;
+	}
+
+	.modal-actions {
+		display: flex;
+		gap: 0.75rem;
+		justify-content: flex-end;
+	}
+
+	.cancel-button,
+	.submit-button {
+		padding: 0.75rem 1.5rem;
+		border-radius: 6px;
+		font-weight: 500;
+		cursor: pointer;
+		transition: all 0.2s;
+		border: 1px solid;
+		font-size: 0.875rem;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.cancel-button {
+		background: white;
+		color: #6b7280;
+		border-color: #d1d5db;
+	}
+
+	.cancel-button:hover:not(:disabled) {
+		background-color: #f9fafb;
+		color: #374151;
+	}
+
+	.submit-button {
+		background-color: #3b82f6;
+		color: white;
+		border-color: #3b82f6;
+	}
+
+	.submit-button:hover:not(:disabled) {
+		background-color: #2563eb;
+		border-color: #2563eb;
+	}
+
+	.submit-button:disabled {
+		background-color: #9ca3af;
+		border-color: #9ca3af;
+		cursor: not-allowed;
+	}
+
+	.button-spinner {
+		width: 14px;
+		height: 14px;
+		border: 2px solid rgba(255, 255, 255, 0.3);
+		border-top: 2px solid white;
+		border-radius: 50%;
+		animation: spin 1s linear infinite;
+	}
+
 	@media (max-width: 768px) {
 		.projects-page {
 			padding: 1rem;
@@ -359,6 +689,20 @@
 
 		.project-actions {
 			flex-direction: column;
+		}
+
+		.modal-content {
+			margin: 1rem;
+			max-width: none;
+		}
+
+		.modal-actions {
+			flex-direction: column-reverse;
+		}
+
+		.cancel-button,
+		.submit-button {
+			justify-content: center;
 		}
 	}
 </style>

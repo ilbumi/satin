@@ -11,7 +11,7 @@ vi.mock("$lib/graphql/client", () => ({
 // Mock Navigation component to avoid dependency issues
 vi.mock("$lib/components/Navigation.svelte", () => ({
   default: class MockNavigation {
-    $$: any = {};
+    $$: Record<string, unknown> = {};
     constructor() {}
   },
 }));
