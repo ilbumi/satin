@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { client } from '$lib/graphql/client';
-	import { GET_PROJECTS, CREATE_PROJECT } from '$lib/graphql/queries';
+	import { GET_PROJECTS, CREATE_PROJECT, DELETE_PROJECT } from '$lib/graphql/queries';
 	import type { Project } from '$lib/graphql/types';
 	import Navigation from '$lib/components/Navigation.svelte';
 
@@ -13,6 +13,10 @@
 	let createError = $state<string | null>(null);
 	let projectName = $state('');
 	let projectDescription = $state('');
+	let showDeleteModal = $state(false);
+	let projectToDelete = $state<Project | null>(null);
+	let deleteLoading = $state(false);
+	let deleteError = $state<string | null>(null);
 
 	onMount(async () => {
 		await loadProjects();
@@ -86,6 +90,48 @@
 	function createNewProject() {
 		openCreateModal();
 	}
+
+	function openDeleteModal(project: Project) {
+		projectToDelete = project;
+		showDeleteModal = true;
+		deleteError = null;
+	}
+
+	function closeDeleteModal() {
+		showDeleteModal = false;
+		projectToDelete = null;
+		deleteError = null;
+	}
+
+	async function handleDeleteProject() {
+		if (!projectToDelete) return;
+
+		try {
+			deleteLoading = true;
+			deleteError = null;
+
+			const result = await client
+				.mutation(DELETE_PROJECT, {
+					id: projectToDelete.id
+				})
+				.toPromise();
+
+			if (result.error) {
+				deleteError = result.error.message;
+				return;
+			}
+
+			if (result.data?.deleteProject) {
+				// Remove the project from the list
+				projects = projects.filter((p) => p.id !== projectToDelete?.id);
+				closeDeleteModal();
+			}
+		} catch (err) {
+			deleteError = err instanceof Error ? err.message : 'Failed to delete project';
+		} finally {
+			deleteLoading = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -142,10 +188,18 @@
 					<div class="project-card">
 						<div class="project-header">
 							<h3>{project.name}</h3>
-							<button class="menu-button" aria-label="Project options">
+							<button
+								class="delete-button"
+								onclick={() => openDeleteModal(project)}
+								aria-label="Delete project"
+							>
 								<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
 									<path
-										d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"
+										d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"
+									/>
+									<path
+										fill-rule="evenodd"
+										d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"
 									/>
 								</svg>
 							</button>
@@ -267,6 +321,69 @@
 					</button>
 				</div>
 			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- Delete Project Confirmation Modal -->
+{#if showDeleteModal && projectToDelete}
+	<div class="modal-overlay" onclick={closeDeleteModal}>
+		<div class="modal-content" onclick={(e) => e.stopPropagation()}>
+			<div class="modal-header">
+				<h2>Delete Project</h2>
+				<button class="close-button" onclick={closeDeleteModal} aria-label="Close modal">
+					<svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor">
+						<path
+							d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"
+						/>
+					</svg>
+				</button>
+			</div>
+
+			<div class="modal-body">
+				<div class="warning-icon">
+					<svg width="48" height="48" viewBox="0 0 16 16" fill="currentColor">
+						<path
+							d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"
+						/>
+					</svg>
+				</div>
+				<h3>Are you sure you want to delete this project?</h3>
+				<p>
+					You're about to delete "<strong>{projectToDelete.name}</strong>". This action cannot be
+					undone. All associated data, images, and annotations will be permanently removed.
+				</p>
+
+				{#if deleteError}
+					<div class="error-message">
+						{deleteError}
+					</div>
+				{/if}
+
+				<div class="modal-actions">
+					<button
+						type="button"
+						class="cancel-button"
+						onclick={closeDeleteModal}
+						disabled={deleteLoading}
+					>
+						Cancel
+					</button>
+					<button
+						type="button"
+						class="delete-confirm-button"
+						onclick={handleDeleteProject}
+						disabled={deleteLoading}
+					>
+						{#if deleteLoading}
+							<div class="button-spinner"></div>
+							Deleting...
+						{:else}
+							Delete Project
+						{/if}
+					</button>
+				</div>
+			</div>
 		</div>
 	</div>
 {/if}
@@ -419,7 +536,7 @@
 		line-height: 1.3;
 	}
 
-	.menu-button {
+	.delete-button {
 		background: none;
 		border: none;
 		color: #64748b;
@@ -427,11 +544,14 @@
 		padding: 0.25rem;
 		border-radius: 4px;
 		transition: all 0.2s;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
 
-	.menu-button:hover {
-		background-color: #f1f5f9;
-		color: #1e293b;
+	.delete-button:hover {
+		background-color: #fef2f2;
+		color: #dc2626;
 	}
 
 	.project-description {
@@ -670,6 +790,59 @@
 		border-top: 2px solid white;
 		border-radius: 50%;
 		animation: spin 1s linear infinite;
+	}
+
+	/* Delete Modal Specific Styles */
+	.modal-body {
+		padding: 1.5rem;
+		text-align: center;
+	}
+
+	.warning-icon {
+		color: #f59e0b;
+		margin-bottom: 1rem;
+		display: flex;
+		justify-content: center;
+	}
+
+	.modal-body h3 {
+		font-size: 1.25rem;
+		font-weight: 600;
+		color: #1e293b;
+		margin: 0 0 1rem 0;
+	}
+
+	.modal-body p {
+		color: #64748b;
+		margin: 0 0 1.5rem 0;
+		line-height: 1.5;
+	}
+
+	.delete-confirm-button {
+		background-color: #dc2626;
+		color: white;
+		border: 1px solid #dc2626;
+		padding: 0.75rem 1.5rem;
+		border-radius: 6px;
+		font-weight: 500;
+		cursor: pointer;
+		transition: all 0.2s;
+		border: 1px solid;
+		font-size: 0.875rem;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.delete-confirm-button:hover:not(:disabled) {
+		background-color: #b91c1c;
+		border-color: #b91c1c;
+	}
+
+	.delete-confirm-button:disabled {
+		background-color: #9ca3af;
+		border-color: #9ca3af;
+		cursor: not-allowed;
 	}
 
 	@media (max-width: 768px) {

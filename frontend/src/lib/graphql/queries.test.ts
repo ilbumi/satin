@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { GET_PROJECTS, GET_PROJECT } from "./queries";
+import {
+  GET_PROJECTS,
+  GET_PROJECT,
+  CREATE_PROJECT,
+  DELETE_PROJECT,
+} from "./queries";
 
 describe("GraphQL Queries", () => {
   describe("GET_PROJECTS", () => {
@@ -85,6 +90,50 @@ describe("GraphQL Queries", () => {
       expect(projectsQuery).toMatch(/\bcount\b/);
       expect(projectsQuery).toMatch(/\blimit\b/);
       expect(projectsQuery).toMatch(/\boffset\b/);
+    });
+  });
+
+  describe("CREATE_PROJECT", () => {
+    it("should be a valid GraphQL mutation string", () => {
+      expect(CREATE_PROJECT).toBeDefined();
+      expect(typeof CREATE_PROJECT).toBe("object");
+      expect(CREATE_PROJECT.definitions).toBeDefined();
+    });
+
+    it("should include correct mutation structure", () => {
+      const mutationString = CREATE_PROJECT.loc?.source.body;
+      expect(mutationString).toContain("mutation CreateProject");
+      expect(mutationString).toContain(
+        "createProject(name: $name, description: $description)",
+      );
+      expect(mutationString).toContain("id");
+      expect(mutationString).toContain("name");
+      expect(mutationString).toContain("description");
+    });
+
+    it("should require name and description variables", () => {
+      const mutationString = CREATE_PROJECT.loc?.source.body;
+      expect(mutationString).toContain("$name: String!");
+      expect(mutationString).toContain("$description: String!");
+    });
+  });
+
+  describe("DELETE_PROJECT", () => {
+    it("should be a valid GraphQL mutation string", () => {
+      expect(DELETE_PROJECT).toBeDefined();
+      expect(typeof DELETE_PROJECT).toBe("object");
+      expect(DELETE_PROJECT.definitions).toBeDefined();
+    });
+
+    it("should include correct mutation structure", () => {
+      const mutationString = DELETE_PROJECT.loc?.source.body;
+      expect(mutationString).toContain("mutation DeleteProject");
+      expect(mutationString).toContain("deleteProject(id: $id)");
+    });
+
+    it("should require id variable", () => {
+      const mutationString = DELETE_PROJECT.loc?.source.body;
+      expect(mutationString).toContain("$id: ID!");
     });
   });
 });
