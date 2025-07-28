@@ -10,3 +10,15 @@ export interface ProjectsPage {
   limit: number;
   offset: number;
 }
+
+export interface Image {
+  id: string;
+  url: string;
+}
+
+export interface ImagesPage {
+  objects: Image[];
+  count: number;
+  limit: number;
+  offset: number;
+}

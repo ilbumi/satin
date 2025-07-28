@@ -5,6 +5,9 @@ import {
   CREATE_PROJECT,
   DELETE_PROJECT,
   UPDATE_PROJECT,
+  GET_IMAGES,
+  CREATE_IMAGE,
+  DELETE_IMAGE,
 } from "./queries";
 
 describe("GraphQL Queries", () => {
@@ -162,6 +165,72 @@ describe("GraphQL Queries", () => {
       expect(mutationString).toContain("$name: String");
       expect(mutationString).toContain("$description: String");
       // Note: name and description are optional (no ! suffix)
+    });
+  });
+
+  describe("GET_IMAGES", () => {
+    it("should be a valid GraphQL query string", () => {
+      expect(GET_IMAGES).toBeDefined();
+      expect(typeof GET_IMAGES).toBe("object");
+      expect(GET_IMAGES.definitions).toBeDefined();
+    });
+
+    it("should include correct field selections", () => {
+      const queryString = GET_IMAGES.loc?.source.body;
+      expect(queryString).toContain("query GetImages");
+      expect(queryString).toContain("images(limit: $limit, offset: $offset)");
+      expect(queryString).toContain("objects");
+      expect(queryString).toContain("id");
+      expect(queryString).toContain("url");
+      expect(queryString).toContain("count");
+      expect(queryString).toContain("limit");
+      expect(queryString).toContain("offset");
+    });
+
+    it("should accept limit and offset variables", () => {
+      const queryString = GET_IMAGES.loc?.source.body;
+      expect(queryString).toContain("$limit: Int");
+      expect(queryString).toContain("$offset: Int");
+    });
+  });
+
+  describe("CREATE_IMAGE", () => {
+    it("should be a valid GraphQL mutation string", () => {
+      expect(CREATE_IMAGE).toBeDefined();
+      expect(typeof CREATE_IMAGE).toBe("object");
+      expect(CREATE_IMAGE.definitions).toBeDefined();
+    });
+
+    it("should include correct mutation structure", () => {
+      const mutationString = CREATE_IMAGE.loc?.source.body;
+      expect(mutationString).toContain("mutation CreateImage");
+      expect(mutationString).toContain("createImage(url: $url)");
+      expect(mutationString).toContain("id");
+      expect(mutationString).toContain("url");
+    });
+
+    it("should require url variable", () => {
+      const mutationString = CREATE_IMAGE.loc?.source.body;
+      expect(mutationString).toContain("$url: String!");
+    });
+  });
+
+  describe("DELETE_IMAGE", () => {
+    it("should be a valid GraphQL mutation string", () => {
+      expect(DELETE_IMAGE).toBeDefined();
+      expect(typeof DELETE_IMAGE).toBe("object");
+      expect(DELETE_IMAGE.definitions).toBeDefined();
+    });
+
+    it("should include correct mutation structure", () => {
+      const mutationString = DELETE_IMAGE.loc?.source.body;
+      expect(mutationString).toContain("mutation DeleteImage");
+      expect(mutationString).toContain("deleteImage(id: $id)");
+    });
+
+    it("should require id variable", () => {
+      const mutationString = DELETE_IMAGE.loc?.source.body;
+      expect(mutationString).toContain("$id: ID!");
     });
   });
 });

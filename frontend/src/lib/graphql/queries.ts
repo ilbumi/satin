@@ -50,3 +50,32 @@ export const UPDATE_PROJECT = gql`
     }
   }
 `;
+
+export const GET_IMAGES = gql`
+  query GetImages($limit: Int, $offset: Int) {
+    images(limit: $limit, offset: $offset) {
+      objects {
+        id
+        url
+      }
+      count
+      limit
+      offset
+    }
+  }
+`;
+
+export const CREATE_IMAGE = gql`
+  mutation CreateImage($url: String!) {
+    createImage(url: $url) {
+      id
+      url
+    }
+  }
+`;
+
+export const DELETE_IMAGE = gql`
+  mutation DeleteImage($id: ID!) {
+    deleteImage(id: $id)
+  }
+`;
