@@ -4,6 +4,7 @@ import {
   GET_PROJECT,
   CREATE_PROJECT,
   DELETE_PROJECT,
+  UPDATE_PROJECT,
 } from "./queries";
 
 describe("GraphQL Queries", () => {
@@ -134,6 +135,33 @@ describe("GraphQL Queries", () => {
     it("should require id variable", () => {
       const mutationString = DELETE_PROJECT.loc?.source.body;
       expect(mutationString).toContain("$id: ID!");
+    });
+  });
+
+  describe("UPDATE_PROJECT", () => {
+    it("should be a valid GraphQL mutation string", () => {
+      expect(UPDATE_PROJECT).toBeDefined();
+      expect(typeof UPDATE_PROJECT).toBe("object");
+      expect(UPDATE_PROJECT.definitions).toBeDefined();
+    });
+
+    it("should include correct mutation structure", () => {
+      const mutationString = UPDATE_PROJECT.loc?.source.body;
+      expect(mutationString).toContain("mutation UpdateProject");
+      expect(mutationString).toContain(
+        "updateProject(id: $id, name: $name, description: $description)",
+      );
+      expect(mutationString).toContain("id");
+      expect(mutationString).toContain("name");
+      expect(mutationString).toContain("description");
+    });
+
+    it("should require id variable and optional name/description", () => {
+      const mutationString = UPDATE_PROJECT.loc?.source.body;
+      expect(mutationString).toContain("$id: ID!");
+      expect(mutationString).toContain("$name: String");
+      expect(mutationString).toContain("$description: String");
+      // Note: name and description are optional (no ! suffix)
     });
   });
 });

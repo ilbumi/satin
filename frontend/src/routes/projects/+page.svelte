@@ -1,7 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { client } from '$lib/graphql/client';
-	import { GET_PROJECTS, CREATE_PROJECT, DELETE_PROJECT } from '$lib/graphql/queries';
+	import {
+		GET_PROJECTS,
+		CREATE_PROJECT,
+		DELETE_PROJECT,
+		UPDATE_PROJECT
+	} from '$lib/graphql/queries';
 	import type { Project } from '$lib/graphql/types';
 	import Navigation from '$lib/components/Navigation.svelte';
 
@@ -17,6 +22,12 @@
 	let projectToDelete = $state<Project | null>(null);
 	let deleteLoading = $state(false);
 	let deleteError = $state<string | null>(null);
+	let showEditModal = $state(false);
+	let projectToEdit = $state<Project | null>(null);
+	let editLoading = $state(false);
+	let editError = $state<string | null>(null);
+	let editProjectName = $state('');
+	let editProjectDescription = $state('');
 
 	onMount(async () => {
 		await loadProjects();
@@ -132,6 +143,61 @@
 			deleteLoading = false;
 		}
 	}
+
+	function openEditModal(project: Project) {
+		projectToEdit = project;
+		editProjectName = project.name;
+		editProjectDescription = project.description;
+		showEditModal = true;
+		editError = null;
+	}
+
+	function closeEditModal() {
+		showEditModal = false;
+		projectToEdit = null;
+		editProjectName = '';
+		editProjectDescription = '';
+		editError = null;
+	}
+
+	async function handleEditProject() {
+		if (!projectToEdit) return;
+
+		if (!editProjectName.trim()) {
+			editError = 'Project name is required';
+			return;
+		}
+
+		try {
+			editLoading = true;
+			editError = null;
+
+			const result = await client
+				.mutation(UPDATE_PROJECT, {
+					id: projectToEdit.id,
+					name: editProjectName.trim(),
+					description: editProjectDescription.trim()
+				})
+				.toPromise();
+
+			if (result.error) {
+				editError = result.error.message;
+				return;
+			}
+
+			if (result.data?.updateProject) {
+				// Update the project in the list
+				projects = projects.map((p) =>
+					p.id === projectToEdit?.id ? result.data.updateProject : p
+				);
+				closeEditModal();
+			}
+		} catch (err) {
+			editError = err instanceof Error ? err.message : 'Failed to update project';
+		} finally {
+			editLoading = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -188,21 +254,34 @@
 					<div class="project-card">
 						<div class="project-header">
 							<h3>{project.name}</h3>
-							<button
-								class="delete-button"
-								onclick={() => openDeleteModal(project)}
-								aria-label="Delete project"
-							>
-								<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-									<path
-										d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"
-									/>
-									<path
-										fill-rule="evenodd"
-										d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"
-									/>
-								</svg>
-							</button>
+							<div class="project-actions-header">
+								<button
+									class="edit-button"
+									onclick={() => openEditModal(project)}
+									aria-label="Edit project"
+								>
+									<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+										<path
+											d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708L10.5 8.207l-3-3L12.146.146ZM11.207 9.5 7 13.707V16h2.293L13.5 11.793l-2.293-2.293Zm1.586-3L14 5.293 11.707 3 10.5 4.207l2.293 2.293Z"
+										/>
+									</svg>
+								</button>
+								<button
+									class="delete-button"
+									onclick={() => openDeleteModal(project)}
+									aria-label="Delete project"
+								>
+									<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+										<path
+											d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"
+										/>
+										<path
+											fill-rule="evenodd"
+											d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"
+										/>
+									</svg>
+								</button>
+							</div>
 						</div>
 						<p class="project-description">{project.description}</p>
 						<div class="project-stats">
@@ -388,6 +467,83 @@
 	</div>
 {/if}
 
+<!-- Edit Project Modal -->
+{#if showEditModal && projectToEdit}
+	<div class="modal-overlay" onclick={closeEditModal}>
+		<div class="modal-content" onclick={(e) => e.stopPropagation()}>
+			<div class="modal-header">
+				<h2>Edit Project</h2>
+				<button class="close-button" onclick={closeEditModal} aria-label="Close modal">
+					<svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor">
+						<path
+							d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"
+						/>
+					</svg>
+				</button>
+			</div>
+
+			<form
+				onsubmit={(e) => {
+					e.preventDefault();
+					handleEditProject();
+				}}
+			>
+				<div class="form-group">
+					<label for="edit-project-name">Project Name</label>
+					<input
+						id="edit-project-name"
+						type="text"
+						bind:value={editProjectName}
+						placeholder="Enter project name"
+						required
+						disabled={editLoading}
+					/>
+				</div>
+
+				<div class="form-group">
+					<label for="edit-project-description">Description</label>
+					<textarea
+						id="edit-project-description"
+						bind:value={editProjectDescription}
+						placeholder="Enter project description (optional)"
+						rows="3"
+						disabled={editLoading}
+					></textarea>
+				</div>
+
+				{#if editError}
+					<div class="error-message">
+						{editError}
+					</div>
+				{/if}
+
+				<div class="modal-actions">
+					<button
+						type="button"
+						class="cancel-button"
+						onclick={closeEditModal}
+						disabled={editLoading}
+					>
+						Cancel
+					</button>
+					<button
+						type="submit"
+						class="submit-button"
+						disabled={editLoading || !editProjectName.trim()}
+					>
+						{#if editLoading}
+							<div class="button-spinner"></div>
+							Updating...
+						{:else}
+							Update Project
+						{/if}
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
 <style>
 	.projects-page {
 		min-height: 100vh;
@@ -536,6 +692,12 @@
 		line-height: 1.3;
 	}
 
+	.project-actions-header {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	.edit-button,
 	.delete-button {
 		background: none;
 		border: none;
@@ -547,6 +709,11 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
+	}
+
+	.edit-button:hover {
+		background-color: #f0f9ff;
+		color: #0369a1;
 	}
 
 	.delete-button:hover {
