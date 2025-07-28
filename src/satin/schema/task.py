@@ -239,3 +239,40 @@ async def delete_task(id: strawberry.ID) -> bool:  # noqa: A002
     """Delete a task from the database."""
     result = await db["tasks"].delete_one({"_id": ObjectId(id)})
     return result.deleted_count > 0
+
+
+async def get_task_by_image_and_project(image_id: strawberry.ID, project_id: strawberry.ID) -> Task | None:
+    """Find a task for a specific image and project combination."""
+    task_data = await db["tasks"].find_one({"image_id": ObjectId(image_id), "project_id": ObjectId(project_id)})
+
+    if task_data:
+        task_data["id"] = str(task_data["_id"])
+        del task_data["_id"]
+
+        # Load related objects
+        task_data["image"] = await get_image(image_id)
+        task_data["project"] = await get_project(project_id)
+        del task_data["image_id"]
+        del task_data["project_id"]
+
+        # Convert bbox dicts to BBox objects with proper Annotation objects
+        bboxes = []
+        for bbox_data in task_data.get("bboxes", []):
+            annotation_data = bbox_data.get("annotation", {})
+            annotation = Annotation(text=annotation_data.get("text"), tags=annotation_data.get("tags"))
+            bbox = BBox(
+                x=bbox_data["x"],
+                y=bbox_data["y"],
+                width=bbox_data["width"],
+                height=bbox_data["height"],
+                annotation=annotation,
+            )
+            bboxes.append(bbox)
+        task_data["bboxes"] = bboxes
+
+        # Convert status string to enum
+        if "status" in task_data:
+            task_data["status"] = TaskStatus(task_data["status"])
+
+        return Task(**task_data)
+    return None

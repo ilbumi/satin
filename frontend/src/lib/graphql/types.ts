@@ -22,3 +22,49 @@ export interface ImagesPage {
   limit: number;
   offset: number;
 }
+
+export interface Annotation {
+  text?: string;
+  tags?: string[];
+}
+
+export interface BBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  annotation: Annotation;
+}
+
+export interface BBoxInput {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  annotation: {
+    text?: string;
+    tags?: string[];
+  };
+}
+
+export enum TaskStatus {
+  DRAFT = "DRAFT",
+  FINISHED = "FINISHED",
+  REVIEWED = "REVIEWED",
+}
+
+export interface Task {
+  id: string;
+  image: Image;
+  project: Project;
+  bboxes: BBox[];
+  status: TaskStatus;
+  createdAt: string;
+}
+
+export interface TasksPage {
+  objects: Task[];
+  count: number;
+  limit: number;
+  offset: number;
+}

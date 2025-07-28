@@ -1,12 +1,19 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { client } from '$lib/graphql/client';
-	import { GET_PROJECT, GET_IMAGES, CREATE_IMAGE, DELETE_IMAGE } from '$lib/graphql/queries';
-	import type { Project, Image } from '$lib/graphql/types';
+	import {
+		GET_PROJECT,
+		GET_IMAGES,
+		CREATE_IMAGE,
+		DELETE_IMAGE,
+		GET_TASKS
+	} from '$lib/graphql/queries';
+	import type { Project, Image, Task } from '$lib/graphql/types';
 	import Navigation from '$lib/components/Navigation.svelte';
 
 	let project: Project | null = $state(null);
 	let images: Image[] = $state([]);
+	let tasks: Task[] = $state([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let imagesLoading = $state(false);
@@ -29,6 +36,7 @@
 		if (projectId) {
 			loadProject(projectId);
 			loadImages();
+			loadTasks();
 		}
 	});
 
@@ -152,6 +160,26 @@
 			deleteImageLoading = false;
 		}
 	}
+
+	async function loadTasks() {
+		try {
+			const result = await client.query(GET_TASKS, { limit: 100, offset: 0 }).toPromise();
+			if (result.data?.tasks) {
+				tasks = result.data.tasks.objects;
+			}
+		} catch (err) {
+			console.error('Error loading tasks:', err);
+		}
+	}
+
+	function getImageAnnotationCount(imageId: string): number {
+		const imageTask = tasks.find((task) => task.image.id === imageId);
+		return imageTask ? imageTask.bboxes.length : 0;
+	}
+
+	function hasAnnotations(imageId: string): boolean {
+		return getImageAnnotationCount(imageId) > 0;
+	}
 </script>
 
 <svelte:head>
@@ -238,6 +266,16 @@
 							<div class="image-card">
 								<div class="image-container">
 									<img src={image.url} alt="Project image" loading="lazy" />
+									{#if hasAnnotations(image.id)}
+										<div class="annotation-status">
+											<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+												<path
+													d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm3.78-9.72a.75.75 0 0 0-1.06-1.06L6.5 9.44 5.28 8.22a.75.75 0 0 0-1.06 1.06l1.75 1.75a.75.75 0 0 0 1.06 0l4.75-4.75z"
+												/>
+											</svg>
+											{getImageAnnotationCount(image.id)}
+										</div>
+									{/if}
 									<div class="image-overlay">
 										<button
 											class="delete-image-button"
@@ -258,6 +296,20 @@
 								</div>
 								<div class="image-info">
 									<p class="image-url">{image.url}</p>
+									<div class="image-actions">
+										<a href="/projects/{project.id}/annotate" class="annotate-button">
+											<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+												<path
+													d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"
+												/>
+												<path
+													fill-rule="evenodd"
+													d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"
+												/>
+											</svg>
+											{hasAnnotations(image.id) ? 'Edit Annotations' : 'Add Annotations'}
+										</a>
+									</div>
 								</div>
 							</div>
 						{/each}
@@ -663,8 +715,48 @@
 	.image-url {
 		color: #64748b;
 		font-size: 0.875rem;
-		margin: 0;
+		margin: 0 0 0.75rem 0;
 		word-break: break-all;
+	}
+
+	.image-actions {
+		display: flex;
+		justify-content: flex-end;
+	}
+
+	.annotate-button {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.5rem 1rem;
+		background-color: #10b981;
+		color: white;
+		text-decoration: none;
+		border-radius: 6px;
+		font-size: 0.875rem;
+		font-weight: 500;
+		transition: background-color 0.2s;
+	}
+
+	.annotate-button:hover {
+		background-color: #059669;
+	}
+
+	.annotation-status {
+		position: absolute;
+		top: 0.5rem;
+		right: 0.5rem;
+		background: rgba(16, 185, 129, 0.9);
+		color: white;
+		padding: 0.25rem 0.5rem;
+		border-radius: 12px;
+		font-size: 0.75rem;
+		font-weight: 600;
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		backdrop-filter: blur(4px);
+		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 	}
 
 	/* Modal Styles */

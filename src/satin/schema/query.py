@@ -2,7 +2,7 @@ import strawberry
 
 from satin.schema.image import Image, get_all_images, get_image
 from satin.schema.project import Project, get_all_projects, get_project
-from satin.schema.task import Task, get_all_tasks, get_task
+from satin.schema.task import Task, get_all_tasks, get_task, get_task_by_image_and_project
 
 
 @strawberry.type
@@ -54,3 +54,8 @@ class Query:
         tasks = await get_all_tasks(limit=limit, offset=offset)
 
         return Page(objects=tasks, count=len(tasks), limit=limit, offset=offset)
+
+    @strawberry.field
+    async def task_by_image_and_project(self, image_id: strawberry.ID, project_id: strawberry.ID) -> Task | None:
+        """Get a task by image and project IDs."""
+        return await get_task_by_image_and_project(image_id, project_id)
