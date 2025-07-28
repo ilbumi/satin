@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/ilbumi/satin/compare/v1.0.0...v1.1.0) (2025-07-28)
+
+
+### Features
+
+* add and delete images ([f72b8ad](https://github.com/ilbumi/satin/commit/f72b8add90b2901a1f108cc41de78ab1b00dc884))
+
 # 1.0.0 (2025-07-28)
 
 
