@@ -1,5 +1,6 @@
 <script lang="ts">
 	import AnnotationWorkspace from '$lib/components/AnnotationWorkspace.svelte';
+	import Navigation from '$lib/components/Navigation.svelte';
 </script>
 
 <svelte:head>
@@ -10,6 +11,7 @@
 	/>
 </svelte:head>
 
+<Navigation />
 <AnnotationWorkspace />
 
 <style>

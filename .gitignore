@@ -8,3 +8,15 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Environment variables
+.env
+
+# Local development files
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Development notes
+*DE.md
