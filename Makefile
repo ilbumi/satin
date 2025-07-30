@@ -17,17 +17,30 @@ test:
 	cd frontend && pnpm test
 
 .PHONY: format
-format:
+format: format-backend format-frontend
+
+.PHONY: format-backend
+format-backend:
 	uv run ssort ${PYCODE_PATHS}
 	uv run isort ${PYCODE_PATHS}
 	uv run ruff format ${PYCODE_PATHS} ${PYTESTS_PATH}
 	uv run ruff check --fix ${PYCODE_PATHS} ${PYTESTS_PATH}
 
+.PHONY: format-frontend
+format-frontend:
+	cd frontend && pnpm run format
 
 .PHONY: lint
-lint:
+lint: lint-backend lint-frontend
+
+.PHONY: lint-backend
+lint-backend:
 	uv run ruff check ${PYCODE_PATHS} ${PYTESTS_PATH}
 	uv run mypy ${PYCODE_PATHS}
+
+.PHONY: lint-frontend
+lint-frontend:
+	cd frontend && pnpm run lint
 
 .PHONY: sync
 sync:
