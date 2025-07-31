@@ -2,6 +2,9 @@ from enum import Enum
 
 import strawberry
 
+MAX_LIMIT = 1000
+MAX_FILTERS_PER_TYPE = 20
+
 
 @strawberry.enum
 class SortDirection(Enum):
@@ -96,3 +99,29 @@ class QueryInput:
     sorts: list[SortInput] | None = None
     limit: int = 10
     offset: int = 0
+
+    def __post_init__(self) -> None:
+        """Validate query input constraints."""
+        if self.limit and self.limit > MAX_LIMIT:
+            msg = f"Limit cannot exceed {MAX_LIMIT}"
+            raise ValueError(msg)
+
+        if self.limit and self.limit < 0:
+            msg = "Limit cannot be negative"
+            raise ValueError(msg)
+
+        if self.offset < 0:
+            msg = "Offset cannot be negative"
+            raise ValueError(msg)
+
+        # Count total filters
+        filter_counts = [
+            len(self.number_filters or []),
+            len(self.string_filters or []),
+            len(self.list_filters or []),
+            len(self.sorts or []),
+        ]
+
+        if any(count > MAX_FILTERS_PER_TYPE for count in filter_counts):
+            msg = f"Too many filters/sorts specified (max {MAX_FILTERS_PER_TYPE} per type)"
+            raise ValueError(msg)

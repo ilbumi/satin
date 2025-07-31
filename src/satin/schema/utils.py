@@ -6,6 +6,20 @@ from bson import ObjectId
 
 from satin.schema.filters import ListFilterOperator, NumberFilterOperator, StringFilterOperator
 
+MAX_PATTERN_LENGTH = 1000
+DANGEROUS_PATTERNS = [
+    r"\(\?\#",  # Comment groups can cause issues
+    r"\(\?\<\!",  # Negative lookbehind
+    r"\(\?\<\=",  # Positive lookbehind
+    r"\(\?\!",  # Negative lookahead
+    r"\(\?\=",  # Positive lookahead
+    r"(?#",  # Simplified dangerous patterns
+    r"(?<!",
+    r"(?<=",
+    r"(?!",
+    r"(?=",
+]
+
 
 def get_model_fields(model_class: type) -> dict[str, type]:
     """Get all fields and their types for a Strawberry model."""
@@ -71,13 +85,38 @@ def _build_number_filter(field: str, operator: NumberFilterOperator, value: Any)
     raise ValueError(msg)
 
 
+def _validate_regex_pattern(pattern: str) -> None:
+    """Validate regex pattern for security and performance."""
+    if len(pattern) > MAX_PATTERN_LENGTH:
+        msg = f"Regex pattern too long (max {MAX_PATTERN_LENGTH} characters)"
+        raise ValueError(msg)
+
+    for dangerous in DANGEROUS_PATTERNS:
+        if dangerous in pattern:
+            msg = "Regex pattern contains potentially dangerous constructs"
+            raise ValueError(msg)
+
+    # Test compile to catch syntax errors
+    try:
+        re.compile(pattern)
+    except re.error as e:
+        msg = f"Invalid regex pattern: {e}"
+        raise ValueError(msg) from e
+
+
 def _build_string_filter(field: str, operator: StringFilterOperator, value: Any) -> dict[str, Any]:
     """Build MongoDB filter condition for string fields."""
+    str_value = str(value)
+
+    # Validate regex patterns for security
+    if operator == StringFilterOperator.REGEX:
+        _validate_regex_pattern(str_value)
+
     regex_operators = {
-        StringFilterOperator.CONTAINS: {"$regex": re.escape(str(value)), "$options": "i"},
-        StringFilterOperator.STARTS_WITH: {"$regex": f"^{re.escape(str(value))}", "$options": "i"},
-        StringFilterOperator.ENDS_WITH: {"$regex": f"{re.escape(str(value))}$", "$options": "i"},
-        StringFilterOperator.REGEX: {"$regex": str(value)},
+        StringFilterOperator.CONTAINS: {"$regex": re.escape(str_value), "$options": "i"},
+        StringFilterOperator.STARTS_WITH: {"$regex": f"^{re.escape(str_value)}", "$options": "i"},
+        StringFilterOperator.ENDS_WITH: {"$regex": f"{re.escape(str_value)}$", "$options": "i"},
+        StringFilterOperator.REGEX: {"$regex": str_value},
     }
     list_operators = {StringFilterOperator.IN: "$in", StringFilterOperator.NIN: "$nin"}
     if operator in regex_operators:
@@ -127,7 +166,5 @@ def build_mongodb_filter_condition(
 
 def build_mongodb_sort_condition(field: str, direction: str) -> tuple[str, int]:
     """Build MongoDB sort condition from sort input."""
-    sort_direction = 1 if direction.lower() == "asc" else -1
-    return (field, sort_direction)
     sort_direction = 1 if direction.lower() == "asc" else -1
     return (field, sort_direction)
