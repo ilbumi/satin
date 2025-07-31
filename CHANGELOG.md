@@ -1,3 +1,11 @@
+# [1.2.0](https://github.com/ilbumi/satin/compare/v1.1.0...v1.2.0) (2025-07-31)
+
+
+### Features
+
+* better pagination ([290d461](https://github.com/ilbumi/satin/commit/290d461e38c0fd34e14a670ec3fe68f13a3666cb))
+* finalize annotation ([6fdfd7d](https://github.com/ilbumi/satin/commit/6fdfd7dde2bb16130ad59c8374a7bc868a8a6fa0))
+
 # [1.1.0](https://github.com/ilbumi/satin/compare/v1.0.0...v1.1.0) (2025-07-28)
 
 
