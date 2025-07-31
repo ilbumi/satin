@@ -2,6 +2,7 @@ import strawberry
 
 from satin.db import db
 from satin.repositories import RepositoryFactory
+from satin.schema.filters import QueryInput
 from satin.schema.image import Image
 from satin.schema.project import Project
 from satin.schema.task import Task
@@ -32,12 +33,25 @@ class Query:
         return await repo_factory.project_repo.get_project(id)
 
     @strawberry.field
-    async def projects(self, limit: int = 10, offset: int = 0) -> Page[Project]:
-        """Get paginated projects."""
+    async def projects(self, limit: int = 10, offset: int = 0, query: QueryInput | None = None) -> Page[Project]:
+        """Get paginated projects with optional filtering and sorting."""
+        # Use query input if provided, otherwise use legacy parameters
+        if query:
+            projects = await repo_factory.project_repo.get_all_projects(query_input=query)
+            total_count = await repo_factory.project_repo.count_all_projects(query_input=query)
+            has_more = query.offset + len(projects) < total_count
+            return Page(
+                objects=projects,
+                total_count=total_count,
+                count=len(projects),
+                limit=query.limit,
+                offset=query.offset,
+                has_more=has_more,
+            )
+        # Legacy behavior for backward compatibility
         projects = await repo_factory.project_repo.get_all_projects(limit=limit, offset=offset)
         total_count = await repo_factory.project_repo.count_all_projects()
         has_more = offset + len(projects) < total_count
-
         return Page(
             objects=projects,
             total_count=total_count,
@@ -53,12 +67,25 @@ class Query:
         return await repo_factory.image_repo.get_image(id)
 
     @strawberry.field
-    async def images(self, limit: int = 10, offset: int = 0) -> Page[Image]:
-        """Get paginated images."""
+    async def images(self, limit: int = 10, offset: int = 0, query: QueryInput | None = None) -> Page[Image]:
+        """Get paginated images with optional filtering and sorting."""
+        # Use query input if provided, otherwise use legacy parameters
+        if query:
+            images = await repo_factory.image_repo.get_all_images(query_input=query)
+            total_count = await repo_factory.image_repo.count_all_images(query_input=query)
+            has_more = query.offset + len(images) < total_count
+            return Page(
+                objects=images,
+                total_count=total_count,
+                count=len(images),
+                limit=query.limit,
+                offset=query.offset,
+                has_more=has_more,
+            )
+        # Legacy behavior for backward compatibility
         images = await repo_factory.image_repo.get_all_images(limit=limit, offset=offset)
         total_count = await repo_factory.image_repo.count_all_images()
         has_more = offset + len(images) < total_count
-
         return Page(
             objects=images,
             total_count=total_count,
@@ -74,12 +101,25 @@ class Query:
         return await repo_factory.task_repo.get_task(id)
 
     @strawberry.field
-    async def tasks(self, limit: int = 10, offset: int = 0) -> Page[Task]:
-        """Get paginated tasks."""
+    async def tasks(self, limit: int = 10, offset: int = 0, query: QueryInput | None = None) -> Page[Task]:
+        """Get paginated tasks with optional filtering and sorting."""
+        # Use query input if provided, otherwise use legacy parameters
+        if query:
+            tasks = await repo_factory.task_repo.get_all_tasks(query_input=query)
+            total_count = await repo_factory.task_repo.count_all_tasks(query_input=query)
+            has_more = query.offset + len(tasks) < total_count
+            return Page(
+                objects=tasks,
+                total_count=total_count,
+                count=len(tasks),
+                limit=query.limit,
+                offset=query.offset,
+                has_more=has_more,
+            )
+        # Legacy behavior for backward compatibility
         tasks = await repo_factory.task_repo.get_all_tasks(limit=limit, offset=offset)
         total_count = await repo_factory.task_repo.count_all_tasks()
         has_more = offset + len(tasks) < total_count
-
         return Page(
             objects=tasks,
             total_count=total_count,

@@ -470,3 +470,204 @@ class TestSchemaValidation:
 
         assert data is None
         assert errors is not None
+
+
+class TestUniversalQuerySchema:
+    """Test GraphQL schema for universal query types."""
+
+    async def test_query_input_type_exists(self, monkeypatch: pytest.MonkeyPatch):
+        """Test that QueryInput type is properly defined."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
+        # Test introspection query for QueryInput type
+        query = """
+        query {
+            __type(name: "QueryInput") {
+                name
+                kind
+                fields {
+                    name
+                    type {
+                        name
+                        kind
+                    }
+                }
+            }
+        }
+        """
+
+        result = gql.query(query)
+        query_input_type = result["__type"]
+
+        assert query_input_type["name"] == "QueryInput"
+        assert query_input_type["kind"] == "INPUT_OBJECT"
+
+    async def test_filter_operator_enums_exist(self, monkeypatch: pytest.MonkeyPatch):
+        """Test that filter operator enums are properly defined."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
+        # Test StringFilterOperator enum
+        query = """
+        query {
+            __type(name: "StringFilterOperator") {
+                name
+                kind
+                enumValues {
+                    name
+                }
+            }
+        }
+        """
+
+        result = gql.query(query)
+        enum_type = result["__type"]
+
+        assert enum_type["name"] == "StringFilterOperator"
+        assert enum_type["kind"] == "ENUM"
+
+        enum_values = [value["name"] for value in enum_type["enumValues"]]
+        assert "CONTAINS" in enum_values
+        assert "STARTS_WITH" in enum_values
+        assert "ENDS_WITH" in enum_values
+        assert "EQ" in enum_values
+        assert "NE" in enum_values
+
+        # Test NumberFilterOperator enum
+        query = """
+        query {
+            __type(name: "NumberFilterOperator") {
+                name
+                kind
+                enumValues {
+                    name
+                }
+            }
+        }
+        """
+
+        result = gql.query(query)
+        enum_type = result["__type"]
+
+        assert enum_type["name"] == "NumberFilterOperator"
+        assert enum_type["kind"] == "ENUM"
+
+        enum_values = [value["name"] for value in enum_type["enumValues"]]
+        assert "EQ" in enum_values
+        assert "GT" in enum_values
+        assert "LT" in enum_values
+        assert "GTE" in enum_values
+        assert "LTE" in enum_values
+
+    async def test_sort_direction_enum(self, monkeypatch: pytest.MonkeyPatch):
+        """Test that SortDirection enum is properly defined."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
+        query = """
+        query {
+            __type(name: "SortDirection") {
+                name
+                kind
+                enumValues {
+                    name
+                }
+            }
+        }
+        """
+
+        result = gql.query(query)
+        enum_type = result["__type"]
+
+        assert enum_type["name"] == "SortDirection"
+        assert enum_type["kind"] == "ENUM"
+
+        enum_values = [value["name"] for value in enum_type["enumValues"]]
+        assert "ASC" in enum_values
+        assert "DESC" in enum_values
+
+    async def test_projects_query_accepts_query_input(self, monkeypatch: pytest.MonkeyPatch):
+        """Test that projects query accepts QueryInput parameter."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
+        # Test introspection of projects field
+        query = """
+        query {
+            __type(name: "Query") {
+                fields {
+                    name
+                    args {
+                        name
+                        type {
+                            name
+                            kind
+                        }
+                    }
+                }
+            }
+        }
+        """
+
+        result = gql.query(query)
+        query_type = result["__type"]
+
+        # Find the projects field
+        projects_field = None
+        for field in query_type["fields"]:
+            if field["name"] == "projects":
+                projects_field = field
+                break
+
+        assert projects_field is not None
+
+        # Check that it has query argument
+        arg_names = [arg["name"] for arg in projects_field["args"]]
+        assert "query" in arg_names
+        assert "limit" in arg_names  # Legacy compatibility
+        assert "offset" in arg_names  # Legacy compatibility
+
+    async def test_images_and_tasks_query_accept_query_input(self, monkeypatch: pytest.MonkeyPatch):
+        """Test that images and tasks queries accept QueryInput parameter."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
+        query = """
+        query {
+            __type(name: "Query") {
+                fields {
+                    name
+                    args {
+                        name
+                        type {
+                            name
+                        }
+                    }
+                }
+            }
+        }
+        """
+
+        result = gql.query(query)
+        query_type = result["__type"]
+
+        # Check images field
+        images_field = None
+        tasks_field = None
+
+        for field in query_type["fields"]:
+            if field["name"] == "images":
+                images_field = field
+            elif field["name"] == "tasks":
+                tasks_field = field
+
+        assert images_field is not None
+        assert tasks_field is not None
+
+        # Check that both have query argument
+        images_args = [arg["name"] for arg in images_field["args"]]
+        tasks_args = [arg["name"] for arg in tasks_field["args"]]
+
+        assert "query" in images_args
+        assert "query" in tasks_args
