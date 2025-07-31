@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    branches: [ "main-dev" ]
+    branches: [ "main" ]
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
@@ -16,7 +16,7 @@ permissions:
 
 env:
   PYTHON_VERSION: '3.13'
-  NODE_VERSION: '22'
+  NODE_VERSION: '24'
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 

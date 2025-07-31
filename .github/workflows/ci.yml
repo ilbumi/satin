@@ -2,14 +2,14 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
   workflow_dispatch:
 
 env:
   PYTHON_VERSION: '3.13'
-  NODE_VERSION: '22'
+  NODE_VERSION: '24'
   UV_VERSION: '0.8.3'
 
 jobs:
@@ -31,12 +31,15 @@ jobs:
               - 'tests/**'
               - 'pyproject.toml'
               - 'uv.lock'
+              - '.github/**'
             frontend:
               - 'frontend/**'
+              - '.github/**'
             docker:
               - 'docker/**'
               - 'docker-compose*.yml'
               - '.dockerignore'
+              - '.github/**'
 
   backend:
     runs-on: ubuntu-latest
