@@ -3,18 +3,18 @@ SHELL=bash
 PYCODE_PATHS=src/
 PYTESTS_PATH=tests/
 
-.PHONY: start_mongo
-start_mongo:
-	docker run --name mongo-test -d mongo
-
-.PHONY: stop_mongo
-stop_mongo:
-	docker stop mongo-test && docker rm mongo-test
-
 .PHONY: test
 test:
 	uv run pytest -n 5 --cov .
-	cd frontend && pnpm test
+	cd frontend && pnpm test --browser.headless
+
+.PHONY: launch_backend
+launch_backend:
+	granian --interface asgi --host 0.0.0.0 --port 8000 --reload satin:app
+
+.PHONY: launch_frontend
+launch_frontend:
+	cd frontend && pnpm run dev --host 0.0.0.0
 
 .PHONY: format
 format: format-backend format-frontend

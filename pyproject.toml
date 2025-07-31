@@ -21,6 +21,7 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
+    "granian[reload]>=2.4.2",
     "httpx>=0.28.1",
     "hypothesis>=6.136.4",
     "isort>=6.0.1",

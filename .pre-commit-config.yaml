@@ -12,7 +12,6 @@ repos:
       - id: check-added-large-files
         args: [--maxkb=1000]
       - id: check-case-conflict
-      - id: check-executables-have-shebangs
       - id: check-shebang-scripts-are-executable
 
   # Python formatting and linting

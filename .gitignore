@@ -9,6 +9,7 @@ wheels/
 
 # Cache and temporary files
 .cache/
+.pnpm-store/
 
 # Virtual environments
 .venv
