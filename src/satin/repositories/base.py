@@ -54,6 +54,12 @@ class BaseRepository[T](ABC):
 
         return results
 
+    async def count_all(self, filter_query: dict[str, Any] | None = None) -> int:
+        """Count total documents in the collection."""
+        if filter_query is None:
+            filter_query = {}
+        return await self.collection.count_documents(filter_query)
+
     async def create(self, data: dict[str, Any]) -> dict[str, Any]:
         """Create a new document."""
         result = await self.collection.insert_one(data)

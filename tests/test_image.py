@@ -156,3 +156,29 @@ class TestImageFunctions:
 
         deleted = await image_repo.delete_image("507f1f77bcf86cd799439011")
         assert deleted is False
+
+    async def test_count_all_images(self):
+        """Test counting all images."""
+        db, client = await DatabaseFactory.create_test_db()
+        image_repo = ImageRepository(db)
+
+        # Initially should be 0
+        count = await image_repo.count_all_images()
+        assert count == 0
+
+        # Create some images
+        await image_repo.create_image("https://example.com/image1.jpg")
+        await image_repo.create_image("https://example.com/image2.jpg")
+        await image_repo.create_image("https://example.com/image3.jpg")
+
+        # Should now be 3
+        count = await image_repo.count_all_images()
+        assert count == 3
+
+        # Delete one image
+        images = await image_repo.get_all_images()
+        await image_repo.delete_image(images[0].id)
+
+        # Should now be 2
+        count = await image_repo.count_all_images()
+        assert count == 2

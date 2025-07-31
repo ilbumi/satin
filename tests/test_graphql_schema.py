@@ -138,7 +138,7 @@ class TestSchemaIntrospection:
         assert page_type["kind"] == "OBJECT"
 
         field_names = {field["name"] for field in page_type["fields"]}
-        expected_fields = {"objects", "count", "limit", "offset"}
+        expected_fields = {"objects", "totalCount", "count", "limit", "offset", "hasMore"}
         assert expected_fields.issubset(field_names)
 
     async def test_bbox_input_type(self, monkeypatch: pytest.MonkeyPatch):

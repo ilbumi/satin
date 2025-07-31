@@ -49,3 +49,7 @@ class ImageRepository(BaseRepository[Image]):
     async def delete_image(self, image_id: strawberry.ID) -> bool:
         """Delete an image from the database."""
         return await self.delete_by_id(image_id)
+
+    async def count_all_images(self) -> int:
+        """Count total number of images."""
+        return await self.count_all()

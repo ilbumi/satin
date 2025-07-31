@@ -53,3 +53,7 @@ class ProjectRepository(BaseRepository[Project]):
     async def delete_project(self, project_id: strawberry.ID) -> bool:
         """Delete a project from the database."""
         return await self.delete_by_id(project_id)
+
+    async def count_all_projects(self) -> int:
+        """Count total number of projects."""
+        return await self.count_all()

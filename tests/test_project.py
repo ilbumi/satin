@@ -187,3 +187,29 @@ class TestProjectFunctions:
 
         deleted = await project_repo.delete_project("507f1f77bcf86cd799439011")
         assert deleted is False
+
+    async def test_count_all_projects(self):
+        """Test counting all projects."""
+        db, client = await DatabaseFactory.create_test_db()
+        project_repo = ProjectRepository(db)
+
+        # Initially should be 0
+        count = await project_repo.count_all_projects()
+        assert count == 0
+
+        # Create some projects
+        await project_repo.create_project("Project 1", "Description 1")
+        await project_repo.create_project("Project 2", "Description 2")
+        await project_repo.create_project("Project 3", "Description 3")
+
+        # Should now be 3
+        count = await project_repo.count_all_projects()
+        assert count == 3
+
+        # Delete one project
+        projects = await project_repo.get_all_projects()
+        await project_repo.delete_project(projects[0].id)
+
+        # Should now be 2
+        count = await project_repo.count_all_projects()
+        assert count == 2

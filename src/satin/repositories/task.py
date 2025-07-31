@@ -239,3 +239,7 @@ class TaskRepository(BaseRepository[Task]):
 
             return await self.to_domain_object(task_data)
         return None
+
+    async def count_all_tasks(self) -> int:
+        """Count total number of tasks."""
+        return await self.count_all()

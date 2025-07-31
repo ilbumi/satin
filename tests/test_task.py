@@ -259,3 +259,35 @@ class TestTaskFunctions:
         task_repo = TaskRepository(db)
         deleted = await task_repo.delete_task("507f1f77bcf86cd799439011")
         assert deleted is False
+
+    async def test_count_all_tasks(self):
+        """Test counting all tasks."""
+        db, client = await DatabaseFactory.create_test_db()
+        task_repo = TaskRepository(db)
+        image_repo = ImageRepository(db)
+        project_repo = ProjectRepository(db)
+
+        # Initially should be 0
+        count = await task_repo.count_all_tasks()
+        assert count == 0
+
+        # Create dependencies
+        image = await get_sample_image(image_repo)
+        project = await get_sample_project(project_repo)
+
+        # Create some tasks
+        await task_repo.create_task(image.id, project.id, status=TaskStatus.DRAFT)
+        await task_repo.create_task(image.id, project.id, status=TaskStatus.FINISHED)
+        await task_repo.create_task(image.id, project.id, status=TaskStatus.REVIEWED)
+
+        # Should now be 3
+        count = await task_repo.count_all_tasks()
+        assert count == 3
+
+        # Delete one task
+        tasks = await task_repo.get_all_tasks()
+        await task_repo.delete_task(tasks[0].id)
+
+        # Should now be 2
+        count = await task_repo.count_all_tasks()
+        assert count == 2

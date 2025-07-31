@@ -101,9 +101,11 @@ class TestProjectQueries:
                     name
                     description
                 }
+                totalCount
                 count
                 limit
                 offset
+                hasMore
             }
         }
         """
@@ -114,8 +116,10 @@ class TestProjectQueries:
 
         assert len(projects_page["objects"]) == 3
         assert projects_page["count"] == 3
+        assert projects_page["totalCount"] == 5
         assert projects_page["limit"] == 3
         assert projects_page["offset"] == 0
+        assert projects_page["hasMore"] is True
 
         # Second page
         result = gql.query(query, {"limit": 3, "offset": 3})
@@ -123,8 +127,10 @@ class TestProjectQueries:
 
         assert len(projects_page["objects"]) == 2
         assert projects_page["count"] == 2
+        assert projects_page["totalCount"] == 5
         assert projects_page["limit"] == 3
         assert projects_page["offset"] == 3
+        assert projects_page["hasMore"] is False
 
     async def test_query_projects_empty(self, monkeypatch: pytest.MonkeyPatch):
         """Test querying projects when none exist."""
@@ -138,7 +144,9 @@ class TestProjectQueries:
                     id
                     name
                 }
+                totalCount
                 count
+                hasMore
             }
         }
         """
@@ -148,6 +156,8 @@ class TestProjectQueries:
 
         assert projects_page["objects"] == []
         assert projects_page["count"] == 0
+        assert projects_page["totalCount"] == 0
+        assert projects_page["hasMore"] is False
 
 
 class TestImageQueries:
@@ -222,9 +232,11 @@ class TestImageQueries:
                     id
                     url
                 }
+                totalCount
                 count
                 limit
                 offset
+                hasMore
             }
         }
         """
@@ -234,8 +246,10 @@ class TestImageQueries:
 
         assert len(images_page["objects"]) == 2
         assert images_page["count"] == 2
+        assert images_page["totalCount"] == 4
         assert images_page["limit"] == 2
         assert images_page["offset"] == 0
+        assert images_page["hasMore"] is True
 
 
 class TestTaskQueries:
@@ -400,9 +414,11 @@ class TestTaskQueries:
                     image { id }
                     project { id }
                 }
+                totalCount
                 count
                 limit
                 offset
+                hasMore
             }
         }
         """
@@ -412,8 +428,10 @@ class TestTaskQueries:
 
         assert len(tasks_page["objects"]) == 2
         assert tasks_page["count"] == 2
+        assert tasks_page["totalCount"] == 3
         assert tasks_page["limit"] == 2
         assert tasks_page["offset"] == 0
+        assert tasks_page["hasMore"] is True
 
         # Verify all tasks have required nested objects
         for task in tasks_page["objects"]:
@@ -481,3 +499,224 @@ class TestTaskQueries:
         assert "image" not in task
         assert "bboxes" not in task
         assert "createdAt" not in task
+
+
+class TestPaginationEdgeCases:
+    """Test edge cases for pagination functionality."""
+
+    async def test_pagination_offset_beyond_total(self, monkeypatch: pytest.MonkeyPatch):
+        """Test pagination when offset is beyond total items."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        test_data = TestDataFactory()
+
+        # Create only 3 projects
+        create_mutation = """
+        mutation CreateProject($name: String!, $description: String!) {
+            createProject(name: $name, description: $description) { id }
+        }
+        """
+
+        for i in range(3):
+            project_input = test_data.create_project_input(f"Project {i}", f"Description {i}")
+            gql.mutate(create_mutation, project_input)
+
+        # Query with offset beyond total
+        query = """
+        query GetProjects($limit: Int!, $offset: Int!) {
+            projects(limit: $limit, offset: $offset) {
+                objects { id name }
+                totalCount
+                count
+                limit
+                offset
+                hasMore
+            }
+        }
+        """
+
+        result = gql.query(query, {"limit": 5, "offset": 10})
+        projects_page = result["projects"]
+
+        assert len(projects_page["objects"]) == 0
+        assert projects_page["count"] == 0
+        assert projects_page["totalCount"] == 3
+        assert projects_page["limit"] == 5
+        assert projects_page["offset"] == 10
+        assert projects_page["hasMore"] is False
+
+    async def test_pagination_limit_larger_than_total(self, monkeypatch: pytest.MonkeyPatch):
+        """Test pagination when limit is larger than total items."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        test_data = TestDataFactory()
+
+        # Create only 3 images
+        create_mutation = """
+        mutation CreateImage($url: String!) {
+            createImage(url: $url) { id }
+        }
+        """
+
+        for i in range(3):
+            image_input = test_data.create_image_input(f"https://example.com/image-{i}.jpg")
+            gql.mutate(create_mutation, image_input)
+
+        # Query with limit larger than total
+        query = """
+        query GetImages($limit: Int!, $offset: Int!) {
+            images(limit: $limit, offset: $offset) {
+                objects { id url }
+                totalCount
+                count
+                limit
+                offset
+                hasMore
+            }
+        }
+        """
+
+        result = gql.query(query, {"limit": 10, "offset": 0})
+        images_page = result["images"]
+
+        assert len(images_page["objects"]) == 3
+        assert images_page["count"] == 3
+        assert images_page["totalCount"] == 3
+        assert images_page["limit"] == 10
+        assert images_page["offset"] == 0
+        assert images_page["hasMore"] is False
+
+    async def test_pagination_exact_page_boundary(self, monkeypatch: pytest.MonkeyPatch):
+        """Test pagination at exact page boundaries."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        test_data = TestDataFactory()
+
+        # Create exactly 6 projects (2 pages of 3)
+        create_mutation = """
+        mutation CreateProject($name: String!, $description: String!) {
+            createProject(name: $name, description: $description) { id }
+        }
+        """
+
+        for i in range(6):
+            project_input = test_data.create_project_input(f"Project {i}", f"Description {i}")
+            gql.mutate(create_mutation, project_input)
+
+        query = """
+        query GetProjects($limit: Int!, $offset: Int!) {
+            projects(limit: $limit, offset: $offset) {
+                objects { id name }
+                totalCount
+                count
+                hasMore
+            }
+        }
+        """
+
+        # First page (0-2)
+        result = gql.query(query, {"limit": 3, "offset": 0})
+        page = result["projects"]
+        assert len(page["objects"]) == 3
+        assert page["totalCount"] == 6
+        assert page["hasMore"] is True
+
+        # Second page (3-5) - exact boundary
+        result = gql.query(query, {"limit": 3, "offset": 3})
+        page = result["projects"]
+        assert len(page["objects"]) == 3
+        assert page["totalCount"] == 6
+        assert page["hasMore"] is False
+
+        # Third page (6+) - beyond boundary
+        result = gql.query(query, {"limit": 3, "offset": 6})
+        page = result["projects"]
+        assert len(page["objects"]) == 0
+        assert page["totalCount"] == 6
+        assert page["hasMore"] is False
+
+    async def test_pagination_zero_limit(self, monkeypatch: pytest.MonkeyPatch):
+        """Test pagination with zero limit."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        test_data = TestDataFactory()
+
+        # Create some projects
+        create_mutation = """
+        mutation CreateProject($name: String!, $description: String!) {
+            createProject(name: $name, description: $description) { id }
+        }
+        """
+
+        for i in range(3):
+            project_input = test_data.create_project_input(f"Project {i}", f"Description {i}")
+            gql.mutate(create_mutation, project_input)
+
+        query = """
+        query GetProjects($limit: Int!, $offset: Int!) {
+            projects(limit: $limit, offset: $offset) {
+                objects { id name }
+                totalCount
+                count
+                hasMore
+            }
+        }
+        """
+
+        # Query with zero limit
+        result = gql.query(query, {"limit": 0, "offset": 0})
+        page = result["projects"]
+
+        assert len(page["objects"]) == 0
+        assert page["count"] == 0
+        assert page["totalCount"] == 3
+        assert page["hasMore"] is True  # Still has more since we didn't fetch any
+
+    async def test_pagination_single_item_pages(self, monkeypatch: pytest.MonkeyPatch):
+        """Test pagination with single item per page."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        test_data = TestDataFactory()
+
+        # Create 3 images
+        create_mutation = """
+        mutation CreateImage($url: String!) {
+            createImage(url: $url) { id }
+        }
+        """
+
+        for i in range(3):
+            image_input = test_data.create_image_input(f"https://example.com/image-{i}.jpg")
+            gql.mutate(create_mutation, image_input)
+
+        query = """
+        query GetImages($limit: Int!, $offset: Int!) {
+            images(limit: $limit, offset: $offset) {
+                objects { id url }
+                totalCount
+                count
+                hasMore
+            }
+        }
+        """
+
+        # Page 1
+        result = gql.query(query, {"limit": 1, "offset": 0})
+        page = result["images"]
+        assert len(page["objects"]) == 1
+        assert page["totalCount"] == 3
+        assert page["hasMore"] is True
+
+        # Page 2
+        result = gql.query(query, {"limit": 1, "offset": 1})
+        page = result["images"]
+        assert len(page["objects"]) == 1
+        assert page["totalCount"] == 3
+        assert page["hasMore"] is True
+
+        # Page 3 (last)
+        result = gql.query(query, {"limit": 1, "offset": 2})
+        page = result["images"]
+        assert len(page["objects"]) == 1
+        assert page["totalCount"] == 3
+        assert page["hasMore"] is False
