@@ -2,12 +2,19 @@
 
 import pytest
 
+from tests.conftest import DatabaseFactory, TestDataFactory
+
 
 class TestProjectMutations:
     """Test GraphQL mutations for projects."""
 
-    def test_create_project(self, gql, test_data):
+    async def test_create_project(self, monkeypatch: pytest.MonkeyPatch):
         """Test creating a project."""
+        # Create test database and GraphQL client in the current event loop
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        test_data = TestDataFactory()
+
         mutation = """
         mutation CreateProject($name: String!, $description: String!) {
             createProject(name: $name, description: $description) {
@@ -26,8 +33,12 @@ class TestProjectMutations:
         assert project["description"] == "A brand new project"
         assert project["id"]
 
-    def test_update_project(self, gql, test_data):
+    async def test_update_project(self, monkeypatch: pytest.MonkeyPatch):
         """Test updating a project."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        test_data = TestDataFactory()
+
         # First create a project
         create_mutation = """
         mutation CreateProject($name: String!, $description: String!) {
@@ -63,8 +74,12 @@ class TestProjectMutations:
         assert updated_project["name"] == "Updated Name"
         assert updated_project["description"] == "Updated Description"
 
-    def test_update_project_partial(self, gql, test_data):
+    async def test_update_project_partial(self, monkeypatch: pytest.MonkeyPatch):
         """Test updating a project with only some fields."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        test_data = TestDataFactory()
+
         # Create a project
         create_mutation = """
         mutation CreateProject($name: String!, $description: String!) {
@@ -97,8 +112,12 @@ class TestProjectMutations:
         assert updated_project["name"] == "New Name Only"
         assert updated_project["description"] == "Original Description"  # Should remain unchanged
 
-    def test_delete_project(self, gql, test_data):
+    async def test_delete_project(self, monkeypatch: pytest.MonkeyPatch):
         """Test deleting a project."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        test_data = TestDataFactory()
+
         # Create a project
         create_mutation = """
         mutation CreateProject($name: String!, $description: String!) {
@@ -134,8 +153,11 @@ class TestProjectMutations:
         query_result = gql.query(query, {"id": project_id})
         assert query_result["project"] is None
 
-    def test_delete_nonexistent_project(self, gql):
+    async def test_delete_nonexistent_project(self, monkeypatch: pytest.MonkeyPatch):
         """Test deleting a project that doesn't exist."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
         delete_mutation = """
         mutation DeleteProject($id: ID!) {
             deleteProject(id: $id)
@@ -149,8 +171,12 @@ class TestProjectMutations:
 class TestImageMutations:
     """Test GraphQL mutations for images."""
 
-    def test_create_image(self, gql, test_data):
+    async def test_create_image(self, monkeypatch: pytest.MonkeyPatch):
         """Test creating an image."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        test_data = TestDataFactory()
+
         mutation = """
         mutation CreateImage($url: String!) {
             createImage(url: $url) {
@@ -167,8 +193,12 @@ class TestImageMutations:
         assert image["url"] == "https://example.com/new-image.jpg"
         assert image["id"]
 
-    def test_update_image(self, gql, test_data):
+    async def test_update_image(self, monkeypatch: pytest.MonkeyPatch):
         """Test updating an image."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        test_data = TestDataFactory()
+
         # Create an image
         create_mutation = """
         mutation CreateImage($url: String!) {
@@ -199,8 +229,12 @@ class TestImageMutations:
         assert updated_image["id"] == image_id
         assert updated_image["url"] == "https://example.com/updated.jpg"
 
-    def test_delete_image(self, gql, test_data):
+    async def test_delete_image(self, monkeypatch: pytest.MonkeyPatch):
         """Test deleting an image."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        test_data = TestDataFactory()
+
         # Create an image
         create_mutation = """
         mutation CreateImage($url: String!) {
@@ -240,9 +274,13 @@ class TestImageMutations:
 class TestTaskMutations:
     """Test GraphQL mutations for tasks."""
 
-    @pytest.fixture
-    def setup_dependencies(self, gql, test_data):
+    @staticmethod
+    async def set_up_dependencies(monkeypatch: pytest.MonkeyPatch):
         """Create project and image for task tests."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        test_data = TestDataFactory()
+
         # Create project
         create_project_mutation = """
         mutation CreateProject($name: String!, $description: String!) {
@@ -273,9 +311,12 @@ class TestTaskMutations:
 
         return {"project_id": project_id, "image_id": image_id}
 
-    def test_create_task(self, gql, test_data, setup_dependencies):
+    async def test_create_task(self, monkeypatch: pytest.MonkeyPatch):
         """Test creating a task."""
-        deps = setup_dependencies
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        test_data = TestDataFactory()
+        deps = await TestTaskMutations.set_up_dependencies(monkeypatch)
 
         mutation = """
         mutation CreateTask($imageId: ID!, $projectId: ID!, $bboxes: [BBoxInput!], $status: TaskStatus!) {
@@ -316,9 +357,11 @@ class TestTaskMutations:
         assert task["bboxes"][0]["annotation"]["text"] == "test object"
         assert task["createdAt"]
 
-    def test_create_task_minimal(self, gql, setup_dependencies):
+    async def test_create_task_minimal(self, monkeypatch: pytest.MonkeyPatch):
         """Test creating a task with minimal data."""
-        deps = setup_dependencies
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        deps = await TestTaskMutations.set_up_dependencies(monkeypatch)
 
         mutation = """
         mutation CreateTask($imageId: ID!, $projectId: ID!) {
@@ -339,9 +382,15 @@ class TestTaskMutations:
         assert task["status"] == "DRAFT"  # Default status
         assert task["bboxes"] == []  # Default empty list
 
-    def test_create_task_with_complex_bboxes(self, gql, test_data, setup_dependencies):
+    async def test_create_task_with_complex_bboxes(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
         """Test creating a task with multiple complex bounding boxes."""
-        deps = setup_dependencies
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        test_data = TestDataFactory()
+        deps = await TestTaskMutations.set_up_dependencies(monkeypatch)
 
         mutation = """
         mutation CreateTask($imageId: ID!, $projectId: ID!, $bboxes: [BBoxInput!]!) {
@@ -386,9 +435,12 @@ class TestTaskMutations:
         assert bbox2["annotation"]["text"] == "car"
         assert "vehicle" in bbox2["annotation"]["tags"]
 
-    def test_update_task(self, gql, test_data, setup_dependencies):
+    async def test_update_task(self, monkeypatch: pytest.MonkeyPatch):
         """Test updating a task."""
-        deps = setup_dependencies
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        test_data = TestDataFactory()
+        deps = await TestTaskMutations.set_up_dependencies(monkeypatch)
 
         # Create a task first
         create_mutation = """
@@ -435,9 +487,11 @@ class TestTaskMutations:
         assert updated_task["bboxes"][0]["x"] == 100
         assert updated_task["bboxes"][0]["annotation"]["text"] == "updated object"
 
-    def test_update_task_status_only(self, gql, setup_dependencies):
+    async def test_update_task_status_only(self, monkeypatch: pytest.MonkeyPatch):
         """Test updating only task status."""
-        deps = setup_dependencies
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        deps = await TestTaskMutations.set_up_dependencies(monkeypatch)
 
         # Create a task
         create_mutation = """
@@ -467,9 +521,11 @@ class TestTaskMutations:
         updated_task = update_result["updateTask"]
         assert updated_task["status"] == "FINISHED"
 
-    def test_delete_task(self, gql, setup_dependencies):
+    async def test_delete_task(self, monkeypatch: pytest.MonkeyPatch):
         """Test deleting a task."""
-        deps = setup_dependencies
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        deps = await TestTaskMutations.set_up_dependencies(monkeypatch)
 
         # Create a task
         create_mutation = """
@@ -505,9 +561,11 @@ class TestTaskMutations:
         query_result = gql.query(query, {"id": task_id})
         assert query_result["task"] is None
 
-    def test_task_status_enum_validation(self, gql, setup_dependencies):
+    async def test_task_status_enum_validation(self, monkeypatch: pytest.MonkeyPatch):
         """Test that TaskStatus enum values are properly validated."""
-        deps = setup_dependencies
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        deps = await TestTaskMutations.set_up_dependencies(monkeypatch)
 
         mutation = """
         mutation CreateTask($imageId: ID!, $projectId: ID!, $status: TaskStatus!) {
@@ -529,8 +587,11 @@ class TestTaskMutations:
             task = result["createTask"]
             assert task["status"] == status
 
-    def test_create_task_invalid_references(self, gql):
+    async def test_create_task_invalid_references(self, monkeypatch: pytest.MonkeyPatch):
         """Test creating a task with invalid project/image references."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
         # First create a task with invalid references
         create_mutation = """
         mutation CreateTask($imageId: ID!, $projectId: ID!) {

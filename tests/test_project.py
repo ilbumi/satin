@@ -1,14 +1,8 @@
-import pytest
 from bson import ObjectId
 
 from satin.repositories import ProjectRepository
 from satin.schema.project import Project
-
-
-@pytest.fixture
-def project_repo(test_db):
-    """Create a ProjectRepository instance for testing."""
-    return ProjectRepository(test_db)
+from tests.conftest import DatabaseFactory
 
 
 class TestProject:
@@ -31,9 +25,11 @@ class TestProject:
 class TestProjectFunctions:
     """Test cases for project database functions."""
 
-    @pytest.mark.asyncio
-    async def test_create_project(self, project_repo):
+    async def test_create_project(self):
         """Test creating a new project."""
+        db, client = await DatabaseFactory.create_test_db()
+        project_repo = ProjectRepository(db)
+
         project = await project_repo.create_project("Test Project", "A test description")
 
         assert project.name == "Test Project"
@@ -46,17 +42,21 @@ class TestProjectFunctions:
         assert stored["name"] == "Test Project"
         assert stored["description"] == "A test description"
 
-    @pytest.mark.asyncio
-    async def test_create_project_with_default_description(self, project_repo):
+    async def test_create_project_with_default_description(self):
         """Test creating a project with default empty description."""
+        db, client = await DatabaseFactory.create_test_db()
+        project_repo = ProjectRepository(db)
+
         project = await project_repo.create_project("Test Project", "")
 
         assert project.name == "Test Project"
         assert project.description == ""
 
-    @pytest.mark.asyncio
-    async def test_get_project(self, project_repo):
+    async def test_get_project(self):
         """Test retrieving a project by ID."""
+        db, client = await DatabaseFactory.create_test_db()
+        project_repo = ProjectRepository(db)
+
         # Create a test project
         created_project = await project_repo.create_project("Test Project", "Test description")
 
@@ -68,15 +68,19 @@ class TestProjectFunctions:
         assert retrieved_project.name == "Test Project"
         assert retrieved_project.description == "Test description"
 
-    @pytest.mark.asyncio
-    async def test_get_project_not_found(self, project_repo):
+    async def test_get_project_not_found(self):
         """Test retrieving a non-existent project."""
+        db, client = await DatabaseFactory.create_test_db()
+        project_repo = ProjectRepository(db)
+
         project = await project_repo.get_project("507f1f77bcf86cd799439011")
         assert project is None
 
-    @pytest.mark.asyncio
-    async def test_get_all_projects(self, project_repo):
+    async def test_get_all_projects(self):
         """Test retrieving all projects."""
+        db, client = await DatabaseFactory.create_test_db()
+        project_repo = ProjectRepository(db)
+
         # Create multiple projects
         await project_repo.create_project("Project 1", "Description 1")
         await project_repo.create_project("Project 2", "Description 2")
@@ -89,16 +93,20 @@ class TestProjectFunctions:
         project_names = {p.name for p in projects}
         assert project_names == {"Project 1", "Project 2", "Project 3"}
 
-    @pytest.mark.asyncio
-    async def test_get_all_projects_empty(self, project_repo):
+    async def test_get_all_projects_empty(self):
         """Test retrieving all projects when none exist."""
+        db, client = await DatabaseFactory.create_test_db()
+        project_repo = ProjectRepository(db)
+
         projects = await project_repo.get_all_projects()
 
         assert len(projects) == 0
 
-    @pytest.mark.asyncio
-    async def test_update_project(self, project_repo):
+    async def test_update_project(self):
         """Test updating a project."""
+        db, client = await DatabaseFactory.create_test_db()
+        project_repo = ProjectRepository(db)
+
         # Create a project
         project = await project_repo.create_project("Original Name", "Original Description")
 
@@ -112,9 +120,11 @@ class TestProjectFunctions:
         assert updated_project.name == "Updated Name"
         assert updated_project.description == "Updated Description"
 
-    @pytest.mark.asyncio
-    async def test_update_project_partial(self, project_repo):
+    async def test_update_project_partial(self):
         """Test updating only some fields of a project."""
+        db, client = await DatabaseFactory.create_test_db()
+        project_repo = ProjectRepository(db)
+
         # Create a project
         project = await project_repo.create_project("Original Name", "Original Description")
 
@@ -127,15 +137,19 @@ class TestProjectFunctions:
         assert updated_project.name == "Updated Name"
         assert updated_project.description == "Original Description"
 
-    @pytest.mark.asyncio
-    async def test_update_project_not_found(self, project_repo):
+    async def test_update_project_not_found(self):
         """Test updating a non-existent project."""
+        db, client = await DatabaseFactory.create_test_db()
+        project_repo = ProjectRepository(db)
+
         success = await project_repo.update_project("507f1f77bcf86cd799439011", name="Updated Name")
         assert success is False
 
-    @pytest.mark.asyncio
-    async def test_update_project_no_changes(self, project_repo):
+    async def test_update_project_no_changes(self):
         """Test updating a project with no actual changes."""
+        db, client = await DatabaseFactory.create_test_db()
+        project_repo = ProjectRepository(db)
+
         # Create a project
         project = await project_repo.create_project("Test Name", "Test Description")
 
@@ -150,9 +164,11 @@ class TestProjectFunctions:
         assert updated_project.name == "Test Name"
         assert updated_project.description == "Test Description"
 
-    @pytest.mark.asyncio
-    async def test_delete_project(self, project_repo):
+    async def test_delete_project(self):
         """Test deleting a project."""
+        db, client = await DatabaseFactory.create_test_db()
+        project_repo = ProjectRepository(db)
+
         # Create a project
         project = await project_repo.create_project("Test Project", "Test Description")
 
@@ -164,8 +180,10 @@ class TestProjectFunctions:
         retrieved = await project_repo.get_project(project.id)
         assert retrieved is None
 
-    @pytest.mark.asyncio
-    async def test_delete_project_not_found(self, project_repo):
+    async def test_delete_project_not_found(self):
         """Test deleting a non-existent project."""
+        db, client = await DatabaseFactory.create_test_db()
+        project_repo = ProjectRepository(db)
+
         deleted = await project_repo.delete_project("507f1f77bcf86cd799439011")
         assert deleted is False

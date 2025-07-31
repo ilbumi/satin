@@ -1,13 +1,18 @@
 """Tests for GraphQL schema introspection and validation."""
 
-from tests.conftest import GraphQLTestClient, TestDataFactory
+import pytest
+
+from tests.conftest import DatabaseFactory, TestDataFactory
 
 
 class TestSchemaIntrospection:
     """Test GraphQL schema introspection queries."""
 
-    def test_schema_query_types(self, gql: GraphQLTestClient):
+    async def test_schema_query_types(self, monkeypatch: pytest.MonkeyPatch):
         """Test that all expected query types are available."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
         query = """
         query IntrospectQuery {
             __schema {
@@ -31,8 +36,11 @@ class TestSchemaIntrospection:
         expected_queries = {"project", "projects", "image", "images", "task", "tasks"}
         assert expected_queries.issubset(query_fields)
 
-    def test_schema_mutation_types(self, gql: GraphQLTestClient):
+    async def test_schema_mutation_types(self, monkeypatch: pytest.MonkeyPatch):
         """Test that all expected mutation types are available."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
         query = """
         query IntrospectMutation {
             __schema {
@@ -66,8 +74,11 @@ class TestSchemaIntrospection:
         }
         assert expected_mutations.issubset(mutation_fields)
 
-    def test_task_status_enum(self, gql: GraphQLTestClient):
+    async def test_task_status_enum(self, monkeypatch: pytest.MonkeyPatch):
         """Test TaskStatus enum definition."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
         query = """
         query IntrospectTaskStatus {
             __type(name: "TaskStatus") {
@@ -91,8 +102,11 @@ class TestSchemaIntrospection:
         expected_values = {"DRAFT", "FINISHED", "REVIEWED"}
         assert enum_values == expected_values
 
-    def test_page_type_structure(self, gql: GraphQLTestClient):
+    async def test_page_type_structure(self, monkeypatch: pytest.MonkeyPatch):
         """Test Page type structure for pagination."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
         # First get all types to find the correct Page type name
         query = """
         query IntrospectAllTypes {
@@ -127,8 +141,11 @@ class TestSchemaIntrospection:
         expected_fields = {"objects", "count", "limit", "offset"}
         assert expected_fields.issubset(field_names)
 
-    def test_bbox_input_type(self, gql: GraphQLTestClient):
+    async def test_bbox_input_type(self, monkeypatch: pytest.MonkeyPatch):
         """Test BBoxInput input type structure."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
         query = """
         query IntrospectBBoxInput {
             __type(name: "BBoxInput") {
@@ -159,8 +176,11 @@ class TestSchemaIntrospection:
         expected_fields = {"x", "y", "width", "height", "annotation"}
         assert expected_fields == field_names
 
-    def test_annotation_input_type(self, gql: GraphQLTestClient):
+    async def test_annotation_input_type(self, monkeypatch: pytest.MonkeyPatch):
         """Test AnnotationInput input type structure."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
         query = """
         query IntrospectAnnotationInput {
             __type(name: "AnnotationInput") {
@@ -191,8 +211,11 @@ class TestSchemaIntrospection:
         expected_fields = {"text", "tags"}
         assert expected_fields == field_names
 
-    def test_task_type_fields(self, gql: GraphQLTestClient):
+    async def test_task_type_fields(self, monkeypatch: pytest.MonkeyPatch):
         """Test Task type field definitions."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
         query = """
         query IntrospectTask {
             __type(name: "Task") {
@@ -223,8 +246,11 @@ class TestSchemaIntrospection:
         expected_fields = {"id", "image", "project", "bboxes", "status", "createdAt"}
         assert expected_fields.issubset(field_names)
 
-    def test_query_field_arguments(self, gql: GraphQLTestClient):
+    async def test_query_field_arguments(self, monkeypatch: pytest.MonkeyPatch):
         """Test that query fields have correct arguments."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
         query = """
         query IntrospectProjectsQuery {
             __schema {
@@ -261,8 +287,11 @@ class TestSchemaIntrospection:
         offset_arg = next(arg for arg in projects_field["args"] if arg["name"] == "offset")
         assert offset_arg["defaultValue"] == "0"
 
-    def test_mutation_field_arguments(self, gql: GraphQLTestClient):
+    async def test_mutation_field_arguments(self, monkeypatch: pytest.MonkeyPatch):
         """Test that mutation fields have correct arguments."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
         query = """
         query IntrospectCreateTaskMutation {
             __schema {
@@ -295,8 +324,11 @@ class TestSchemaIntrospection:
         expected_args = {"imageId", "projectId", "bboxes", "status"}
         assert expected_args.issubset(arg_names)
 
-    def test_scalar_types(self, gql: GraphQLTestClient):
+    async def test_scalar_types(self, monkeypatch: pytest.MonkeyPatch):
         """Test that custom scalar types are properly defined."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
         query = """
         query IntrospectScalars {
             __schema {
@@ -319,8 +351,11 @@ class TestSchemaIntrospection:
 class TestSchemaValidation:
     """Test schema validation and error handling."""
 
-    def test_invalid_query_field(self, gql: GraphQLTestClient):
+    async def test_invalid_query_field(self, monkeypatch: pytest.MonkeyPatch):
         """Test querying a non-existent field."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
         query = """
         query InvalidField {
             nonExistentField {
@@ -336,8 +371,11 @@ class TestSchemaValidation:
         assert len(errors) > 0
         assert "nonExistentField" in str(errors[0])
 
-    def test_invalid_mutation_field(self, gql: GraphQLTestClient):
+    async def test_invalid_mutation_field(self, monkeypatch: pytest.MonkeyPatch):
         """Test calling a non-existent mutation."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
         mutation = """
         mutation InvalidMutation {
             nonExistentMutation(id: "123") {
@@ -352,8 +390,12 @@ class TestSchemaValidation:
         assert errors is not None
         assert "nonExistentMutation" in str(errors[0])
 
-    def test_invalid_enum_value(self, gql: GraphQLTestClient, test_data: TestDataFactory):
+    async def test_invalid_enum_value(self, monkeypatch: pytest.MonkeyPatch):
         """Test using invalid enum value."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        test_data = TestDataFactory()
+
         # First create dependencies
         create_project_mutation = """
         mutation CreateProject($name: String!, $description: String!) {
@@ -391,8 +433,11 @@ class TestSchemaValidation:
         assert errors is not None
         assert "INVALID_STATUS" in str(errors[0])
 
-    def test_missing_required_arguments(self, gql: GraphQLTestClient):
+    async def test_missing_required_arguments(self, monkeypatch: pytest.MonkeyPatch):
         """Test mutation with missing required arguments."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
         mutation = """
         mutation CreateProjectMissingArgs {
             createProject(name: "Test") {
@@ -408,8 +453,11 @@ class TestSchemaValidation:
         assert errors is not None
         assert "description" in str(errors[0]).lower()
 
-    def test_type_coercion_errors(self, gql: GraphQLTestClient):
+    async def test_type_coercion_errors(self, monkeypatch: pytest.MonkeyPatch):
         """Test invalid type coercion."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
         mutation = """
         mutation CreateImageInvalidType($url: Int!) {
             createImage(url: $url) {

@@ -1,48 +1,73 @@
 import asyncio
 import uuid
-from collections.abc import AsyncGenerator
+from contextlib import suppress
 from typing import Any
 
 import pytest
-import pytest_asyncio
 from fastapi.testclient import TestClient
 from mongomock_motor import AsyncMongoMockClient
 
 from satin.main import create_app
+from satin.repositories import ImageRepository, ProjectRepository, TaskRepository
+from satin.repositories.factory import RepositoryFactory
 
 
 @pytest.fixture(scope="session")
 def event_loop():
     """Create an instance of the default event loop for the test session."""
     loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     yield loop
     loop.close()
 
 
-@pytest_asyncio.fixture(scope="function")
-async def test_db() -> AsyncGenerator:
-    """Create a clean test database connection for each test."""
-    # Use test database URL
-    client = AsyncMongoMockClient()
-    random_name = "satin_test_" + uuid.uuid4().hex
-    db = client[random_name]
+# Database factory methods - create databases in the current event loop
+class DatabaseFactory:
+    """Factory for creating test databases and repositories."""
 
-    yield db
+    @staticmethod
+    async def create_test_db():
+        """Create a clean test database connection in the current event loop."""
+        client = AsyncMongoMockClient()
+        random_name = "satin_test_" + uuid.uuid4().hex
+        db = client[random_name]
+        return db, client
 
-    await client.drop_database(random_name)
+    @staticmethod
+    async def cleanup_test_db(db, client):
+        """Clean up test database and client."""
+        with suppress(Exception):
+            await client.drop_database(db.name)
+        with suppress(Exception):
+            client.close()
 
-    client.close()
+    @staticmethod
+    async def create_repositories(db):
+        """Create repository instances for testing."""
+        return {
+            "project_repo": ProjectRepository(db),
+            "image_repo": ImageRepository(db),
+            "task_repo": TaskRepository(db),
+        }
 
+    @staticmethod
+    async def create_test_context():
+        """Create complete test context with database and repositories."""
+        db, client = await DatabaseFactory.create_test_db()
+        repos = await DatabaseFactory.create_repositories(db)
+        return db, client, repos
 
-@pytest.fixture
-def graphql_client(test_db, monkeypatch: pytest.MonkeyPatch) -> TestClient:
-    """Create a test client for GraphQL testing."""
-    # Patch the database connection in query and mutation modules
-    monkeypatch.setattr("satin.schema.query.db", test_db)
-    monkeypatch.setattr("satin.schema.mutation.db", test_db)
+    @staticmethod
+    def create_graphql_client(db, monkeypatch):
+        """Create a GraphQL test client with proper database mocking."""
+        test_repo_factory = RepositoryFactory(db)
 
-    app = create_app()
-    return TestClient(app)
+        # Patch the global repo_factory instances in query and mutation modules
+        monkeypatch.setattr("satin.schema.query.repo_factory", test_repo_factory)
+        monkeypatch.setattr("satin.schema.mutation.repo_factory", test_repo_factory)
+
+        app = create_app()
+        return GraphQLTestClient(TestClient(app))
 
 
 class GraphQLTestClient:
@@ -110,12 +135,6 @@ class GraphQLTestClient:
         """Execute a GraphQL query and return both data and errors."""
         result = self.execute(query, variables)
         return result.get("data"), result.get("errors")
-
-
-@pytest.fixture
-def gql(graphql_client: TestClient) -> GraphQLTestClient:
-    """Create a GraphQL test client."""
-    return GraphQLTestClient(graphql_client)
 
 
 # Common test data factories

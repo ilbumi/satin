@@ -1,13 +1,20 @@
 """Tests for GraphQL queries."""
 
-from tests.conftest import GraphQLTestClient, TestDataFactory
+import pytest
+
+from tests.conftest import DatabaseFactory, TestDataFactory
 
 
 class TestProjectQueries:
     """Test GraphQL queries for projects."""
 
-    def test_create_and_query_project(self, gql: GraphQLTestClient, test_data: TestDataFactory):
+    async def test_create_and_query_project(self, monkeypatch: pytest.MonkeyPatch):
         """Test creating a project and querying it back."""
+        # Create test database and GraphQL client in the current event loop
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        test_data = TestDataFactory()
+
         # First create a project
         create_mutation = """
         mutation CreateProject($name: String!, $description: String!) {
@@ -47,8 +54,11 @@ class TestProjectQueries:
         assert project["name"] == "My Project"
         assert project["description"] == "A test project"
 
-    def test_query_nonexistent_project(self, gql: GraphQLTestClient):
+    async def test_query_nonexistent_project(self, monkeypatch: pytest.MonkeyPatch):
         """Test querying a project that doesn't exist."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
         query = """
         query GetProject($id: ID!) {
             project(id: $id) {
@@ -62,8 +72,12 @@ class TestProjectQueries:
         result = gql.query(query, {"id": "507f1f77bcf86cd799439011"})
         assert result["project"] is None
 
-    def test_query_projects_pagination(self, gql: GraphQLTestClient, test_data: TestDataFactory):
+    async def test_query_projects_pagination(self, monkeypatch: pytest.MonkeyPatch):
         """Test paginated projects query."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        test_data = TestDataFactory()
+
         # Create multiple projects
         create_mutation = """
         mutation CreateProject($name: String!, $description: String!) {
@@ -112,8 +126,11 @@ class TestProjectQueries:
         assert projects_page["limit"] == 3
         assert projects_page["offset"] == 3
 
-    def test_query_projects_empty(self, gql: GraphQLTestClient):
+    async def test_query_projects_empty(self, monkeypatch: pytest.MonkeyPatch):
         """Test querying projects when none exist."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
         query = """
         query GetProjects {
             projects {
@@ -136,8 +153,12 @@ class TestProjectQueries:
 class TestImageQueries:
     """Test GraphQL queries for images."""
 
-    def test_create_and_query_image(self, gql: GraphQLTestClient, test_data: TestDataFactory):
+    async def test_create_and_query_image(self, monkeypatch: pytest.MonkeyPatch):
         """Test creating an image and querying it back."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        test_data = TestDataFactory()
+
         # Create an image
         create_mutation = """
         mutation CreateImage($url: String!) {
@@ -173,8 +194,12 @@ class TestImageQueries:
         assert image["id"] == image_id
         assert image["url"] == "https://example.com/my-image.jpg"
 
-    def test_query_images_pagination(self, gql: GraphQLTestClient, test_data: TestDataFactory):
+    async def test_query_images_pagination(self, monkeypatch: pytest.MonkeyPatch):
         """Test paginated images query."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        test_data = TestDataFactory()
+
         # Create multiple images
         create_mutation = """
         mutation CreateImage($url: String!) {
@@ -216,8 +241,12 @@ class TestImageQueries:
 class TestTaskQueries:
     """Test GraphQL queries for tasks."""
 
-    def test_create_and_query_task(self, gql: GraphQLTestClient, test_data: TestDataFactory):
+    async def test_create_and_query_task(self, monkeypatch: pytest.MonkeyPatch):
         """Test creating a task and querying it back."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        test_data = TestDataFactory()
+
         # Create dependencies first
         create_project_mutation = """
         mutation CreateProject($name: String!, $description: String!) {
@@ -323,8 +352,12 @@ class TestTaskQueries:
         assert len(task["bboxes"]) == 1
         assert task["createdAt"]  # Should have timestamp
 
-    def test_query_tasks_pagination(self, gql: GraphQLTestClient, test_data: TestDataFactory):
+    async def test_query_tasks_pagination(self, monkeypatch: pytest.MonkeyPatch):
         """Test paginated tasks query."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        test_data = TestDataFactory()
+
         # Create dependencies
         create_project_mutation = """
         mutation CreateProject($name: String!, $description: String!) {
@@ -388,8 +421,12 @@ class TestTaskQueries:
             assert task["project"]["id"] == project_id
             assert task["status"] in ["DRAFT", "FINISHED", "REVIEWED"]
 
-    def test_query_task_field_selection(self, gql: GraphQLTestClient, test_data: TestDataFactory):
+    async def test_query_task_field_selection(self, monkeypatch: pytest.MonkeyPatch):
         """Test GraphQL field selection - only request specific fields."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+        test_data = TestDataFactory()
+
         # Setup data
         create_project_mutation = """
         mutation CreateProject($name: String!, $description: String!) {

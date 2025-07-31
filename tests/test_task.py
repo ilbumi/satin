@@ -1,7 +1,6 @@
 from datetime import UTC, datetime
 
 import pytest
-import pytest_asyncio
 from bson import ObjectId
 
 from satin.repositories import ImageRepository, ProjectRepository, TaskRepository
@@ -9,6 +8,7 @@ from satin.schema.annotation import Annotation, BBox
 from satin.schema.image import Image
 from satin.schema.project import Project
 from satin.schema.task import Task, TaskStatus
+from tests.conftest import DatabaseFactory
 
 
 class TestTask:
@@ -36,32 +36,12 @@ class TestTask:
         assert task.status == TaskStatus.DRAFT
 
 
-@pytest.fixture
-def image_repo(test_db):
-    """Create an ImageRepository instance for testing."""
-    return ImageRepository(test_db)
-
-
-@pytest.fixture
-def project_repo(test_db):
-    """Create a ProjectRepository instance for testing."""
-    return ProjectRepository(test_db)
-
-
-@pytest.fixture
-def task_repo(test_db):
-    """Create a TaskRepository instance for testing."""
-    return TaskRepository(test_db)
-
-
-@pytest_asyncio.fixture
-async def sample_image(image_repo):
+async def get_sample_image(image_repo):
     """Create a sample image for testing."""
     return await image_repo.create_image("https://example.com/test-image.jpg")
 
 
-@pytest_asyncio.fixture
-async def sample_project(project_repo):
+async def get_sample_project(project_repo):
     """Create a sample project for testing."""
     return await project_repo.create_project("Test Project", "Test Description")
 
@@ -77,23 +57,32 @@ def sample_bbox():
     )
 
 
-@pytest.mark.asyncio
 class TestTaskFunctions:
     """Test cases for task database functions."""
 
-    async def test_create_task(
-        self,
-        task_repo: TaskRepository,
-        sample_image: Image,
-        sample_project: Project,
-        sample_bbox: BBox,
-    ):
+    async def test_create_task(self):
         """Test creating a new task."""
-        task = await task_repo.create_task(
-            image_id=sample_image.id, project_id=sample_project.id, bboxes=[sample_bbox], status=TaskStatus.DRAFT
+        db, client = await DatabaseFactory.create_test_db()
+        task_repo = TaskRepository(db)
+        image_repo = ImageRepository(db)
+        project_repo = ProjectRepository(db)
+
+        # Create dependencies
+        image = await image_repo.create_image("https://example.com/image.jpg")
+        project = await project_repo.create_project("Test Project", "Test Description")
+        bbox = BBox(
+            x=10.0,
+            y=20.0,
+            width=100.0,
+            height=200.0,
+            annotation=Annotation(text="test object", tags=["object", "test"]),
         )
-        assert task.image.id == sample_image.id
-        assert task.project.id == sample_project.id
+
+        task = await task_repo.create_task(
+            image_id=image.id, project_id=project.id, bboxes=[bbox], status=TaskStatus.DRAFT
+        )
+        assert task.image.id == image.id
+        assert task.project.id == project.id
         assert len(task.bboxes) == 1
         assert task.status == TaskStatus.DRAFT
         assert task.id is not None
@@ -102,21 +91,25 @@ class TestTaskFunctions:
         # Verify it's in the database
         stored = await task_repo.db["tasks"].find_one({"_id": ObjectId(task.id)})
         assert stored is not None
-        assert str(stored["image_id"]) == sample_image.id
-        assert str(stored["project_id"]) == sample_project.id
+        assert str(stored["image_id"]) == image.id
+        assert str(stored["project_id"]) == project.id
 
-    async def test_create_task_with_defaults(
-        self, task_repo: TaskRepository, sample_image: Image, sample_project: Project
-    ):
+    async def test_create_task_with_defaults(self):
         """Test creating a task with default values."""
+        db, client = await DatabaseFactory.create_test_db()
+        task_repo = TaskRepository(db)
+        sample_image = await get_sample_image(ImageRepository(db))
+        sample_project = await get_sample_project(ProjectRepository(db))
         task = await task_repo.create_task(image_id=sample_image.id, project_id=sample_project.id)
         assert len(task.bboxes) == 0
         assert task.status == TaskStatus.DRAFT
 
-    async def test_get_task(
-        self, task_repo: TaskRepository, sample_image: Image, sample_project: Project, sample_bbox: BBox
-    ):
+    async def test_get_task(self, sample_bbox: BBox):
         """Test retrieving a task by ID."""
+        db, client = await DatabaseFactory.create_test_db()
+        task_repo = TaskRepository(db)
+        sample_image = await get_sample_image(ImageRepository(db))
+        sample_project = await get_sample_project(ProjectRepository(db))
         # Create a test task
         created_task = await task_repo.create_task(
             image_id=sample_image.id, project_id=sample_project.id, bboxes=[sample_bbox], status=TaskStatus.FINISHED
@@ -132,13 +125,22 @@ class TestTaskFunctions:
         assert len(retrieved_task.bboxes) == 1
         assert retrieved_task.status == TaskStatus.FINISHED
 
-    async def test_get_task_not_found(self, task_repo: TaskRepository):
+    async def test_get_task_not_found(self):
         """Test retrieving a non-existent task."""
+        db, client = await DatabaseFactory.create_test_db()
+        task_repo = TaskRepository(db)
+
         task = await task_repo.get_task("507f1f77bcf86cd799439011")
         assert task is None
 
-    async def test_get_all_tasks(self, task_repo: TaskRepository, sample_image: Image, sample_project: Project):
+    async def test_get_all_tasks(self):
         """Test retrieving all tasks."""
+        db, client = await DatabaseFactory.create_test_db()
+        task_repo = TaskRepository(db)
+        image_repo = ImageRepository(db)
+        project_repo = ProjectRepository(db)
+        sample_image = await get_sample_image(image_repo)
+        sample_project = await get_sample_project(project_repo)
         # Create multiple tasks
         await task_repo.create_task(image_id=sample_image.id, project_id=sample_project.id, status=TaskStatus.DRAFT)
         await task_repo.create_task(image_id=sample_image.id, project_id=sample_project.id, status=TaskStatus.FINISHED)
@@ -151,16 +153,22 @@ class TestTaskFunctions:
         task_statuses = {t.status for t in tasks}
         assert task_statuses == {TaskStatus.DRAFT, TaskStatus.FINISHED, TaskStatus.REVIEWED}
 
-    async def test_get_all_tasks_empty(self, task_repo: TaskRepository):
+    async def test_get_all_tasks_empty(self):
         """Test retrieving all tasks when none exist."""
+        db, client = await DatabaseFactory.create_test_db()
+        task_repo = TaskRepository(db)
         tasks = await task_repo.get_all_tasks()
 
         assert len(tasks) == 0
 
-    async def test_update_task(
-        self, task_repo: TaskRepository, sample_bbox: BBox, sample_image: Image, sample_project: Project
-    ):
+    async def test_update_task(self, sample_bbox: BBox):
         """Test updating a task."""
+        db, client = await DatabaseFactory.create_test_db()
+        task_repo = TaskRepository(db)
+        image_repo = ImageRepository(db)
+        project_repo = ProjectRepository(db)
+        sample_image = await get_sample_image(image_repo)
+        sample_project = await get_sample_project(project_repo)
         # Create a task
         task = await task_repo.create_task(
             image_id=sample_image.id, project_id=sample_project.id, status=TaskStatus.DRAFT
@@ -177,8 +185,14 @@ class TestTaskFunctions:
         assert len(updated_task.bboxes) == 1
         assert updated_task.status == TaskStatus.FINISHED
 
-    async def test_update_task_partial(self, task_repo, sample_image: Image, sample_project: Project):
+    async def test_update_task_partial(self):
         """Test updating only some fields of a task."""
+        db, client = await DatabaseFactory.create_test_db()
+        task_repo = TaskRepository(db)
+        image_repo = ImageRepository(db)
+        project_repo = ProjectRepository(db)
+        sample_image = await get_sample_image(image_repo)
+        sample_project = await get_sample_project(project_repo)
         # Create a task
         task = await task_repo.create_task(
             image_id=sample_image.id, project_id=sample_project.id, status=TaskStatus.DRAFT
@@ -195,15 +209,19 @@ class TestTaskFunctions:
         assert updated_task.image.id == sample_image.id
         assert updated_task.project.id == sample_project.id
 
-    async def test_update_task_not_found(self, task_repo: TaskRepository):
+    async def test_update_task_not_found(self):
         """Test updating a non-existent task."""
+        db, client = await DatabaseFactory.create_test_db()
+        task_repo = TaskRepository(db)
         success = await task_repo.update_task("507f1f77bcf86cd799439011", status=TaskStatus.FINISHED)
         assert success is False
 
-    async def test_update_task_no_changes(
-        self, task_repo: TaskRepository, sample_image: Image, sample_project: Project
-    ):
+    async def test_update_task_no_changes(self):
         """Test updating a task with no actual changes."""
+        db, client = await DatabaseFactory.create_test_db()
+        task_repo = TaskRepository(db)
+        sample_image = await get_sample_image(ImageRepository(db))
+        sample_project = await get_sample_project(ProjectRepository(db))
         # Create a task
         task = await task_repo.create_task(
             image_id=sample_image.id, project_id=sample_project.id, status=TaskStatus.DRAFT
@@ -218,8 +236,12 @@ class TestTaskFunctions:
         assert updated_task is not None
         assert updated_task.status == TaskStatus.DRAFT
 
-    async def test_delete_task(self, task_repo: TaskRepository, sample_image: Image, sample_project: Project):
+    async def test_delete_task(self):
         """Test deleting a task."""
+        db, client = await DatabaseFactory.create_test_db()
+        task_repo = TaskRepository(db)
+        sample_image = await get_sample_image(ImageRepository(db))
+        sample_project = await get_sample_project(ProjectRepository(db))
         # Create a task
         task = await task_repo.create_task(image_id=sample_image.id, project_id=sample_project.id)
 
@@ -231,7 +253,9 @@ class TestTaskFunctions:
         retrieved = await task_repo.get_task(task.id)
         assert retrieved is None
 
-    async def test_delete_task_not_found(self, task_repo: TaskRepository):
+    async def test_delete_task_not_found(self):
         """Test deleting a non-existent task."""
+        db, client = await DatabaseFactory.create_test_db()
+        task_repo = TaskRepository(db)
         deleted = await task_repo.delete_task("507f1f77bcf86cd799439011")
         assert deleted is False
