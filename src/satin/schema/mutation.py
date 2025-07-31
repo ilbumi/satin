@@ -1,9 +1,14 @@
 import strawberry
 
+from satin.db import db
+from satin.repositories import RepositoryFactory
 from satin.schema.annotation import BBoxInput
-from satin.schema.image import Image, create_image, delete_image, update_image
-from satin.schema.project import Project, create_project, delete_project, update_project
-from satin.schema.task import Task, TaskStatus, create_task, delete_task, update_task
+from satin.schema.image import Image
+from satin.schema.project import Project
+from satin.schema.task import Task, TaskStatus
+
+# Global repository factory instance
+repo_factory = RepositoryFactory(db)
 
 
 @strawberry.type
@@ -20,7 +25,9 @@ class Mutation:
         status: TaskStatus = TaskStatus.DRAFT,
     ) -> Task:
         """Create a new task."""
-        return await create_task(image_id=image_id, project_id=project_id, bboxes=bboxes, status=status)  # type: ignore[arg-type]
+        return await repo_factory.task_repo.create_task(
+            image_id=image_id, project_id=project_id, bboxes=bboxes, status=status
+        )  # type: ignore[arg-type]
 
     @strawberry.mutation
     async def update_task(
@@ -32,18 +39,23 @@ class Mutation:
         status: TaskStatus | None = None,
     ) -> Task | None:
         """Update an existing task."""
-        return await update_task(id=id, image_id=image_id, project_id=project_id, bboxes=bboxes, status=status)  # type: ignore[arg-type]
+        success = await repo_factory.task_repo.update_task(
+            task_id=id, image_id=image_id, project_id=project_id, bboxes=bboxes, status=status
+        )  # type: ignore[arg-type]
+        if success:
+            return await repo_factory.task_repo.get_task(id)
+        return None
 
     @strawberry.mutation
     async def delete_task(self, id: strawberry.ID) -> bool:  # noqa: A002
         """Delete a task."""
-        return await delete_task(id)
+        return await repo_factory.task_repo.delete_task(id)
 
     # Project mutations
     @strawberry.mutation
     async def create_project(self, name: str, description: str) -> Project:
         """Create a new project."""
-        return await create_project(name=name, description=description)
+        return await repo_factory.project_repo.create_project(name=name, description=description)
 
     @strawberry.mutation
     async def update_project(
@@ -53,18 +65,21 @@ class Mutation:
         description: str | None = None,
     ) -> Project | None:
         """Update an existing project."""
-        return await update_project(id=id, name=name, description=description)
+        success = await repo_factory.project_repo.update_project(project_id=id, name=name, description=description)
+        if success:
+            return await repo_factory.project_repo.get_project(id)
+        return None
 
     @strawberry.mutation
     async def delete_project(self, id: strawberry.ID) -> bool:  # noqa: A002
         """Delete a project."""
-        return await delete_project(id)
+        return await repo_factory.project_repo.delete_project(id)
 
     # Image mutations
     @strawberry.mutation
     async def create_image(self, url: str) -> Image:
         """Create a new image."""
-        return await create_image(url=url)
+        return await repo_factory.image_repo.create_image(url=url)
 
     @strawberry.mutation
     async def update_image(
@@ -73,9 +88,12 @@ class Mutation:
         url: str | None = None,
     ) -> Image | None:
         """Update an existing image."""
-        return await update_image(id=id, url=url)
+        success = await repo_factory.image_repo.update_image(image_id=id, url=url)
+        if success:
+            return await repo_factory.image_repo.get_image(id)
+        return None
 
     @strawberry.mutation
     async def delete_image(self, id: strawberry.ID) -> bool:  # noqa: A002
         """Delete an image."""
-        return await delete_image(id)
+        return await repo_factory.image_repo.delete_image(id)

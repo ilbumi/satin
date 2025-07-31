@@ -37,10 +37,9 @@ async def test_db() -> AsyncGenerator:
 @pytest.fixture
 def graphql_client(test_db, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     """Create a test client for GraphQL testing."""
-    # Patch the database connection
-    monkeypatch.setattr("satin.schema.task.db", test_db)
-    monkeypatch.setattr("satin.schema.project.db", test_db)
-    monkeypatch.setattr("satin.schema.image.db", test_db)
+    # Patch the database connection in query and mutation modules
+    monkeypatch.setattr("satin.schema.query.db", test_db)
+    monkeypatch.setattr("satin.schema.mutation.db", test_db)
 
     app = create_app()
     return TestClient(app)
