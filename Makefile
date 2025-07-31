@@ -21,8 +21,8 @@ format: format-backend format-frontend
 
 .PHONY: format-backend
 format-backend:
-	uv run ssort ${PYCODE_PATHS}
-	uv run isort ${PYCODE_PATHS}
+	uv run ssort ${PYCODE_PATHS} ${PYTESTS_PATH}
+	uv run isort ${PYCODE_PATHS} ${PYTESTS_PATH}
 	uv run ruff format ${PYCODE_PATHS} ${PYTESTS_PATH}
 	uv run ruff check --fix ${PYCODE_PATHS} ${PYTESTS_PATH}
 

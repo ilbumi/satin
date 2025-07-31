@@ -21,55 +21,6 @@ def event_loop():
     loop.close()
 
 
-# Database factory methods - create databases in the current event loop
-class DatabaseFactory:
-    """Factory for creating test databases and repositories."""
-
-    @staticmethod
-    async def create_test_db():
-        """Create a clean test database connection in the current event loop."""
-        client = AsyncMongoMockClient()
-        random_name = "satin_test_" + uuid.uuid4().hex
-        db = client[random_name]
-        return db, client
-
-    @staticmethod
-    async def cleanup_test_db(db, client):
-        """Clean up test database and client."""
-        with suppress(Exception):
-            await client.drop_database(db.name)
-        with suppress(Exception):
-            client.close()
-
-    @staticmethod
-    async def create_repositories(db):
-        """Create repository instances for testing."""
-        return {
-            "project_repo": ProjectRepository(db),
-            "image_repo": ImageRepository(db),
-            "task_repo": TaskRepository(db),
-        }
-
-    @staticmethod
-    async def create_test_context():
-        """Create complete test context with database and repositories."""
-        db, client = await DatabaseFactory.create_test_db()
-        repos = await DatabaseFactory.create_repositories(db)
-        return db, client, repos
-
-    @staticmethod
-    def create_graphql_client(db, monkeypatch):
-        """Create a GraphQL test client with proper database mocking."""
-        test_repo_factory = RepositoryFactory(db)
-
-        # Patch the global repo_factory instances in query and mutation modules
-        monkeypatch.setattr("satin.schema.query.repo_factory", test_repo_factory)
-        monkeypatch.setattr("satin.schema.mutation.repo_factory", test_repo_factory)
-
-        app = create_app()
-        return GraphQLTestClient(TestClient(app))
-
-
 class GraphQLTestClient:
     """Helper class for executing GraphQL operations in tests."""
 
@@ -135,6 +86,55 @@ class GraphQLTestClient:
         """Execute a GraphQL query and return both data and errors."""
         result = self.execute(query, variables)
         return result.get("data"), result.get("errors")
+
+
+# Database factory methods - create databases in the current event loop
+class DatabaseFactory:
+    """Factory for creating test databases and repositories."""
+
+    @staticmethod
+    async def create_test_db():
+        """Create a clean test database connection in the current event loop."""
+        client = AsyncMongoMockClient()
+        random_name = "satin_test_" + uuid.uuid4().hex
+        db = client[random_name]
+        return db, client
+
+    @staticmethod
+    async def cleanup_test_db(db, client):
+        """Clean up test database and client."""
+        with suppress(Exception):
+            await client.drop_database(db.name)
+        with suppress(Exception):
+            client.close()
+
+    @staticmethod
+    async def create_repositories(db):
+        """Create repository instances for testing."""
+        return {
+            "project_repo": ProjectRepository(db),
+            "image_repo": ImageRepository(db),
+            "task_repo": TaskRepository(db),
+        }
+
+    @staticmethod
+    async def create_test_context():
+        """Create complete test context with database and repositories."""
+        db, client = await DatabaseFactory.create_test_db()
+        repos = await DatabaseFactory.create_repositories(db)
+        return db, client, repos
+
+    @staticmethod
+    def create_graphql_client(db, monkeypatch):
+        """Create a GraphQL test client with proper database mocking."""
+        test_repo_factory = RepositoryFactory(db)
+
+        # Patch the global repo_factory instances in query and mutation modules
+        monkeypatch.setattr("satin.schema.query.repo_factory", test_repo_factory)
+        monkeypatch.setattr("satin.schema.mutation.repo_factory", test_repo_factory)
+
+        app = create_app()
+        return GraphQLTestClient(TestClient(app))
 
 
 # Common test data factories
