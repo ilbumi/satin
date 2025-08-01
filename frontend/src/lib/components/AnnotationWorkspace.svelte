@@ -2,6 +2,7 @@
 	import ImageCanvas from './ImageCanvas.svelte';
 	import AnnotationToolbar from './AnnotationToolbar.svelte';
 	import AnnotationPanel from './AnnotationPanel.svelte';
+	import { v4 as uuidv4 } from 'uuid';
 
 	interface BoundingBox {
 		id: string;
@@ -23,10 +24,6 @@
 	const demoImageUrl =
 		'https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=800&h=600&fit=crop';
 
-	function generateId(): string {
-		return Math.random().toString(36).substring(2) + Date.now().toString(36);
-	}
-
 	function handleToolChange(tool: 'select' | 'bbox') {
 		currentTool = tool;
 		// Clear selection when switching to drawing mode
@@ -47,7 +44,7 @@
 	function handleAnnotationCreate(bbox: Omit<BoundingBox, 'id' | 'isSelected'>) {
 		const newAnnotation: BoundingBox = {
 			...bbox,
-			id: generateId(),
+			id: uuidv4(),
 			isSelected: false
 		};
 		annotations = [...annotations, newAnnotation];
@@ -86,7 +83,7 @@
 		// Add some demo annotations
 		annotations = [
 			{
-				id: generateId(),
+				id: uuidv4(),
 				x: 0.2,
 				y: 0.3,
 				width: 0.3,
@@ -95,7 +92,7 @@
 				isSelected: false
 			},
 			{
-				id: generateId(),
+				id: uuidv4(),
 				x: 0.6,
 				y: 0.1,
 				width: 0.25,
