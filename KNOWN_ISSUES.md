@@ -8,8 +8,6 @@ This document outlines known issues with the current version of the software. Pl
 
 ## Frontend
 
-
-- **State Management Complexity:** The `AnnotationWorkspace.svelte` component has complex state logic that could be simplified by moving it to a separate Svelte store.
 - **Missing Keyboard Accessibility:** The `ImageCanvas.svelte` component is not accessible via keyboard, making it unusable for users who cannot use a mouse.
 - **Hardcoded Demo Data:** The demo image and annotations are hardcoded in `AnnotationWorkspace.svelte`, making them difficult to update.
 - **Missing Loading/Empty States:** The `ImageCanvas.svelte` component lacks clear loading indicators and empty states.

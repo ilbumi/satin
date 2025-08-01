@@ -2,111 +2,23 @@
 	import ImageCanvas from './ImageCanvas.svelte';
 	import AnnotationToolbar from './AnnotationToolbar.svelte';
 	import AnnotationPanel from './AnnotationPanel.svelte';
-	import { v4 as uuidv4 } from 'uuid';
+	import { annotationStore } from '../stores/annotationStore';
 
-	interface BoundingBox {
-		id: string;
-		x: number;
-		y: number;
-		width: number;
-		height: number;
-		label: string;
-		isSelected: boolean;
-	}
-
-	// State
-	let currentTool = $state<'select' | 'bbox'>('select');
-	let imageUrl = $state<string>('');
-	let annotations = $state<BoundingBox[]>([]);
-	let selectedAnnotationId = $state<string | null>(null);
-
-	// Sample demo image URL (you can replace with actual image upload)
-	const demoImageUrl =
-		'https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=800&h=600&fit=crop';
-
-	function handleToolChange(tool: 'select' | 'bbox') {
-		currentTool = tool;
-		// Clear selection when switching to drawing mode
-		if (tool === 'bbox') {
-			selectedAnnotationId = null;
-			updateAnnotationSelection();
-		}
-	}
+	const {
+		currentTool,
+		imageUrl,
+		annotations,
+	} = annotationStore;
 
 	function handleImageUpload(file: File) {
 		const url = URL.createObjectURL(file);
-		imageUrl = url;
-		// Clear annotations when new image is loaded
-		annotations = [];
-		selectedAnnotationId = null;
-	}
-
-	function handleAnnotationCreate(bbox: Omit<BoundingBox, 'id' | 'isSelected'>) {
-		const newAnnotation: BoundingBox = {
-			...bbox,
-			id: uuidv4(),
-			isSelected: false
-		};
-		annotations = [...annotations, newAnnotation];
-	}
-
-	function handleAnnotationSelect(id: string) {
-		if (selectedAnnotationId === id) {
-			// Deselect if clicking the same annotation
-			selectedAnnotationId = null;
-		} else {
-			selectedAnnotationId = id;
-		}
-		updateAnnotationSelection();
-	}
-
-	function handleAnnotationDelete(id: string) {
-		annotations = annotations.filter((ann) => ann.id !== id);
-		if (selectedAnnotationId === id) {
-			selectedAnnotationId = null;
-		}
-	}
-
-	function handleAnnotationUpdate(id: string, updates: Partial<BoundingBox>) {
-		annotations = annotations.map((ann) => (ann.id === id ? { ...ann, ...updates } : ann));
-	}
-
-	function updateAnnotationSelection() {
-		annotations = annotations.map((ann) => ({
-			...ann,
-			isSelected: ann.id === selectedAnnotationId
-		}));
-	}
-
-	function loadDemoImage() {
-		imageUrl = demoImageUrl;
-		// Add some demo annotations
-		annotations = [
-			{
-				id: uuidv4(),
-				x: 0.2,
-				y: 0.3,
-				width: 0.3,
-				height: 0.4,
-				label: 'Dog',
-				isSelected: false
-			},
-			{
-				id: uuidv4(),
-				x: 0.6,
-				y: 0.1,
-				width: 0.25,
-				height: 0.35,
-				label: 'Cat',
-				isSelected: false
-			}
-		];
+		annotationStore.setImageUrl(url);
 	}
 
 	// Load demo image on mount
 	$effect(() => {
-		if (!imageUrl) {
-			loadDemoImage();
+		if (!$imageUrl) {
+			annotationStore.loadDemoImage();
 		}
 	});
 </script>
@@ -114,34 +26,34 @@
 <div class="annotation-workspace">
 	<div class="workspace-sidebar">
 		<AnnotationToolbar
-			activeTool={currentTool}
-			onToolChange={handleToolChange}
+			activeTool={$currentTool}
+			onToolChange={annotationStore.setTool}
 			onImageUpload={handleImageUpload}
 		/>
 
 		<div class="demo-section">
-			<button class="demo-button" onclick={loadDemoImage}> Load Demo Image </button>
+			<button class="demo-button" onclick={annotationStore.loadDemoImage}> Load Demo Image </button>
 		</div>
 	</div>
 
 	<div class="workspace-main">
 		<div class="canvas-area">
 			<ImageCanvas
-				{imageUrl}
-				{annotations}
-				isDrawing={currentTool === 'bbox'}
-				onAnnotationCreate={handleAnnotationCreate}
-				onAnnotationSelect={handleAnnotationSelect}
+				imageUrl={$imageUrl}
+				annotations={$annotations}
+				isDrawing={$currentTool === 'bbox'}
+				onAnnotationCreate={annotationStore.createAnnotation}
+				onAnnotationSelect={annotationStore.selectAnnotation}
 			/>
 		</div>
 	</div>
 
 	<div class="workspace-panel">
 		<AnnotationPanel
-			{annotations}
-			onAnnotationSelect={handleAnnotationSelect}
-			onAnnotationDelete={handleAnnotationDelete}
-			onAnnotationUpdate={handleAnnotationUpdate}
+			annotations={$annotations}
+			onAnnotationSelect={annotationStore.selectAnnotation}
+			onAnnotationDelete={annotationStore.deleteAnnotation}
+			onAnnotationUpdate={annotationStore.updateAnnotation}
 		/>
 	</div>
 </div>

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { writable } from 'svelte/store';
 
 // Mock the GraphQL client
 const mockQuery = vi.fn();
@@ -11,8 +12,27 @@ vi.mock('$lib/graphql/client', () => ({
 // Mock Navigation component to avoid dependency issues
 vi.mock('$lib/components/Navigation.svelte', () => ({
 	default: class MockNavigation {
-		$$: Record<string, unknown> = {};
+		$: Record<string, unknown> = {};
 		constructor() {}
+	}
+}));
+
+// Mock annotationStore
+vi.mock('$lib/stores/annotationStore', () => ({
+	annotationStore: {
+		subscribe: writable({
+			currentTool: 'select',
+			imageUrl: '',
+			annotations: [],
+			selectedAnnotationId: null
+		}).subscribe,
+		setTool: vi.fn(),
+		setImageUrl: vi.fn(),
+		createAnnotation: vi.fn(),
+		selectAnnotation: vi.fn(),
+		deleteAnnotation: vi.fn(),
+		updateAnnotation: vi.fn(),
+		loadDemoImage: vi.fn()
 	}
 }));
 
