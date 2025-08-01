@@ -40,7 +40,7 @@ lint-backend:
 
 .PHONY: lint-frontend
 lint-frontend:
-	cd frontend && pnpm run lint
+	cd frontend && pnpm run lint && pnpm check
 
 .PHONY: sync
 sync:

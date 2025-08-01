@@ -10,6 +10,7 @@ wheels/
 # Cache and temporary files
 .cache/
 .pnpm-store/
+__screenshots__/
 
 # Virtual environments
 .venv
