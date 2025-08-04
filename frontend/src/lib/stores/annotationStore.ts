@@ -1,4 +1,3 @@
-
 import { writable } from 'svelte/store';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -18,7 +17,6 @@ interface AnnotationState {
 	annotations: BoundingBox[];
 	selectedAnnotationId: string | null;
 }
-
 
 function createAnnotationStore() {
 	const { subscribe, update } = writable<AnnotationState>({
@@ -70,10 +68,8 @@ function createAnnotationStore() {
 		updateAnnotation: (id: string, updates: Partial<BoundingBox>) =>
 			update((state) => ({
 				...state,
-				annotations: state.annotations.map((ann) =>
-					ann.id === id ? { ...ann, ...updates } : ann
-				)
-			})),
+				annotations: state.annotations.map((ann) => (ann.id === id ? { ...ann, ...updates } : ann))
+			}))
 	};
 }
 

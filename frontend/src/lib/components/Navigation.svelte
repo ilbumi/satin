@@ -14,7 +14,11 @@
 		</a>
 
 		<div class="nav-links">
-			<a href="/projects" class="nav-link" class:active={$page.url.pathname.startsWith('/projects')}>
+			<a
+				href="/projects"
+				class="nav-link"
+				class:active={$page.url.pathname.startsWith('/projects')}
+			>
 				Projects
 			</a>
 		</div>

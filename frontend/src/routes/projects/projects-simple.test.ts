@@ -33,7 +33,7 @@ vi.mock('$lib/stores/annotationStore', () => ({
 		createAnnotation: vi.fn(),
 		selectAnnotation: vi.fn(),
 		deleteAnnotation: vi.fn(),
-		updateAnnotation: vi.fn(),
+		updateAnnotation: vi.fn()
 	}
 }));
 

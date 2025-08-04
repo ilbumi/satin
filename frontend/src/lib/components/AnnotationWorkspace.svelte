@@ -4,12 +4,10 @@
 	import AnnotationPanel from './AnnotationPanel.svelte';
 	import { annotationStore } from '../stores/annotationStore';
 
-
 	function handleImageUpload(file: File) {
 		const url = URL.createObjectURL(file);
 		annotationStore.setImageUrl(url);
 	}
-
 </script>
 
 <div class="annotation-workspace">
@@ -19,7 +17,6 @@
 			onToolChange={annotationStore.setTool}
 			onImageUpload={handleImageUpload}
 		/>
-
 	</div>
 
 	<div class="workspace-main">
@@ -80,7 +77,6 @@
 		flex-direction: column;
 		min-height: 0;
 	}
-
 
 	/* Responsive design */
 	@media (max-width: 1024px) {
