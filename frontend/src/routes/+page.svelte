@@ -1,6 +1,10 @@
 <script lang="ts">
-	import AnnotationWorkspace from '$lib/components/AnnotationWorkspace.svelte';
-	import Navigation from '$lib/components/Navigation.svelte';
+	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
+
+	onMount(() => {
+		goto('/projects');
+	});
 </script>
 
 <svelte:head>
@@ -11,8 +15,10 @@
 	/>
 </svelte:head>
 
-<Navigation />
-<AnnotationWorkspace />
+<div class="loading-redirect">
+	<div class="spinner"></div>
+	<p>Redirecting to projects...</p>
+</div>
 
 <style>
 	:global(body) {
@@ -24,5 +30,34 @@
 
 	:global(*) {
 		box-sizing: border-box;
+	}
+
+	.loading-redirect {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		min-height: 100vh;
+		background-color: #f8fafc;
+		color: #64748b;
+	}
+
+	.spinner {
+		width: 40px;
+		height: 40px;
+		border: 4px solid #e2e8f0;
+		border-top: 4px solid #3b82f6;
+		border-radius: 50%;
+		animation: spin 1s linear infinite;
+		margin-bottom: 1rem;
+	}
+
+	@keyframes spin {
+		0% {
+			transform: rotate(0deg);
+		}
+		100% {
+			transform: rotate(360deg);
+		}
 	}
 </style>
