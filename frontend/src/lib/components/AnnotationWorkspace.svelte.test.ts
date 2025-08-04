@@ -67,7 +67,6 @@ describe('AnnotationWorkspace', () => {
 		expect(container.querySelector('.workspace-panel')).toBeInTheDocument();
 	});
 
-
 	it('should generate unique IDs', async () => {
 		// Mock Date.now to return consistent timestamp
 		const mockDate = vi.spyOn(Date, 'now').mockReturnValue(1234567890);
@@ -111,7 +110,6 @@ describe('AnnotationWorkspace', () => {
 		// Test the initial state - no annotations should be visible initially
 		expect(container.querySelector('.annotation-workspace')).toBeInTheDocument();
 	});
-
 
 	it('should toggle annotation selection', () => {
 		const { container } = render(AnnotationWorkspace);
@@ -157,8 +155,6 @@ describe('AnnotationWorkspace', () => {
 		// Component renders with proper workspace structure for grid layout
 		expect(workspace).toHaveClass('annotation-workspace');
 	});
-
-
 
 	it('should have proper workspace structure', () => {
 		const { container } = render(AnnotationWorkspace);

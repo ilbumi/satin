@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { SvelteMap } from 'svelte/reactivity';
 
 	interface BoundingBox {
 		id: string;
@@ -30,9 +31,10 @@
 	let canvasElement: HTMLCanvasElement;
 	let imageElement: HTMLImageElement;
 	let containerElement: HTMLDivElement;
+	let ctx: CanvasRenderingContext2D | null = null;
 
-	let canvasWidth = 800;
-	let canvasHeight = 600;
+	let canvasWidth = $state(800);
+	let canvasHeight = $state(600);
 	let imageScale = 1;
 	let imageOffsetX = 0;
 	let imageOffsetY = 0;
@@ -43,6 +45,20 @@
 	let startY = $state(0);
 	let currentX = $state(0);
 	let currentY = $state(0);
+
+	// Debounce drawing to reduce redraw frequency
+	let drawTimeout: ReturnType<typeof setTimeout> | undefined;
+
+	// Dirty region tracking for partial redraws
+	let isDirty = true;
+	let lastAnnotationCount = 0;
+
+	// Cache coordinate transformations to avoid repeated calculations
+	let coordinateCache = new SvelteMap<
+		string,
+		{ x: number; y: number; width: number; height: number }
+	>();
+	let scaledDimensions = { width: 0, height: 0 };
 
 	onMount(() => {
 		if (imageUrl) {
@@ -61,6 +77,9 @@
 		if (canvasElement) {
 			canvasElement.width = canvasWidth;
 			canvasElement.height = canvasHeight;
+			ctx = canvasElement.getContext('2d');
+			coordinateCache.clear(); // Clear cache after resize
+			isDirty = true; // Force full redraw after resize
 			draw();
 		}
 	}
@@ -81,28 +100,77 @@
 			imageOffsetX = (canvasWidth - scaledWidth) / 2;
 			imageOffsetY = (canvasHeight - scaledHeight) / 2;
 
+			// Update cached dimensions and clear coordinate cache
+			scaledDimensions = { width: scaledWidth, height: scaledHeight };
+			coordinateCache.clear();
+
+			isDirty = true; // Force full redraw when image loads
 			draw();
 		};
 		imageElement.src = imageUrl;
 	}
 
 	function draw() {
-		if (!canvasElement) return;
-		const ctx = canvasElement.getContext('2d');
 		if (!ctx) return;
 
-		// Clear canvas
-		ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+		// Check if we need a full redraw
+		const needsFullRedraw = isDirty || annotations.length !== lastAnnotationCount;
 
-		// Draw image if loaded
-		if (imageElement && imageElement.complete) {
-			const scaledWidth = imageElement.width * imageScale;
-			const scaledHeight = imageElement.height * imageScale;
-			ctx.drawImage(imageElement, imageOffsetX, imageOffsetY, scaledWidth, scaledHeight);
+		if (needsFullRedraw) {
+			// Clear entire canvas
+			ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+			// Draw image if loaded
+			if (imageElement && imageElement.complete) {
+				const scaledWidth = imageElement.width * imageScale;
+				const scaledHeight = imageElement.height * imageScale;
+				ctx.drawImage(imageElement, imageOffsetX, imageOffsetY, scaledWidth, scaledHeight);
+			}
+
+			// Draw existing annotations (skip off-screen ones)
+			annotations.forEach((bbox) => {
+				if (isAnnotationVisible(bbox)) {
+					drawBoundingBox(bbox);
+				}
+			});
+
+			lastAnnotationCount = annotations.length;
+			isDirty = false;
+		} else if (isDrawing && isMouseDown) {
+			// Only clear and redraw the drawing area for current bbox
+			const minX = Math.min(startX, currentX) - 5;
+			const minY = Math.min(startY, currentY) - 5;
+			const maxX = Math.max(startX, currentX) + 5;
+			const maxY = Math.max(startY, currentY) + 5;
+
+			// Clear just the drawing region
+			ctx.clearRect(minX, minY, maxX - minX, maxY - minY);
+
+			// Redraw image in the dirty region
+			if (imageElement && imageElement.complete) {
+				ctx.drawImage(
+					imageElement,
+					Math.max(0, (minX - imageOffsetX) / imageScale),
+					Math.max(0, (minY - imageOffsetY) / imageScale),
+					Math.min(imageElement.width, (maxX - minX) / imageScale),
+					Math.min(imageElement.height, (maxY - minY) / imageScale),
+					minX,
+					minY,
+					maxX - minX,
+					maxY - minY
+				);
+			}
+
+			// Redraw annotations that intersect with dirty region and are visible
+			annotations.forEach((bbox) => {
+				if (
+					isAnnotationVisible(bbox) &&
+					intersectsRegion(bbox, minX, minY, maxX - minX, maxY - minY)
+				) {
+					drawBoundingBox(bbox);
+				}
+			});
 		}
-
-		// Draw existing annotations
-		annotations.forEach(drawBoundingBox);
 
 		// Draw current drawing bbox
 		if (isDrawing && isMouseDown) {
@@ -110,33 +178,83 @@
 		}
 	}
 
+	function isAnnotationVisible(bbox: BoundingBox): boolean {
+		if (!imageElement) return true;
+
+		const bboxX = imageOffsetX + bbox.x * scaledDimensions.width;
+		const bboxY = imageOffsetY + bbox.y * scaledDimensions.height;
+		const bboxWidth = bbox.width * scaledDimensions.width;
+		const bboxHeight = bbox.height * scaledDimensions.height;
+
+		// Check if annotation is within canvas bounds
+		return !(
+			bboxX + bboxWidth < 0 ||
+			bboxX > canvasWidth ||
+			bboxY + bboxHeight < 0 ||
+			bboxY > canvasHeight
+		);
+	}
+
+	function intersectsRegion(
+		bbox: BoundingBox,
+		x: number,
+		y: number,
+		width: number,
+		height: number
+	): boolean {
+		if (!imageElement) return true;
+
+		const bboxX = imageOffsetX + bbox.x * scaledDimensions.width;
+		const bboxY = imageOffsetY + bbox.y * scaledDimensions.height;
+		const bboxWidth = bbox.width * scaledDimensions.width;
+		const bboxHeight = bbox.height * scaledDimensions.height;
+
+		return !(
+			bboxX + bboxWidth < x ||
+			bboxX > x + width ||
+			bboxY + bboxHeight < y ||
+			bboxY > y + height
+		);
+	}
+
+	function debouncedDraw() {
+		if (drawTimeout) {
+			clearTimeout(drawTimeout);
+		}
+		drawTimeout = setTimeout(draw, 16); // ~60fps -> ~30fps
+	}
+
 	function drawBoundingBox(bbox: BoundingBox) {
-		if (!canvasElement) return;
-		const ctx = canvasElement.getContext('2d');
 		if (!ctx) return;
 
-		// Convert normalized coordinates to canvas coordinates
-		const scaledWidth = imageElement ? imageElement.width * imageScale : canvasWidth;
-		const scaledHeight = imageElement ? imageElement.height * imageScale : canvasHeight;
+		// Check cache first
+		const cacheKey = `${bbox.id}-${imageScale}-${imageOffsetX}-${imageOffsetY}`;
+		let coords = coordinateCache.get(cacheKey);
 
-		const x = imageOffsetX + bbox.x * scaledWidth;
-		const y = imageOffsetY + bbox.y * scaledHeight;
-		const width = bbox.width * scaledWidth;
-		const height = bbox.height * scaledHeight;
+		if (!coords) {
+			// Calculate and cache coordinates
+			const x = imageOffsetX + bbox.x * scaledDimensions.width;
+			const y = imageOffsetY + bbox.y * scaledDimensions.height;
+			const width = bbox.width * scaledDimensions.width;
+			const height = bbox.height * scaledDimensions.height;
+
+			coords = { x, y, width, height };
+			coordinateCache.set(cacheKey, coords);
+		}
 
 		// Draw bounding box
 		ctx.strokeStyle = bbox.isSelected ? '#ff6b6b' : '#4ecdc4';
 		ctx.lineWidth = 2;
-		ctx.strokeRect(x, y, width, height);
+		ctx.strokeRect(coords.x, coords.y, coords.width, coords.height);
 
 		// Draw label
 		if (bbox.label) {
 			ctx.fillStyle = bbox.isSelected ? '#ff6b6b' : '#4ecdc4';
 			ctx.font = '14px sans-serif';
 			const labelWidth = ctx.measureText(bbox.label).width;
-			ctx.fillRect(x, y - 20, labelWidth + 8, 20);
+			ctx.fillRect(coords.x, coords.y - 20, labelWidth + 8, 20);
 			ctx.fillStyle = 'white';
-			ctx.fillText(bbox.label, x + 4, y - 6);
+			ctx.fillText(bbox.label, coords.x + 4, coords.y - 6);
 		}
 	}
 
@@ -195,7 +313,7 @@
 		const pos = getMousePosition(event);
 		currentX = pos.x;
 		currentY = pos.y;
-		draw();
+		debouncedDraw();
 	}
 
 	function handleMouseUp(event: MouseEvent) {
@@ -230,14 +348,14 @@
 	function findAnnotationAtPosition(x: number, y: number): BoundingBox | null {
 		if (!imageElement) return null;
 
-		const scaledWidth = imageElement.width * imageScale;
-		const scaledHeight = imageElement.height * imageScale;
-
+		// Only check visible annotations
 		for (const bbox of annotations) {
-			const bboxX = imageOffsetX + bbox.x * scaledWidth;
-			const bboxY = imageOffsetY + bbox.y * scaledHeight;
-			const bboxWidth = bbox.width * scaledWidth;
-			const bboxHeight = bbox.height * scaledHeight;
+			if (!isAnnotationVisible(bbox)) continue;
+
+			const bboxX = imageOffsetX + bbox.x * scaledDimensions.width;
+			const bboxY = imageOffsetY + bbox.y * scaledDimensions.height;
+			const bboxWidth = bbox.width * scaledDimensions.width;
+			const bboxHeight = bbox.height * scaledDimensions.height;
 
 			if (x >= bboxX && x <= bboxX + bboxWidth && y >= bboxY && y <= bboxY + bboxHeight) {
 				return bbox;
@@ -266,9 +384,9 @@
 		});
 	}
 
-	// Reactive drawing
+	// Reactive drawing - only redraw when annotations actually change
 	$effect(() => {
-		if (canvasElement) {
+		if (ctx && annotations.length >= 0) {
 			draw();
 		}
 	});
