@@ -19,8 +19,6 @@ interface AnnotationState {
 	selectedAnnotationId: string | null;
 }
 
-const demoImageUrl =
-	'https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=800&h=600&fit=crop';
 
 function createAnnotationStore() {
 	const { subscribe, update } = writable<AnnotationState>({
@@ -76,31 +74,6 @@ function createAnnotationStore() {
 					ann.id === id ? { ...ann, ...updates } : ann
 				)
 			})),
-		loadDemoImage: () =>
-			update((state) => ({
-				...state,
-				imageUrl: demoImageUrl,
-				annotations: [
-					{
-						id: uuidv4(),
-						x: 0.2,
-						y: 0.3,
-						width: 0.3,
-						height: 0.4,
-						label: 'Dog',
-						isSelected: false
-					},
-					{
-						id: uuidv4(),
-						x: 0.6,
-						y: 0.1,
-						width: 0.25,
-						height: 0.35,
-						label: 'Cat',
-						isSelected: false
-					}
-				]
-			}))
 	};
 }
 

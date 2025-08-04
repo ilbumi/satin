@@ -4,44 +4,30 @@
 	import AnnotationPanel from './AnnotationPanel.svelte';
 	import { annotationStore } from '../stores/annotationStore';
 
-	const {
-		currentTool,
-		imageUrl,
-		annotations,
-	} = annotationStore;
 
 	function handleImageUpload(file: File) {
 		const url = URL.createObjectURL(file);
 		annotationStore.setImageUrl(url);
 	}
 
-	// Load demo image on mount
-	$effect(() => {
-		if (!$imageUrl) {
-			annotationStore.loadDemoImage();
-		}
-	});
 </script>
 
 <div class="annotation-workspace">
 	<div class="workspace-sidebar">
 		<AnnotationToolbar
-			activeTool={$currentTool}
+			activeTool={$annotationStore.currentTool}
 			onToolChange={annotationStore.setTool}
 			onImageUpload={handleImageUpload}
 		/>
 
-		<div class="demo-section">
-			<button class="demo-button" onclick={annotationStore.loadDemoImage}> Load Demo Image </button>
-		</div>
 	</div>
 
 	<div class="workspace-main">
 		<div class="canvas-area">
 			<ImageCanvas
-				imageUrl={$imageUrl}
-				annotations={$annotations}
-				isDrawing={$currentTool === 'bbox'}
+				imageUrl={$annotationStore.imageUrl}
+				annotations={$annotationStore.annotations}
+				isDrawing={$annotationStore.currentTool === 'bbox'}
 				onAnnotationCreate={annotationStore.createAnnotation}
 				onAnnotationSelect={annotationStore.selectAnnotation}
 			/>
@@ -50,7 +36,7 @@
 
 	<div class="workspace-panel">
 		<AnnotationPanel
-			annotations={$annotations}
+			annotations={$annotationStore.annotations}
 			onAnnotationSelect={annotationStore.selectAnnotation}
 			onAnnotationDelete={annotationStore.deleteAnnotation}
 			onAnnotationUpdate={annotationStore.updateAnnotation}
@@ -95,30 +81,6 @@
 		min-height: 0;
 	}
 
-	.demo-section {
-		padding: 1rem;
-		background-color: #fff3cd;
-		border: 1px solid #ffeaa7;
-		border-radius: 8px;
-	}
-
-	.demo-button {
-		width: 100%;
-		padding: 0.75rem;
-		border: 1px solid #f39c12;
-		border-radius: 6px;
-		background-color: #f39c12;
-		color: white;
-		font-size: 0.875rem;
-		font-weight: 500;
-		cursor: pointer;
-		transition: all 0.2s ease;
-	}
-
-	.demo-button:hover {
-		background-color: #e67e22;
-		border-color: #e67e22;
-	}
 
 	/* Responsive design */
 	@media (max-width: 1024px) {

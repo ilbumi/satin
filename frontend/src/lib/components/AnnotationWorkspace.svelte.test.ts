@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, fireEvent, waitFor } from '@testing-library/svelte';
+import { render } from '@testing-library/svelte';
 import AnnotationWorkspace from './AnnotationWorkspace.svelte';
 
 // Mock child components
@@ -36,17 +36,17 @@ vi.mock('./AnnotationPanel.svelte', () => ({
 	}))
 }));
 
-// Mock URL.createObjectURL
-globalThis.URL = {
-	createObjectURL: vi.fn(() => 'blob:test-url'),
-	revokeObjectURL: vi.fn(),
-	prototype: {} as URL,
-	canParse: vi.fn(() => true),
-	parse: vi.fn(() => null),
-	new: function (): URL {
-		return {} as URL;
-	}
-} as unknown as typeof URL;
+// Mock URL.createObjectURL for browser environment
+if (typeof window !== 'undefined') {
+	window.URL = window.URL || ({} as URL);
+	window.URL.createObjectURL = vi.fn(() => 'blob:test-url');
+	window.URL.revokeObjectURL = vi.fn();
+} else {
+	globalThis.URL = {
+		createObjectURL: vi.fn(() => 'blob:test-url'),
+		revokeObjectURL: vi.fn()
+	} as unknown as typeof URL;
+}
 
 // Mock Math.random for consistent IDs
 vi.spyOn(Math, 'random').mockReturnValue(0.5);
@@ -67,12 +67,6 @@ describe('AnnotationWorkspace', () => {
 		expect(container.querySelector('.workspace-panel')).toBeInTheDocument();
 	});
 
-	it('should render demo button', () => {
-		const { container } = render(AnnotationWorkspace);
-
-		const demoButton = container.querySelector('button');
-		expect(demoButton?.textContent).toContain('Load Demo Image');
-	});
 
 	it('should generate unique IDs', async () => {
 		// Mock Date.now to return consistent timestamp
@@ -115,19 +109,9 @@ describe('AnnotationWorkspace', () => {
 		const { container } = render(AnnotationWorkspace);
 
 		// Test the initial state - no annotations should be visible initially
-		// (until demo image is loaded)
 		expect(container.querySelector('.annotation-workspace')).toBeInTheDocument();
 	});
 
-	it('should load demo image and annotations on mount', async () => {
-		const { container } = render(AnnotationWorkspace);
-
-		// Wait for effect to run
-		await waitFor(() => {
-			// Component should be mounted and demo should be loaded
-			expect(container.querySelector('.annotation-workspace')).toBeInTheDocument();
-		});
-	});
 
 	it('should toggle annotation selection', () => {
 		const { container } = render(AnnotationWorkspace);
@@ -174,29 +158,7 @@ describe('AnnotationWorkspace', () => {
 		expect(workspace).toHaveClass('annotation-workspace');
 	});
 
-	it('should apply demo section styling', () => {
-		const { container } = render(AnnotationWorkspace);
 
-		const demoSection = container.querySelector('.demo-section');
-		expect(demoSection).toBeInTheDocument();
-		expect(demoSection).toHaveStyle({
-			backgroundColor: '#fff3cd',
-			border: '1px solid #ffeaa7'
-		});
-	});
-
-	it('should handle demo button click', async () => {
-		const { container } = render(AnnotationWorkspace);
-
-		const demoButton = container.querySelector('button');
-
-		// Click should not throw error
-		if (demoButton) {
-			expect(async () => {
-				await fireEvent.click(demoButton);
-			}).not.toThrow();
-		}
-	});
 
 	it('should have proper workspace structure', () => {
 		const { container } = render(AnnotationWorkspace);
