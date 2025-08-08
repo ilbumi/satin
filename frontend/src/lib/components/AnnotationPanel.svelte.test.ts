@@ -61,11 +61,12 @@ describe('AnnotationPanel', () => {
 	});
 
 	it('should highlight selected annotation', () => {
-		render(AnnotationPanel, { props: { annotations: mockAnnotations } });
+		const { container } = render(AnnotationPanel, { props: { annotations: mockAnnotations } });
 
-		const annotationItems = screen
-			.getAllByRole('generic')
-			.filter((el) => el.classList.contains('annotation-item'));
+		const annotationItems = container.querySelectorAll('.annotation-item');
+
+		// Verify we have the right number of items
+		expect(annotationItems).toHaveLength(2);
 
 		// Second annotation should be selected
 		expect(annotationItems[1]).toHaveClass('selected');
@@ -101,7 +102,7 @@ describe('AnnotationPanel', () => {
 		});
 
 		// Verify delete buttons are rendered with proper attributes within this component
-		const deleteButtons = container.querySelectorAll('button[title="Delete annotation"]');
+		const deleteButtons = container.querySelectorAll('button[aria-label="Delete annotation"]');
 		expect(deleteButtons).toHaveLength(2);
 
 		// Verify buttons have SVG icons
@@ -116,7 +117,7 @@ describe('AnnotationPanel', () => {
 		render(AnnotationPanel, { props: { annotations: mockAnnotations } });
 
 		// Find edit button and click it with userEvent
-		const editButtons = document.querySelectorAll('button[title="Edit label"]');
+		const editButtons = document.querySelectorAll('button[aria-label="Edit label"]');
 		const firstEditButton = editButtons[0] as HTMLElement;
 
 		await user.click(firstEditButton);
@@ -140,7 +141,7 @@ describe('AnnotationPanel', () => {
 		});
 
 		// Verify edit buttons are available and have proper titles within this component
-		const editButtons = container.querySelectorAll('button[title="Edit label"]');
+		const editButtons = container.querySelectorAll('button[aria-label="Edit label"]');
 		expect(editButtons).toHaveLength(2);
 
 		// Verify buttons have edit SVG icons
@@ -161,7 +162,7 @@ describe('AnnotationPanel', () => {
 		});
 
 		// Start editing
-		const editButton = document.querySelector('button[title="Edit label"]') as HTMLElement;
+		const editButton = document.querySelector('button[aria-label="Edit label"]') as HTMLElement;
 		await user.click(editButton);
 
 		// Wait for state change
@@ -201,8 +202,8 @@ describe('AnnotationPanel', () => {
 
 		// Verify each container has both edit and delete buttons
 		actionContainers.forEach((actionContainer) => {
-			const editButton = actionContainer.querySelector('button[title="Edit label"]');
-			const deleteButton = actionContainer.querySelector('button[title="Delete annotation"]');
+			const editButton = actionContainer.querySelector('button[aria-label="Edit label"]');
+			const deleteButton = actionContainer.querySelector('button[aria-label="Delete annotation"]');
 			expect(editButton).toBeInTheDocument();
 			expect(deleteButton).toBeInTheDocument();
 		});

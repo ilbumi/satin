@@ -28,7 +28,7 @@ Development Setup
 
 4. Start MongoDB (using Docker)::
 
-    docker-compose up -d mongodb
+    docker compose up -d mongodb
 
 5. Run the development servers::
 
@@ -48,7 +48,7 @@ Docker Setup
 
 For a complete Docker setup::
 
-    docker-compose up
+    docker compose up
 
 This will start all services including MongoDB, backend, and frontend.
 

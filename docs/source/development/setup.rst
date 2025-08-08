@@ -45,7 +45,7 @@ Development Environment
    Start MongoDB::
 
        # Using Docker
-       docker-compose up -d mongodb
+       docker compose up -d mongodb
 
        # Or use your local MongoDB installation
        mongod --dbpath /path/to/your/data

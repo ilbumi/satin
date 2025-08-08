@@ -255,9 +255,7 @@ describe('ImageCanvas', () => {
 		});
 
 		// Simulate window resize
-		const addEventListenerSpy = globalThis.window.addEventListener as unknown as vi.MockedFunction<
-			typeof window.addEventListener
-		>;
+		const addEventListenerSpy = vi.mocked(globalThis.window.addEventListener);
 		const resizeHandler = addEventListenerSpy.mock.calls.find(
 			(call: unknown[]) => call[0] === 'resize'
 		)?.[1] as () => void;

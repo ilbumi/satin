@@ -17,6 +17,11 @@ vi.mock('$app/stores', () => ({
 	}
 }));
 
+// Mock $app/navigation to prevent navigation errors
+vi.mock('$app/navigation', () => ({
+	goto: vi.fn()
+}));
+
 // Mock annotationStore
 vi.mock('$lib/stores/annotationStore', () => ({
 	annotationStore: {
@@ -39,14 +44,14 @@ vi.mock('$lib/stores/annotationStore', () => ({
 }));
 
 describe('/+page.svelte', () => {
-	it('should render main page components', async () => {
+	it('should render redirect page components', async () => {
 		render(Page);
 
-		// Check for annotation workspace which should be present
-		await expect.element(page.getByRole('heading', { name: /annotations/i })).toBeInTheDocument();
+		// Check for redirect loading message
+		await expect.element(page.getByText(/redirecting to projects/i)).toBeInTheDocument();
 
-		// Check for brand link from navigation
-		const brandLink = page.getByRole('link', { name: /satin/i });
-		await expect.element(brandLink).toBeInTheDocument();
+		// Check for loading redirect container
+		const loadingContainer = document.querySelector('.loading-redirect');
+		expect(loadingContainer).toBeInTheDocument();
 	});
 });
