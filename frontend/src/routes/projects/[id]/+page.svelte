@@ -412,7 +412,7 @@
 				</div>
 				<h3>Are you sure you want to delete this image?</h3>
 				<div class="image-preview">
-					<img src={imageToDelete.url} alt="Image to delete" />
+					<img src={imageToDelete.url} alt="" />
 				</div>
 				<p>
 					This action cannot be undone. The image and any associated annotations will be permanently

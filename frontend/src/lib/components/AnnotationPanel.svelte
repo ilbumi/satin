@@ -64,6 +64,9 @@
 				class="annotation-item"
 				class:selected={annotation.isSelected}
 				onclick={() => onAnnotationSelect?.(annotation.id)}
+				onkeydown={(e) => e.key === 'Enter' && onAnnotationSelect?.(annotation.id)}
+				role="button"
+				tabindex="0"
 			>
 				<div class="annotation-header">
 					{#if editingId === annotation.id}
@@ -72,7 +75,6 @@
 							class="label-input"
 							onkeydown={handleKeyDown}
 							onblur={saveEdit}
-							autofocus
 						/>
 					{:else}
 						<span class="annotation-label">{annotation.label}</span>
@@ -83,7 +85,7 @@
 									e.stopPropagation();
 									startEditing(annotation);
 								}}
-								title="Edit label"
+								aria-label="Edit label"
 							>
 								<svg
 									width="14"
@@ -103,7 +105,7 @@
 									e.stopPropagation();
 									onAnnotationDelete?.(annotation.id);
 								}}
-								title="Delete annotation"
+								aria-label="Delete annotation"
 							>
 								<svg
 									width="14"

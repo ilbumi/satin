@@ -1,4 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// Mock the urql/svelte module to prevent timeout issues
+vi.mock('@urql/svelte', () => ({
+	Client: vi.fn(() => ({
+		query: vi.fn(),
+		mutation: vi.fn(),
+		subscription: vi.fn(),
+	})),
+	cacheExchange: vi.fn(),
+	fetchExchange: vi.fn(),
+}));
 
 describe('GraphQL Client', () => {
 	it('should export client instance', async () => {
