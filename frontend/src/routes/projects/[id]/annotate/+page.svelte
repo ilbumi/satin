@@ -16,7 +16,7 @@
 	let error = $state<string | null>(null);
 
 	// Canvas and drawing state
-	let canvas: HTMLCanvasElement;
+	let canvas = $state<HTMLCanvasElement>();
 	let ctx: CanvasRenderingContext2D | null = null;
 	let imageElement: HTMLImageElement | null = null;
 	let isDrawing = $state(false);
@@ -79,7 +79,7 @@
 			if (existingTaskResult.data?.taskByImageAndProject) {
 				// Load existing task with annotations
 				currentTask = existingTaskResult.data.taskByImageAndProject;
-				bboxes = [...currentTask.bboxes];
+				bboxes = currentTask ? [...currentTask.bboxes] : [];
 				console.log(`Loaded existing task with ${bboxes.length} annotations`);
 			} else {
 				// Create a new task if none exists
@@ -94,7 +94,7 @@
 
 				if (createTaskResult.data?.createTask) {
 					currentTask = createTaskResult.data.createTask;
-					bboxes = [...currentTask.bboxes];
+					bboxes = currentTask ? [...currentTask.bboxes] : [];
 					console.log('Created new task for annotation');
 				}
 			}
@@ -119,8 +119,10 @@
 				if (!ctx || !imageElement) return;
 
 				// Set canvas size to match image
-				canvas.width = imageElement.width;
-				canvas.height = imageElement.height;
+				if (canvas) {
+					canvas.width = imageElement.width;
+					canvas.height = imageElement.height;
+				}
 
 				// Draw the image
 				ctx.drawImage(imageElement, 0, 0);
@@ -235,7 +237,7 @@
 		showAnnotationForm = false;
 
 		// Redraw canvas
-		if (imageElement && ctx) {
+		if (imageElement && ctx && canvas) {
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
 			ctx.drawImage(imageElement, 0, 0);
 			drawAllBBoxes();
@@ -250,7 +252,7 @@
 		showAnnotationForm = false;
 
 		// Redraw canvas without the current bbox
-		if (imageElement && ctx) {
+		if (imageElement && ctx && canvas) {
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
 			ctx.drawImage(imageElement, 0, 0);
 			drawAllBBoxes();
@@ -304,7 +306,7 @@
 		bboxes = bboxes.filter((_, i) => i !== index);
 
 		// Redraw canvas
-		if (imageElement && ctx) {
+		if (imageElement && ctx && canvas) {
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
 			ctx.drawImage(imageElement, 0, 0);
 			drawAllBBoxes();
@@ -403,7 +405,11 @@
 									</div>
 								{/if}
 							</div>
-							<button onclick={() => deleteBBox(index)} class="delete-bbox-button">
+							<button
+								onclick={() => deleteBBox(index)}
+								class="delete-bbox-button"
+								aria-label="Delete bounding box"
+							>
 								<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
 									<path
 										d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"
@@ -440,7 +446,13 @@
 
 <!-- Annotation Form Modal -->
 {#if showAnnotationForm && currentBBox}
-	<div class="modal-overlay" onclick={cancelAnnotation}>
+	<div
+		class="modal-overlay"
+		onclick={cancelAnnotation}
+		onkeydown={(e) => e.key === 'Escape' && cancelAnnotation()}
+		role="dialog"
+		tabindex="-1"
+	>
 		<div class="modal-content" onclick={(e) => e.stopPropagation()}>
 			<div class="modal-header">
 				<h2>Add Annotation</h2>

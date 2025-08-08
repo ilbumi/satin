@@ -329,7 +329,13 @@
 
 <!-- Create Project Modal -->
 {#if showCreateModal}
-	<div class="modal-overlay" onclick={closeCreateModal}>
+	<div
+		class="modal-overlay"
+		onclick={closeCreateModal}
+		onkeydown={(e) => e.key === 'Escape' && closeCreateModal()}
+		role="dialog"
+		tabindex="-1"
+	>
 		<div class="modal-content" onclick={(e) => e.stopPropagation()}>
 			<div class="modal-header">
 				<h2>Create New Project</h2>

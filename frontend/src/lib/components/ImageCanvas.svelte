@@ -405,11 +405,11 @@
 		height={canvasHeight}
 		class="annotation-canvas"
 		class:drawing={isDrawing}
-		on:mousedown={handleMouseDown}
-		on:mousemove={handleMouseMove}
-		on:mouseup={handleMouseUp}
-		on:click={handleCanvasClick}
-	/>
+		onmousedown={handleMouseDown}
+		onmousemove={handleMouseMove}
+		onmouseup={handleMouseUp}
+		onclick={handleCanvasClick}
+	></canvas>
 </div>
 
 <style>

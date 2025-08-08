@@ -10,7 +10,7 @@ test:
 
 .PHONY: launch_backend
 launch_backend:
-	granian --interface asgi --host 0.0.0.0 --port 8000 --reload satin:app
+	uv run granian --interface asgi --host 0.0.0.0 --port 8000 --reload satin:app
 
 .PHONY: launch_frontend
 launch_frontend:
@@ -52,4 +52,12 @@ lock:
 
 .PHONY: docs
 docs:
-	sphinx-build docs docs/_build
+	uv run sphinx-build -b html docs/source docs/build/html
+
+.PHONY: docs-clean
+docs-clean:
+	rm -rf docs/build/
+
+.PHONY: docs-serve
+docs-serve: docs
+	python -m http.server 8080 --directory docs/build/html
