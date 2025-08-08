@@ -223,10 +223,10 @@ jobs:
           context: .
           file: ./docker/Dockerfile.${{ matrix.service }}
           push: false
+          load: true
           tags: satin-${{ matrix.service }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64
 
       - name: Test Docker image
         run: |
