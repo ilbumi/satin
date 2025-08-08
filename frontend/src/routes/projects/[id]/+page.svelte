@@ -265,7 +265,7 @@
 						{#each images as image (image.id)}
 							<div class="image-card">
 								<div class="image-container">
-									<img src={image.url} alt="Project image" loading="lazy" />
+									<img src={image.url} alt="" loading="lazy" />
 									{#if hasAnnotations(image.id)}
 										<div class="annotation-status">
 											<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -322,8 +322,19 @@
 
 <!-- Add Image Modal -->
 {#if showAddImageModal}
-	<div class="modal-overlay" onclick={closeAddImageModal}>
-		<div class="modal-content" onclick={(e) => e.stopPropagation()}>
+	<div
+		class="modal-overlay"
+		onclick={closeAddImageModal}
+		onkeydown={(e) => e.key === 'Escape' && closeAddImageModal()}
+		role="dialog"
+		tabindex="-1"
+	>
+		<div
+			class="modal-content"
+			role="presentation"
+			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.key === 'Escape' && closeAddImageModal()}
+		>
 			<div class="modal-header">
 				<h2>Add Image</h2>
 				<button class="close-button" onclick={closeAddImageModal} aria-label="Close modal">
@@ -389,8 +400,19 @@
 
 <!-- Delete Image Confirmation Modal -->
 {#if showDeleteImageModal && imageToDelete}
-	<div class="modal-overlay" onclick={closeDeleteImageModal}>
-		<div class="modal-content" onclick={(e) => e.stopPropagation()}>
+	<div
+		class="modal-overlay"
+		onclick={closeDeleteImageModal}
+		onkeydown={(e) => e.key === 'Escape' && closeDeleteImageModal()}
+		role="dialog"
+		tabindex="-1"
+	>
+		<div
+			class="modal-content"
+			role="presentation"
+			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.key === 'Escape' && closeDeleteImageModal()}
+		>
 			<div class="modal-header">
 				<h2>Delete Image</h2>
 				<button class="close-button" onclick={closeDeleteImageModal} aria-label="Close modal">
