@@ -36,7 +36,7 @@ Before contributing, ensure you have:
    cp .env.example .env  # Edit with your settings
 
    # Start MongoDB (if using Docker)
-   docker-compose up -d mongodb
+   docker compose up -d mongodb
    ```
 
 3. **Set Up Frontend**
