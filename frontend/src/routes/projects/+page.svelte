@@ -336,7 +336,12 @@
 		role="dialog"
 		tabindex="-1"
 	>
-		<div class="modal-content" onclick={(e) => e.stopPropagation()}>
+		<div
+			class="modal-content"
+			role="presentation"
+			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.key === 'Escape' && closeCreateModal()}
+		>
 			<div class="modal-header">
 				<h2>Create New Project</h2>
 				<button class="close-button" onclick={closeCreateModal} aria-label="Close modal">
@@ -412,8 +417,19 @@
 
 <!-- Delete Project Confirmation Modal -->
 {#if showDeleteModal && projectToDelete}
-	<div class="modal-overlay" onclick={closeDeleteModal}>
-		<div class="modal-content" onclick={(e) => e.stopPropagation()}>
+	<div
+		class="modal-overlay"
+		onclick={closeDeleteModal}
+		onkeydown={(e) => e.key === 'Escape' && closeDeleteModal()}
+		role="dialog"
+		tabindex="-1"
+	>
+		<div
+			class="modal-content"
+			role="presentation"
+			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.key === 'Escape' && closeDeleteModal()}
+		>
 			<div class="modal-header">
 				<h2>Delete Project</h2>
 				<button class="close-button" onclick={closeDeleteModal} aria-label="Close modal">
@@ -475,8 +491,19 @@
 
 <!-- Edit Project Modal -->
 {#if showEditModal && projectToEdit}
-	<div class="modal-overlay" onclick={closeEditModal}>
-		<div class="modal-content" onclick={(e) => e.stopPropagation()}>
+	<div
+		class="modal-overlay"
+		onclick={closeEditModal}
+		onkeydown={(e) => e.key === 'Escape' && closeEditModal()}
+		role="dialog"
+		tabindex="-1"
+	>
+		<div
+			class="modal-content"
+			role="presentation"
+			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.key === 'Escape' && closeEditModal()}
+		>
 			<div class="modal-header">
 				<h2>Edit Project</h2>
 				<button class="close-button" onclick={closeEditModal} aria-label="Close modal">

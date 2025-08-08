@@ -453,7 +453,12 @@
 		role="dialog"
 		tabindex="-1"
 	>
-		<div class="modal-content" onclick={(e) => e.stopPropagation()}>
+		<div
+			class="modal-content"
+			role="presentation"
+			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.key === 'Escape' && cancelAnnotation()}
+		>
 			<div class="modal-header">
 				<h2>Add Annotation</h2>
 				<button class="close-button" onclick={cancelAnnotation} aria-label="Close modal">
