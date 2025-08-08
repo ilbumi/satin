@@ -27,7 +27,7 @@
 		"@storybook/addon-vitest": "^9.0.18",
 		"@storybook/sveltekit": "^9.0.18",
 		"@sveltejs/adapter-node": "^5.2.14",
-		"@sveltejs/kit": "^2.27.0",
+		"@sveltejs/kit": "^2.27.3",
 		"@sveltejs/vite-plugin-svelte": "^6.0.0",
 		"@testing-library/jest-dom": "^6.6.4",
 		"@testing-library/svelte": "^5.2.8",
