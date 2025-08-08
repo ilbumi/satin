@@ -1,7 +1,6 @@
 """Tests for GraphQL mutations."""
 
 import pytest
-from pydantic import ValidationError
 
 from tests.conftest import DatabaseFactory, TestDataFactory
 
@@ -601,8 +600,8 @@ class TestTaskMutations:
             }
         }
         """
-
-        with pytest.raises(ValidationError):
-            gql.mutate(
-                create_mutation, {"imageId": "507f1f77bcf86cd799439011", "projectId": "507f1f77bcf86cd799439012"}
-            )
+        data, errors = gql.query_with_errors(
+            create_mutation, {"imageId": "507f1f77bcf86cd799439011", "projectId": "507f1f77bcf86cd799439012"}
+        )
+        assert data is None
+        assert len(errors) == 1
