@@ -5,10 +5,10 @@ vi.mock('@urql/svelte', () => ({
 	Client: vi.fn(() => ({
 		query: vi.fn(),
 		mutation: vi.fn(),
-		subscription: vi.fn(),
+		subscription: vi.fn()
 	})),
 	cacheExchange: vi.fn(),
-	fetchExchange: vi.fn(),
+	fetchExchange: vi.fn()
 }));
 
 describe('GraphQL Client', () => {
