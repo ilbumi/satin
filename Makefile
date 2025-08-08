@@ -10,7 +10,7 @@ test:
 
 .PHONY: launch_backend
 launch_backend:
-	granian --interface asgi --host 0.0.0.0 --port 8000 --reload satin:app
+	uv run granian --interface asgi --host 0.0.0.0 --port 8000 --reload satin:app
 
 .PHONY: launch_frontend
 launch_frontend:
