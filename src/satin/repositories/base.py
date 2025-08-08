@@ -6,6 +6,9 @@ import strawberry
 from bson import ObjectId
 from pymongo.asynchronous.database import AsyncDatabase
 
+from satin.schema.filters import QueryInput
+from satin.schema.utils import build_mongodb_filter_condition, build_mongodb_sort_condition
+
 T = TypeVar("T")
 
 
@@ -29,17 +32,96 @@ class BaseRepository[T](ABC):
         """Find a document by its ID."""
         return await self.collection.find_one({"_id": ObjectId(object_id)})
 
-    async def find_all(self, limit: int | None = None, offset: int = 0) -> list[dict[str, Any]]:
-        """Find all documents with pagination using aggregation pipeline."""
-        pipeline: list[dict[str, Any]] = [
-            {"$skip": offset},
-            {"$limit": limit if limit is not None else 1000},
+    def build_match_stage(self, query_input: QueryInput | None) -> dict[str, Any]:
+        """Build MongoDB match stage from query input filters."""
+        if not query_input:
+            return {}
+
+        match_conditions = []
+
+        # Handle number filters
+        if query_input.number_filters:
+            for number_filter_input in query_input.number_filters:
+                condition = build_mongodb_filter_condition(
+                    number_filter_input.field, number_filter_input.operator, number_filter_input.value
+                )
+                match_conditions.append(condition)
+
+        # Handle string filters
+        if query_input.string_filters:
+            for string_filter_input in query_input.string_filters:
+                condition = build_mongodb_filter_condition(
+                    string_filter_input.field, string_filter_input.operator, string_filter_input.value
+                )
+                match_conditions.append(condition)
+
+        # Handle list filters
+        if query_input.list_filters:
+            for list_filter_input in query_input.list_filters:
+                condition = build_mongodb_filter_condition(
+                    list_filter_input.field, list_filter_input.operator, list_filter_input.value
+                )
+                match_conditions.append(condition)
+
+        # Combine all conditions with $and if multiple conditions exist
+        if not match_conditions:
+            return {}
+        if len(match_conditions) == 1:
+            return match_conditions[0]
+        return {"$and": match_conditions}
+
+    def build_sort_stage(self, query_input: QueryInput | None) -> dict[str, Any]:
+        """Build MongoDB sort stage from query input sorts."""
+        if not query_input or not query_input.sorts:
+            return {}
+
+        sort_dict = {}
+        for sort_input in query_input.sorts:
+            field, direction = build_mongodb_sort_condition(sort_input.field, sort_input.direction.value)
+            sort_dict[field] = direction
+
+        return sort_dict
+
+    async def find_all(
+        self, limit: int | None = None, offset: int = 0, query_input: QueryInput | None = None
+    ) -> list[dict[str, Any]]:
+        """Find all documents with filtering, sorting, and pagination using aggregation pipeline."""
+        pipeline: list[dict[str, Any]] = []
+
+        # Add match stage for filters
+        match_stage = self.build_match_stage(query_input)
+        if match_stage:
+            pipeline.append({"$match": match_stage})
+
+        # Add sort stage
+        sort_stage = self.build_sort_stage(query_input)
+        if sort_stage:
+            pipeline.append({"$sort": sort_stage})
+
+        # Use query_input pagination if provided, otherwise use parameters
+        if query_input:
+            pipeline.extend(
+                [
+                    {"$skip": query_input.offset},
+                    {"$limit": query_input.limit if query_input.limit else 1000},
+                ]
+            )
+        else:
+            pipeline.extend(
+                [
+                    {"$skip": offset},
+                    {"$limit": limit if limit is not None else 1000},
+                ]
+            )
+
+        # Add ID conversion
+        pipeline.append(
             {
                 "$addFields": {
                     "id": {"$toString": "$_id"},
                 }
-            },
-        ]
+            }
+        )
 
         results: list[dict[str, Any]] = []
         opt_cursor = self.collection.aggregate(pipeline)
@@ -54,8 +136,13 @@ class BaseRepository[T](ABC):
 
         return results
 
-    async def count_all(self, filter_query: dict[str, Any] | None = None) -> int:
+    async def count_all(self, filter_query: dict[str, Any] | None = None, query_input: QueryInput | None = None) -> int:
         """Count total documents in the collection."""
+        if query_input:
+            # Use query_input filters for counting
+            match_stage = self.build_match_stage(query_input)
+            return await self.collection.count_documents(match_stage)
+        # Use legacy filter_query parameter
         if filter_query is None:
             filter_query = {}
         return await self.collection.count_documents(filter_query)

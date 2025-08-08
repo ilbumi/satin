@@ -8,6 +8,7 @@ from bson import ObjectId
 from pymongo.asynchronous.database import AsyncDatabase
 
 from satin.schema.annotation import Annotation, BBox, BBoxInput
+from satin.schema.filters import QueryInput
 from satin.schema.image import Image
 from satin.schema.project import Project
 from satin.schema.task import Task, TaskStatus
@@ -83,37 +84,72 @@ class TaskRepository(BaseRepository[Task]):
             return await self.to_domain_object(task_data)
         return None
 
-    async def get_all_tasks(self, limit: int | None = None, offset: int = 0) -> list[Task]:
-        """Fetch paginated tasks and total count."""
-        pipeline: list[dict[str, Any]] = [
-            {"$skip": offset},
-            {"$limit": limit if limit is not None else 1000},
-            {
-                "$lookup": {
-                    "from": "images",
-                    "localField": "image_id",
-                    "foreignField": "_id",
-                    "as": "image",
-                }
-            },
-            {"$unwind": "$image"},
-            {
-                "$lookup": {
-                    "from": "projects",
-                    "localField": "project_id",
-                    "foreignField": "_id",
-                    "as": "project",
-                }
-            },
-            {"$unwind": "$project"},
+    async def get_all_tasks(
+        self, limit: int | None = None, offset: int = 0, query_input: QueryInput | None = None
+    ) -> list[Task]:
+        """Fetch paginated tasks with joins for related Image and Project data."""
+        pipeline: list[dict[str, Any]] = []
+
+        # Add match stage for filters
+        match_stage = self.build_match_stage(query_input)
+        if match_stage:
+            pipeline.append({"$match": match_stage})
+
+        # Add lookups for related data
+        pipeline.extend(
+            [
+                {
+                    "$lookup": {
+                        "from": "images",
+                        "localField": "image_id",
+                        "foreignField": "_id",
+                        "as": "image",
+                    }
+                },
+                {"$unwind": "$image"},
+                {
+                    "$lookup": {
+                        "from": "projects",
+                        "localField": "project_id",
+                        "foreignField": "_id",
+                        "as": "project",
+                    }
+                },
+                {"$unwind": "$project"},
+            ]
+        )
+
+        # Add sort stage (after lookups so we can sort by joined fields)
+        sort_stage = self.build_sort_stage(query_input)
+        if sort_stage:
+            pipeline.append({"$sort": sort_stage})
+
+        # Add pagination
+        if query_input:
+            pipeline.extend(
+                [
+                    {"$skip": query_input.offset},
+                    {"$limit": query_input.limit if query_input.limit else 1000},
+                ]
+            )
+        else:
+            pipeline.extend(
+                [
+                    {"$skip": offset},
+                    {"$limit": limit if limit is not None else 1000},
+                ]
+            )
+
+        # Add ID conversion
+        pipeline.append(
             {
                 "$addFields": {
                     "id": {"$toString": "$_id"},
                     "image.id": {"$toString": "$image._id"},
                     "project.id": {"$toString": "$project._id"},
                 }
-            },
-        ]
+            }
+        )
 
         results: list[Task] = []
         opt_cursor = self.collection.aggregate(pipeline)
@@ -240,6 +276,6 @@ class TaskRepository(BaseRepository[Task]):
             return await self.to_domain_object(task_data)
         return None
 
-    async def count_all_tasks(self) -> int:
+    async def count_all_tasks(self, query_input: QueryInput | None = None) -> int:
         """Count total number of tasks."""
-        return await self.count_all()
+        return await self.count_all(query_input=query_input)

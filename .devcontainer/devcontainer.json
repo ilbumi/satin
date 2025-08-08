@@ -13,7 +13,9 @@
 				"svelte.svelte-vscode",
 				"esbenp.prettier-vscode",
 				"dbaeumer.vscode-eslint",
-				"graphql.vscode-graphql"
+				"graphql.vscode-graphql",
+				"vitest.explorer",
+				"mongodb.mongodb-vscode"
 			],
 			"settings": {
 				"python.defaultInterpreterPath": "/workspace/.venv/bin/python",

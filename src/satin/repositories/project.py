@@ -3,6 +3,7 @@ from typing import Any
 import strawberry
 from pymongo.asynchronous.database import AsyncDatabase
 
+from satin.schema.filters import QueryInput
 from satin.schema.project import Project
 
 from .base import BaseRepository
@@ -27,9 +28,11 @@ class ProjectRepository(BaseRepository[Project]):
             return await self.to_domain_object(project_data)
         return None
 
-    async def get_all_projects(self, limit: int | None = None, offset: int = 0) -> list[Project]:
+    async def get_all_projects(
+        self, limit: int | None = None, offset: int = 0, query_input: QueryInput | None = None
+    ) -> list[Project]:
         """Fetch paginated projects using MongoDB aggregation pipeline."""
-        results_data = await self.find_all(limit=limit, offset=offset)
+        results_data = await self.find_all(limit=limit, offset=offset, query_input=query_input)
         return [await self.to_domain_object(data) for data in results_data]
 
     async def create_project(self, name: str, description: str) -> Project:
@@ -54,6 +57,6 @@ class ProjectRepository(BaseRepository[Project]):
         """Delete a project from the database."""
         return await self.delete_by_id(project_id)
 
-    async def count_all_projects(self) -> int:
+    async def count_all_projects(self, query_input: QueryInput | None = None) -> int:
         """Count total number of projects."""
-        return await self.count_all()
+        return await self.count_all(query_input=query_input)

@@ -720,3 +720,339 @@ class TestPaginationEdgeCases:
         assert len(page["objects"]) == 1
         assert page["totalCount"] == 3
         assert page["hasMore"] is False
+
+
+class TestUniversalQueries:
+    """Test universal query system with filtering and sorting."""
+
+    async def test_project_string_filter_contains(self, monkeypatch: pytest.MonkeyPatch):
+        """Test string filtering with CONTAINS operator."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
+        # Create test projects
+        create_mutation = """
+        mutation CreateProject($name: String!, $description: String!) {
+            createProject(name: $name, description: $description) { id }
+        }
+        """
+
+        projects_data = [
+            ("Test Project Alpha", "First test project"),
+            ("Production Beta", "Second test project"),
+            ("Development Gamma", "Third test project"),
+        ]
+
+        for name, description in projects_data:
+            gql.mutate(create_mutation, {"name": name, "description": description})
+
+        # Test filtering projects by name containing "Test"
+        query = """
+        query GetProjects($query: QueryInput) {
+            projects(query: $query) {
+                totalCount
+                count
+                objects {
+                    name
+                    description
+                }
+            }
+        }
+        """
+
+        query_input = {
+            "stringFilters": [{"field": "name", "operator": "CONTAINS", "value": "Test"}],
+            "limit": 10,
+            "offset": 0,
+        }
+
+        result = gql.query(query, {"query": query_input})
+        projects = result["projects"]
+
+        assert projects["totalCount"] == 1  # Only "Test Project Alpha"
+        assert projects["count"] == 1
+        assert len(projects["objects"]) == 1
+        assert "Test Project Alpha" in projects["objects"][0]["name"]
+
+    async def test_project_sorting(self, monkeypatch: pytest.MonkeyPatch):
+        """Test sorting projects by name."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
+        # Create test projects with different names
+        create_mutation = """
+        mutation CreateProject($name: String!, $description: String!) {
+            createProject(name: $name, description: $description) { id }
+        }
+        """
+
+        projects_data = [
+            ("Zebra Project", "Last alphabetically"),
+            ("Alpha Project", "First alphabetically"),
+            ("Beta Project", "Second alphabetically"),
+        ]
+
+        for name, description in projects_data:
+            gql.mutate(create_mutation, {"name": name, "description": description})
+
+        # Test sorting by name ascending
+        query = """
+        query GetProjects($query: QueryInput) {
+            projects(query: $query) {
+                objects {
+                    name
+                }
+            }
+        }
+        """
+
+        query_input = {"sorts": [{"field": "name", "direction": "ASC"}], "limit": 10, "offset": 0}
+
+        result = gql.query(query, {"query": query_input})
+        projects = result["projects"]["objects"]
+        names = [p["name"] for p in projects]
+        assert names == sorted(names)  # Should be sorted alphabetically
+
+    async def test_project_combined_filter_and_sort(self, monkeypatch: pytest.MonkeyPatch):
+        """Test combining filters and sorting."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
+        # Create test projects
+        create_mutation = """
+        mutation CreateProject($name: String!, $description: String!) {
+            createProject(name: $name, description: $description) { id }
+        }
+        """
+
+        projects_data = [
+            ("Test Project Zebra", "Test description"),
+            ("Test Project Alpha", "Test description"),
+            ("Production Beta", "Prod description"),
+        ]
+
+        for name, description in projects_data:
+            gql.mutate(create_mutation, {"name": name, "description": description})
+
+        # Filter by description containing "Test" and sort by name DESC
+        query = """
+        query GetProjects($query: QueryInput) {
+            projects(query: $query) {
+                totalCount
+                objects {
+                    name
+                    description
+                }
+            }
+        }
+        """
+
+        query_input = {
+            "stringFilters": [{"field": "description", "operator": "CONTAINS", "value": "Test"}],
+            "sorts": [{"field": "name", "direction": "DESC"}],
+            "limit": 10,
+            "offset": 0,
+        }
+
+        result = gql.query(query, {"query": query_input})
+        projects = result["projects"]
+
+        assert projects["totalCount"] == 2  # Two projects with "Test" in description
+        names = [p["name"] for p in projects["objects"]]
+        assert names[0] == "Test Project Zebra"  # Should be first (DESC order)
+        assert names[1] == "Test Project Alpha"  # Should be second
+
+    async def test_image_string_filter(self, monkeypatch: pytest.MonkeyPatch):
+        """Test filtering images by URL."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
+        # Create test images
+        create_mutation = """
+        mutation CreateImage($url: String!) {
+            createImage(url: $url) { id }
+        }
+        """
+
+        images_data = [
+            "https://example.com/image1.jpg",
+            "https://example.com/image2.png",
+            "https://test.com/photo.jpg",
+        ]
+
+        for url in images_data:
+            gql.mutate(create_mutation, {"url": url})
+
+        # Filter images by URL containing "example.com"
+        query = """
+        query GetImages($query: QueryInput) {
+            images(query: $query) {
+                totalCount
+                objects {
+                    url
+                }
+            }
+        }
+        """
+
+        query_input = {
+            "stringFilters": [{"field": "url", "operator": "CONTAINS", "value": "example.com"}],
+            "limit": 10,
+            "offset": 0,
+        }
+
+        result = gql.query(query, {"query": query_input})
+        images = result["images"]
+
+        assert images["totalCount"] == 2  # Two images from example.com
+        for image in images["objects"]:
+            assert "example.com" in image["url"]
+
+    async def test_pagination_with_filters(self, monkeypatch: pytest.MonkeyPatch):
+        """Test pagination combined with filtering."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
+        # Create 10 test projects with "Test" in name
+        create_mutation = """
+        mutation CreateProject($name: String!, $description: String!) {
+            createProject(name: $name, description: $description) { id }
+        }
+        """
+
+        for i in range(10):
+            name = f"Test Project {i:02d}"
+            description = f"Description {i}"
+            gql.mutate(create_mutation, {"name": name, "description": description})
+
+        # Test first page of filtered results
+        query = """
+        query GetProjects($query: QueryInput) {
+            projects(query: $query) {
+                totalCount
+                count
+                limit
+                offset
+                hasMore
+                objects {
+                    name
+                }
+            }
+        }
+        """
+
+        query_input = {
+            "stringFilters": [{"field": "name", "operator": "CONTAINS", "value": "Test"}],
+            "limit": 3,
+            "offset": 0,
+        }
+
+        result = gql.query(query, {"query": query_input})
+        projects = result["projects"]
+
+        assert projects["totalCount"] == 10  # All 10 match the filter
+        assert projects["count"] == 3  # Returned 3 items
+        assert projects["limit"] == 3
+        assert projects["offset"] == 0
+        assert projects["hasMore"] is True  # More results available
+
+        # Test second page
+        query_input["offset"] = 3
+        result = gql.query(query, {"query": query_input})
+        projects = result["projects"]
+        assert projects["count"] == 3
+        assert projects["offset"] == 3
+        assert projects["hasMore"] is True
+
+    async def test_backward_compatibility(self, monkeypatch: pytest.MonkeyPatch):
+        """Test that legacy pagination still works."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
+        # Create test projects
+        create_mutation = """
+        mutation CreateProject($name: String!, $description: String!) {
+            createProject(name: $name, description: $description) { id }
+        }
+        """
+
+        for i in range(3):
+            name = f"Legacy Project {i}"
+            description = f"Description {i}"
+            gql.mutate(create_mutation, {"name": name, "description": description})
+
+        # Test legacy pagination without query parameter
+        query = """
+        query GetProjects($limit: Int, $offset: Int) {
+            projects(limit: $limit, offset: $offset) {
+                totalCount
+                count
+                limit
+                offset
+                objects {
+                    name
+                }
+            }
+        }
+        """
+
+        result = gql.query(query, {"limit": 2, "offset": 0})
+        projects = result["projects"]
+
+        assert projects["count"] == 2
+        assert projects["limit"] == 2
+        assert projects["offset"] == 0
+
+    async def test_string_filter_operators(self, monkeypatch: pytest.MonkeyPatch):
+        """Test different string filter operators."""
+        db, client = await DatabaseFactory.create_test_db()
+        gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
+
+        # Create test projects
+        create_mutation = """
+        mutation CreateProject($name: String!, $description: String!) {
+            createProject(name: $name, description: $description) { id }
+        }
+        """
+
+        projects_data = [
+            ("Alpha Test", "Starts with Alpha"),
+            ("Test Beta", "Ends with Beta"),
+            ("Gamma Delta", "Contains middle text"),
+        ]
+
+        for name, description in projects_data:
+            gql.mutate(create_mutation, {"name": name, "description": description})
+
+        # Test STARTS_WITH operator
+        query = """
+        query GetProjects($query: QueryInput) {
+            projects(query: $query) {
+                totalCount
+                objects {
+                    name
+                }
+            }
+        }
+        """
+
+        query_input = {
+            "stringFilters": [{"field": "name", "operator": "STARTS_WITH", "value": "Alpha"}],
+            "limit": 10,
+            "offset": 0,
+        }
+
+        result = gql.query(query, {"query": query_input})
+        projects = result["projects"]
+
+        assert projects["totalCount"] == 1
+        assert projects["objects"][0]["name"] == "Alpha Test"
+
+        # Test ENDS_WITH operator
+        query_input["stringFilters"][0]["operator"] = "ENDS_WITH"
+        query_input["stringFilters"][0]["value"] = "Beta"
+
+        result = gql.query(query, {"query": query_input})
+        projects = result["projects"]
+        assert projects["totalCount"] == 1
+        assert projects["objects"][0]["name"] == "Test Beta"

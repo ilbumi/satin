@@ -3,6 +3,7 @@ from typing import Any
 import strawberry
 from pymongo.asynchronous.database import AsyncDatabase
 
+from satin.schema.filters import QueryInput
 from satin.schema.image import Image
 
 from .base import BaseRepository
@@ -27,9 +28,11 @@ class ImageRepository(BaseRepository[Image]):
             return await self.to_domain_object(image_data)
         return None
 
-    async def get_all_images(self, limit: int | None = None, offset: int = 0) -> list[Image]:
+    async def get_all_images(
+        self, limit: int | None = None, offset: int = 0, query_input: QueryInput | None = None
+    ) -> list[Image]:
         """Fetch paginated images using MongoDB aggregation pipeline."""
-        results_data = await self.find_all(limit=limit, offset=offset)
+        results_data = await self.find_all(limit=limit, offset=offset, query_input=query_input)
         return [await self.to_domain_object(data) for data in results_data]
 
     async def create_image(self, url: str) -> Image:
@@ -50,6 +53,6 @@ class ImageRepository(BaseRepository[Image]):
         """Delete an image from the database."""
         return await self.delete_by_id(image_id)
 
-    async def count_all_images(self) -> int:
+    async def count_all_images(self, query_input: QueryInput | None = None) -> int:
         """Count total number of images."""
-        return await self.count_all()
+        return await self.count_all(query_input=query_input)

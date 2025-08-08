@@ -17,13 +17,33 @@ vi.mock('$app/stores', () => ({
 	}
 }));
 
+// Mock annotationStore
+vi.mock('$lib/stores/annotationStore', () => ({
+	annotationStore: {
+		subscribe: vi.fn((callback) => {
+			callback({
+				currentTool: 'select',
+				imageUrl: '',
+				annotations: [],
+				selectedAnnotationId: null
+			});
+			return () => {}; // unsubscribe function
+		}),
+		setTool: vi.fn(),
+		setImageUrl: vi.fn(),
+		createAnnotation: vi.fn(),
+		selectAnnotation: vi.fn(),
+		deleteAnnotation: vi.fn(),
+		updateAnnotation: vi.fn()
+	}
+}));
+
 describe('/+page.svelte', () => {
 	it('should render main page components', async () => {
 		render(Page);
 
-		// Check for demo button which should be present
-		const demoButton = page.getByRole('button', { name: /load demo image/i });
-		await expect.element(demoButton).toBeInTheDocument();
+		// Check for annotation workspace which should be present
+		await expect.element(page.getByRole('heading', { name: /annotations/i })).toBeInTheDocument();
 
 		// Check for brand link from navigation
 		const brandLink = page.getByRole('link', { name: /satin/i });

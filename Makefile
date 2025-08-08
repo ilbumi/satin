@@ -21,8 +21,8 @@ format: format-backend format-frontend
 
 .PHONY: format-backend
 format-backend:
-	uv run ssort ${PYCODE_PATHS}
-	uv run isort ${PYCODE_PATHS}
+	uv run ssort ${PYCODE_PATHS} ${PYTESTS_PATH}
+	uv run isort ${PYCODE_PATHS} ${PYTESTS_PATH}
 	uv run ruff format ${PYCODE_PATHS} ${PYTESTS_PATH}
 	uv run ruff check --fix ${PYCODE_PATHS} ${PYTESTS_PATH}
 
@@ -40,7 +40,7 @@ lint-backend:
 
 .PHONY: lint-frontend
 lint-frontend:
-	cd frontend && pnpm run lint
+	cd frontend && pnpm run lint && pnpm check
 
 .PHONY: sync
 sync:
@@ -52,4 +52,12 @@ lock:
 
 .PHONY: docs
 docs:
-	sphinx-build docs docs/_build
+	uv run sphinx-build -b html docs/source docs/build/html
+
+.PHONY: docs-clean
+docs-clean:
+	rm -rf docs/build/
+
+.PHONY: docs-serve
+docs-serve: docs
+	python -m http.server 8080 --directory docs/build/html

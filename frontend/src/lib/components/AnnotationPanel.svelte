@@ -55,11 +55,11 @@
 
 <div class="annotation-panel">
 	<div class="panel-header">
-		<h3>Annotations ({annotations.length})</h3>
+		<h3>Annotations ({annotations?.length || 0})</h3>
 	</div>
 
 	<div class="annotation-list">
-		{#each annotations as annotation (annotation.id)}
+		{#each annotations || [] as annotation (annotation.id)}
 			<div
 				class="annotation-item"
 				class:selected={annotation.isSelected}
