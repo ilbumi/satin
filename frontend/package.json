@@ -22,7 +22,7 @@
 		"@eslint/compat": "^1.2.5",
 		"@eslint/js": "^9.18.0",
 		"@storybook/addon-a11y": "^9.0.18",
-		"@storybook/addon-docs": "^9.0.18",
+		"@storybook/addon-docs": "^9.1.1",
 		"@storybook/addon-svelte-csf": "^5.0.7",
 		"@storybook/addon-vitest": "^9.0.18",
 		"@storybook/sveltekit": "^9.0.18",
