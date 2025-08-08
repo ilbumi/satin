@@ -1,7 +1,7 @@
 from bson import ObjectId
 
+from satin.models.image import Image
 from satin.repositories import ImageRepository
-from satin.schema.image import Image
 from tests.conftest import DatabaseFactory
 
 
@@ -12,7 +12,7 @@ class TestImage:
         """Test Image object creation."""
         image = Image(id="123", url="https://example.com/image.jpg")
         assert image.id == "123"
-        assert image.url == "https://example.com/image.jpg"
+        assert str(image.url) == "https://example.com/image.jpg"
 
     def test_image_str_representation(self):
         """Test Image string representation."""
@@ -31,7 +31,7 @@ class TestImageFunctions:
 
         image = await image_repo.create_image("https://example.com/test-image.jpg")
 
-        assert image.url == "https://example.com/test-image.jpg"
+        assert str(image.url) == "https://example.com/test-image.jpg"
         assert image.id is not None
 
         # Verify it's in the database
@@ -52,7 +52,7 @@ class TestImageFunctions:
 
         assert retrieved_image is not None
         assert retrieved_image.id == created_image.id
-        assert retrieved_image.url == "https://example.com/test-image.jpg"
+        assert str(retrieved_image.url) == "https://example.com/test-image.jpg"
 
     async def test_get_image_not_found(self):
         """Test retrieving a non-existent image."""
@@ -76,7 +76,7 @@ class TestImageFunctions:
         images = await image_repo.get_all_images()
 
         assert len(images) == 3
-        image_urls = {img.url for img in images}
+        image_urls = {str(img.url) for img in images}
         expected_urls = {
             "https://example.com/image1.jpg",
             "https://example.com/image2.jpg",
@@ -107,7 +107,7 @@ class TestImageFunctions:
 
         assert updated_image is not None
         assert updated_image.id == image.id
-        assert updated_image.url == "https://example.com/updated.jpg"
+        assert str(updated_image.url) == "https://example.com/updated.jpg"
 
     async def test_update_image_not_found(self):
         """Test updating a non-existent image."""
@@ -131,7 +131,7 @@ class TestImageFunctions:
 
         assert success is False  # No changes means no update
         assert updated_image is not None
-        assert updated_image.url == "https://example.com/test.jpg"
+        assert str(updated_image.url) == "https://example.com/test.jpg"
 
     async def test_delete_image(self):
         """Test deleting an image."""

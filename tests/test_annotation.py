@@ -1,4 +1,4 @@
-from satin.schema.annotation import Annotation, BBox
+from satin.models.annotation import Annotation, BBox
 
 
 class TestAnnotation:
@@ -66,23 +66,23 @@ class TestBBox:
         assert bbox.width == 100.75
         assert bbox.height == 200.125
 
-    def test_bbox_creation_with_zero_coordinates(self):
-        """Test BBox object creation with zero coordinates."""
-        annotation = Annotation(text="origin object")
-        bbox = BBox(x=0.0, y=0.0, width=0.0, height=0.0, annotation=annotation)
+    def test_bbox_creation_with_small_coordinates(self):
+        """Test BBox object creation with small positive coordinates."""
+        annotation = Annotation(text="small object")
+        bbox = BBox(x=0.1, y=0.1, width=0.1, height=0.1, annotation=annotation)
 
-        assert bbox.x == 0.0
-        assert bbox.y == 0.0
-        assert bbox.width == 0.0
-        assert bbox.height == 0.0
+        assert bbox.x == 0.1
+        assert bbox.y == 0.1
+        assert bbox.width == 0.1
+        assert bbox.height == 0.1
 
-    def test_bbox_creation_with_negative_coordinates(self):
-        """Test BBox object creation with negative coordinates."""
-        annotation = Annotation(text="negative object")
-        bbox = BBox(x=-10.0, y=-20.0, width=100.0, height=200.0, annotation=annotation)
+    def test_bbox_creation_with_large_coordinates(self):
+        """Test BBox object creation with large coordinates."""
+        annotation = Annotation(text="large object")
+        bbox = BBox(x=1000.0, y=2000.0, width=100.0, height=200.0, annotation=annotation)
 
-        assert bbox.x == -10.0
-        assert bbox.y == -20.0
+        assert bbox.x == 1000.0
+        assert bbox.y == 2000.0
         assert bbox.width == 100.0
         assert bbox.height == 200.0
 

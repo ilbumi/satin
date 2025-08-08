@@ -3,8 +3,8 @@ from typing import Any
 import strawberry
 from pymongo.asynchronous.database import AsyncDatabase
 
+from satin.models.image import Image
 from satin.schema.filters import QueryInput
-from satin.schema.image import Image
 
 from .base import BaseRepository
 

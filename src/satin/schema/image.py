@@ -1,11 +1,9 @@
 import strawberry
 
+from satin.models.image import Image as ImageModel
 
-@strawberry.type
+
+@strawberry.experimental.pydantic.type(model=ImageModel)
 class Image:
-    id: strawberry.ID
-    url: str
-
-    def __str__(self) -> str:
-        """Get string representation of the Image."""
-        return f"Image(id={self.id}, url={self.url})"
+    id: strawberry.auto
+    url: strawberry.auto

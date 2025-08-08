@@ -1,25 +1,19 @@
-from datetime import datetime
-from enum import Enum
-
 import strawberry
 
+from satin.models.task import Task as TaskModel
+from satin.models.task import TaskStatus as TaskStatusModel
 from satin.schema.annotation import BBox
 from satin.schema.image import Image
 from satin.schema.project import Project
 
-
-@strawberry.enum
-class TaskStatus(Enum):
-    DRAFT = "draft"
-    FINISHED = "finished"
-    REVIEWED = "reviewed"
+TaskStatus = strawberry.enum(TaskStatusModel)
 
 
-@strawberry.type
+@strawberry.experimental.pydantic.type(model=TaskModel)
 class Task:
-    id: strawberry.ID
+    id: strawberry.auto
     image: Image
     project: Project
     bboxes: list[BBox]
-    status: TaskStatus = TaskStatus.DRAFT
-    created_at: datetime
+    status: TaskStatus
+    created_at: strawberry.auto

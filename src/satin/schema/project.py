@@ -1,12 +1,10 @@
 import strawberry
 
+from satin.models.project import Project as ProjectModel
 
-@strawberry.type
+
+@strawberry.experimental.pydantic.type(model=ProjectModel)
 class Project:
-    id: strawberry.ID
-    name: str
-    description: str
-
-    def __str__(self) -> str:
-        """Get string representation of the Project."""
-        return f"Project(id={self.id}, name={self.name}, description={self.description})"
+    id: strawberry.auto
+    name: strawberry.auto
+    description: strawberry.auto

@@ -3,11 +3,11 @@ from datetime import UTC, datetime
 import pytest
 from bson import ObjectId
 
+from satin.models.annotation import Annotation, BBox
+from satin.models.image import Image
+from satin.models.project import Project
+from satin.models.task import Task, TaskStatus
 from satin.repositories import ImageRepository, ProjectRepository, TaskRepository
-from satin.schema.annotation import Annotation, BBox
-from satin.schema.image import Image
-from satin.schema.project import Project
-from satin.schema.task import Task, TaskStatus
 from tests.conftest import DatabaseFactory
 
 
