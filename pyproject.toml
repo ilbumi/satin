@@ -1,7 +1,7 @@
 [project]
 name = "satin"
 version = "0.1.0"
-description = "Add your description here"
+description = "A Simple Annotation Tool for Images."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -35,6 +35,10 @@ dev = [
     "pytest-mock>=3.14.1",
     "pytest-xdist>=3.8.0",
     "ruff>=0.12.5",
+    "sphinx>=8.2.1",
+    "sphinx-rtd-theme>=3.0.2",
+    "sphinx-autodoc-typehints>=2.5.1",
+    "myst-parser>=4.0.0",
     "ssort>=0.15.0",
     "strawberry-graphql[cli]>=0.278.0",
 ]
@@ -90,7 +94,7 @@ lint.ignore = [
   "SLF001",  # private method accessed outside of class
   "PGH003",  # allow unspecified type ignores
 ]
-"docs/conf.py" = ["ALL"]
+"docs/source/conf.py" = ["ALL"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

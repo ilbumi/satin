@@ -52,4 +52,12 @@ lock:
 
 .PHONY: docs
 docs:
-	sphinx-build docs docs/_build
+	uv run sphinx-build -b html docs/source docs/build/html
+
+.PHONY: docs-clean
+docs-clean:
+	rm -rf docs/build/
+
+.PHONY: docs-serve
+docs-serve: docs
+	python -m http.server 8080 --directory docs/build/html
