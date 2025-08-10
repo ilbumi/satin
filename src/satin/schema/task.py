@@ -15,5 +15,5 @@ class Task:
     image: Image
     project: Project
     bboxes: list[BBox]
-    status: TaskStatus
+    status: strawberry.auto
     created_at: strawberry.auto
