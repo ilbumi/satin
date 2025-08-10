@@ -42,6 +42,7 @@ dev = [
     "myst-parser>=4.0.0",
     "ssort>=0.15.0",
     "strawberry-graphql[cli]>=0.278.0",
+    "vulture>=2.14",
 ]
 
 ###########
@@ -100,3 +101,11 @@ lint.ignore = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
+
+[tool.vulture]
+exclude = ["tests/", "dir/"]
+ignore_decorators = []
+make_whitelist = true
+min_confidence = 80
+paths = ["src"]
+sort_by_size = true
