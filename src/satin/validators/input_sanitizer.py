@@ -3,7 +3,7 @@
 import html
 import re
 from urllib.parse import urlparse
-
+import bleach
 import strawberry
 from bson import ObjectId
 from bson.errors import InvalidId
@@ -107,18 +107,16 @@ def sanitize_html(value: str, max_length: int = MAX_STRING_LENGTH) -> str:
     # First apply basic string sanitization
     value = sanitize_string(value, max_length, allow_html=True)
 
-    # Remove script tags and their content
-    value = re.sub(r"<script[^>]*>.*?</script>", "", value, flags=re.IGNORECASE | re.DOTALL)
-
-    # Remove event handlers
-    value = re.sub(r"\s*on\w+\s*=\s*[\"'][^\"']*[\"']", "", value, flags=re.IGNORECASE)
-    value = re.sub(r"\s*on\w+\s*=\s*[^\s>]+", "", value, flags=re.IGNORECASE)
-
-    # Remove javascript: protocol
-    value = re.sub(r"javascript\s*:", "", value, flags=re.IGNORECASE)
-
-    # Remove data: protocol for potentially dangerous content
-    return re.sub(r"data\s*:\s*text/html", "", value, flags=re.IGNORECASE)
+    # Use bleach to sanitize HTML, removing all dangerous tags and attributes
+    # You can customize allowed tags/attributes as needed
+    # By default, allow only a safe subset (e.g., no script/style)
+    return bleach.clean(
+        value,
+        tags=[],  # No tags allowed by default; adjust as needed
+        attributes={},
+        protocols=["http", "https", "mailto"],
+        strip=True,
+    )
 
 
 def validate_and_convert_object_id(value: str | strawberry.ID) -> ObjectId:
