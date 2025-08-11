@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from strawberry.fastapi import GraphQLRouter
 
 from satin.config import config
+from satin.middleware.logging import RequestLoggingMiddleware
 from satin.schema.mutation import Mutation
 from satin.schema.query import Query
 
@@ -13,6 +14,9 @@ schema = strawberry.Schema(query=Query, mutation=Mutation)
 def create_app() -> FastAPI:
     """Create FastAPI application with GraphQL endpoint."""
     app = FastAPI(title="SATIn API", description="Simple Annotation Tool for Images")
+
+    # Add request logging middleware
+    app.add_middleware(RequestLoggingMiddleware)
 
     # Configure CORS
     app.add_middleware(
