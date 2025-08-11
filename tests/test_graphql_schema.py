@@ -508,10 +508,10 @@ class TestUniversalQuerySchema:
         db, client = await DatabaseFactory.create_test_db()
         gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
 
-        # Test StringFilterOperator enum
+        # Test StringFilterOperatorEnum enum
         query = """
         query {
-            __type(name: "StringFilterOperator") {
+            __type(name: "StringFilterOperatorEnum") {
                 name
                 kind
                 enumValues {
@@ -524,7 +524,7 @@ class TestUniversalQuerySchema:
         result = gql.query(query)
         enum_type = result["__type"]
 
-        assert enum_type["name"] == "StringFilterOperator"
+        assert enum_type["name"] == "StringFilterOperatorEnum"
         assert enum_type["kind"] == "ENUM"
 
         enum_values = [value["name"] for value in enum_type["enumValues"]]
@@ -534,10 +534,10 @@ class TestUniversalQuerySchema:
         assert "EQ" in enum_values
         assert "NE" in enum_values
 
-        # Test NumberFilterOperator enum
+        # Test NumberFilterOperatorEnum enum
         query = """
         query {
-            __type(name: "NumberFilterOperator") {
+            __type(name: "NumberFilterOperatorEnum") {
                 name
                 kind
                 enumValues {
@@ -550,7 +550,7 @@ class TestUniversalQuerySchema:
         result = gql.query(query)
         enum_type = result["__type"]
 
-        assert enum_type["name"] == "NumberFilterOperator"
+        assert enum_type["name"] == "NumberFilterOperatorEnum"
         assert enum_type["kind"] == "ENUM"
 
         enum_values = [value["name"] for value in enum_type["enumValues"]]
@@ -561,13 +561,13 @@ class TestUniversalQuerySchema:
         assert "LTE" in enum_values
 
     async def test_sort_direction_enum(self, monkeypatch: pytest.MonkeyPatch):
-        """Test that SortDirection enum is properly defined."""
+        """Test that SortDirectionEnum enum is properly defined."""
         db, client = await DatabaseFactory.create_test_db()
         gql = DatabaseFactory.create_graphql_client(db, monkeypatch)
 
         query = """
         query {
-            __type(name: "SortDirection") {
+            __type(name: "SortDirectionEnum") {
                 name
                 kind
                 enumValues {
@@ -580,7 +580,7 @@ class TestUniversalQuerySchema:
         result = gql.query(query)
         enum_type = result["__type"]
 
-        assert enum_type["name"] == "SortDirection"
+        assert enum_type["name"] == "SortDirectionEnum"
         assert enum_type["kind"] == "ENUM"
 
         enum_values = [value["name"] for value in enum_type["enumValues"]]

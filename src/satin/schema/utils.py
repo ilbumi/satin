@@ -1,24 +1,16 @@
+"""Utility functions for schema operations."""
+
 import re
-from typing import Any, get_type_hints
+from typing import Any, TypeVar, get_type_hints
 
 import strawberry
-from bson import ObjectId
 
+from satin.exceptions import ValidationError as BaseValidationError
 from satin.schema.filters import ListFilterOperator, NumberFilterOperator, StringFilterOperator
+from satin.validators import _validate_regex_pattern, validate_and_convert_object_id
 
-MAX_PATTERN_LENGTH = 1000
-DANGEROUS_PATTERNS = [
-    r"\(\?\#",  # Comment groups can cause issues
-    r"\(\?\<\!",  # Negative lookbehind
-    r"\(\?\<\=",  # Positive lookbehind
-    r"\(\?\!",  # Negative lookahead
-    r"\(\?\=",  # Positive lookahead
-    r"(?#",  # Simplified dangerous patterns
-    r"(?<!",
-    r"(?<=",
-    r"(?!",
-    r"(?=",
-]
+# Type conversion utilities
+T = TypeVar("T")
 
 
 def get_model_fields(model_class: type) -> dict[str, type]:
@@ -51,7 +43,12 @@ def convert_filter_value(value: Any, target_type: type) -> Any:
     # Handle ObjectId conversion for ID fields
     if target_type in {strawberry.ID, "ID"} or str(target_type).endswith("ID"):
         if isinstance(value, str):
-            return ObjectId(value) if ObjectId.is_valid(value) else value
+            try:
+                return validate_and_convert_object_id(value)
+            except BaseValidationError:
+                # Return the original value if validation fails
+                # This allows for non-ObjectId IDs in some cases
+                return value
         return value
 
     # Handle basic type conversions
@@ -59,7 +56,7 @@ def convert_filter_value(value: Any, target_type: type) -> Any:
         int: lambda v: int(v) if isinstance(v, (str, float)) else v,
         float: lambda v: float(v) if isinstance(v, (str, int)) else v,
         str: lambda v: str(v) if not isinstance(v, str) else v,
-        bool: lambda v: v.lower() in ("true", "1", "yes", "on") if isinstance(v, str) else bool(v),
+        bool: lambda v: (v.lower() in ("true", "1", "yes", "on") if isinstance(v, str) else bool(v)),
     }
     return type_converters.get(target_type, lambda v: v)(value)
 
@@ -76,32 +73,14 @@ def _build_number_filter(field: str, operator: NumberFilterOperator, value: Any)
         NumberFilterOperator.LTE: "$lte",
     }
     if operator in list_operators:
-        value = value if isinstance(value, list) else [value]
-        return {field: {list_operators[operator]: value}}
+        value_list = value if isinstance(value, list) else [value]
+        return {field: {list_operators[operator]: value_list}}
     if operator in single_operators:
         mongo_operator = single_operators[operator]
         return {field: value if mongo_operator is None else {mongo_operator: value}}
+
     msg = f"Unsupported number operator: {operator}"
     raise ValueError(msg)
-
-
-def _validate_regex_pattern(pattern: str) -> None:
-    """Validate regex pattern for security and performance."""
-    if len(pattern) > MAX_PATTERN_LENGTH:
-        msg = f"Regex pattern too long (max {MAX_PATTERN_LENGTH} characters)"
-        raise ValueError(msg)
-
-    for dangerous in DANGEROUS_PATTERNS:
-        if dangerous in pattern:
-            msg = "Regex pattern contains potentially dangerous constructs"
-            raise ValueError(msg)
-
-    # Test compile to catch syntax errors
-    try:
-        re.compile(pattern)
-    except re.error as e:
-        msg = f"Invalid regex pattern: {e}"
-        raise ValueError(msg) from e
 
 
 def _build_string_filter(field: str, operator: StringFilterOperator, value: Any) -> dict[str, Any]:
@@ -119,13 +98,15 @@ def _build_string_filter(field: str, operator: StringFilterOperator, value: Any)
         StringFilterOperator.REGEX: {"$regex": str_value},
     }
     list_operators = {StringFilterOperator.IN: "$in", StringFilterOperator.NIN: "$nin"}
+
     if operator in regex_operators:
         return {field: regex_operators[operator]}
     if operator in list_operators:
-        value = value if isinstance(value, list) else [value]
-        return {field: {list_operators[operator]: value}}
+        value_list = value if isinstance(value, list) else [value]
+        return {field: {list_operators[operator]: value_list}}
     if operator in {StringFilterOperator.EQ, StringFilterOperator.NE}:
         return {field: value if operator == StringFilterOperator.EQ else {"$ne": value}}
+
     msg = f"Unsupported string operator: {operator}"
     raise ValueError(msg)
 
@@ -140,12 +121,14 @@ def _build_list_filter(field: str, operator: ListFilterOperator, value: Any) -> 
     size_operators: dict[ListFilterOperator, dict[str, Any]] = {
         ListFilterOperator.SIZE_EQ: {"$size": int(value)},
         ListFilterOperator.SIZE_GT: {f"{field}.{int(value)}": {"$exists": True}},
-        ListFilterOperator.SIZE_LT: {f"{field}.{int(value) - 1}": {"$exists": False}} if int(value) > 0 else {},
+        ListFilterOperator.SIZE_LT: ({f"{field}.{int(value) - 1}": {"$exists": False}} if int(value) > 0 else {}),
     }
+
     if operator in list_operators:
         return {field: list_operators[operator]}
     if operator in size_operators:
         return size_operators[operator]
+
     msg = f"Unsupported list operator: {operator}"
     raise ValueError(msg)
 
@@ -160,6 +143,7 @@ def build_mongodb_filter_condition(
         return _build_string_filter(field, operator, value)
     if isinstance(operator, ListFilterOperator):
         return _build_list_filter(field, operator, value)
+
     msg = f"Unsupported operator type: {type(operator)}"
     raise ValueError(msg)
 

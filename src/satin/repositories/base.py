@@ -3,11 +3,10 @@ from abc import ABC, abstractmethod
 from typing import Any, TypeVar
 
 import strawberry
-from bson import ObjectId
 from pymongo.asynchronous.database import AsyncDatabase
 
-from satin.schema.filters import QueryInput
 from satin.schema.utils import build_mongodb_filter_condition, build_mongodb_sort_condition
+from satin.validators import ValidationError, validate_and_convert_object_id
 
 T = TypeVar("T")
 
@@ -30,9 +29,15 @@ class BaseRepository[T](ABC):
 
     async def find_by_id(self, object_id: strawberry.ID) -> dict[str, Any] | None:
         """Find a document by its ID."""
-        return await self.collection.find_one({"_id": ObjectId(object_id)})
+        try:
+            validated_id = validate_and_convert_object_id(object_id)
+            return await self.collection.find_one({"_id": validated_id})
+        except ValidationError:
+            # Return None for invalid IDs instead of raising an error
+            # This maintains backward compatibility while preventing injection
+            return None
 
-    def build_match_stage(self, query_input: QueryInput | None) -> dict[str, Any]:
+    def build_match_stage(self, query_input) -> dict[str, Any]:  # QueryModel | None
         """Build MongoDB match stage from query input filters."""
         if not query_input:
             return {}
@@ -70,7 +75,7 @@ class BaseRepository[T](ABC):
             return match_conditions[0]
         return {"$and": match_conditions}
 
-    def build_sort_stage(self, query_input: QueryInput | None) -> dict[str, Any]:
+    def build_sort_stage(self, query_input) -> dict[str, Any]:  # QueryModel | None
         """Build MongoDB sort stage from query input sorts."""
         if not query_input or not query_input.sorts:
             return {}
@@ -83,7 +88,10 @@ class BaseRepository[T](ABC):
         return sort_dict
 
     async def find_all(
-        self, limit: int | None = None, offset: int = 0, query_input: QueryInput | None = None
+        self,
+        limit: int | None = None,
+        offset: int = 0,
+        query_input=None,  # QueryModel | None
     ) -> list[dict[str, Any]]:
         """Find all documents with filtering, sorting, and pagination using aggregation pipeline."""
         pipeline: list[dict[str, Any]] = []
@@ -136,7 +144,7 @@ class BaseRepository[T](ABC):
 
         return results
 
-    async def count_all(self, filter_query: dict[str, Any] | None = None, query_input: QueryInput | None = None) -> int:
+    async def count_all(self, filter_query: dict[str, Any] | None = None, query_input=None) -> int:  # QueryModel | None
         """Count total documents in the collection."""
         if query_input:
             # Use query_input filters for counting
@@ -159,13 +167,23 @@ class BaseRepository[T](ABC):
         if not update_data:
             return False
 
-        result = await self.collection.update_one({"_id": ObjectId(object_id)}, {"$set": update_data})
-        return result.modified_count > 0
+        try:
+            validated_id = validate_and_convert_object_id(object_id)
+            result = await self.collection.update_one({"_id": validated_id}, {"$set": update_data})
+        except ValidationError:
+            return False
+        else:
+            return result.modified_count > 0
 
     async def delete_by_id(self, object_id: strawberry.ID) -> bool:
         """Delete a document by its ID."""
-        result = await self.collection.delete_one({"_id": ObjectId(object_id)})
-        return result.deleted_count > 0
+        try:
+            validated_id = validate_and_convert_object_id(object_id)
+            result = await self.collection.delete_one({"_id": validated_id})
+        except ValidationError:
+            return False
+        else:
+            return result.deleted_count > 0
 
     @abstractmethod
     async def to_domain_object(self, data: dict[str, Any]) -> T:

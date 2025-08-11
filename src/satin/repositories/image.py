@@ -4,7 +4,6 @@ import strawberry
 from pymongo.asynchronous.database import AsyncDatabase
 
 from satin.models.image import Image
-from satin.schema.filters import QueryInput
 
 from .base import BaseRepository
 
@@ -29,7 +28,10 @@ class ImageRepository(BaseRepository[Image]):
         return None
 
     async def get_all_images(
-        self, limit: int | None = None, offset: int = 0, query_input: QueryInput | None = None
+        self,
+        limit: int | None = None,
+        offset: int = 0,
+        query_input=None,  # QueryModel | None
     ) -> list[Image]:
         """Fetch paginated images using MongoDB aggregation pipeline."""
         results_data = await self.find_all(limit=limit, offset=offset, query_input=query_input)
@@ -53,6 +55,6 @@ class ImageRepository(BaseRepository[Image]):
         """Delete an image from the database."""
         return await self.delete_by_id(image_id)
 
-    async def count_all_images(self, query_input: QueryInput | None = None) -> int:
+    async def count_all_images(self, query_input=None) -> int:  # QueryModel | None
         """Count total number of images."""
         return await self.count_all(query_input=query_input)
