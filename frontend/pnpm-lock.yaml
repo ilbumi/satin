@@ -118,8 +118,8 @@ importers:
         specifier: ^3.2.3
         version: 3.2.4(@types/node@24.1.0)(@vitest/browser@3.2.4)
       vitest-browser-svelte:
-        specifier: ^1.0.0
-        version: 1.0.0(@vitest/browser@3.2.4)(svelte@5.36.17)(vitest@3.2.4)
+        specifier: ^1.1.0
+        version: 1.1.0(@vitest/browser@3.2.4)(svelte@5.36.17)(vitest@3.2.4)
 
 packages:
 
@@ -2071,8 +2071,8 @@ packages:
       vite:
         optional: true
 
-  vitest-browser-svelte@1.0.0:
-    resolution: {integrity: sha512-rjK4uMM6D6IgvJqvLNRo7vBbUfDcnoHHlGdjN/1zZG+u8qpe0cl9v85nOKcqgW3sNzVF5Hti7SrwlH20BvsvOg==}
+  vitest-browser-svelte@1.1.0:
+    resolution: {integrity: sha512-o98mCzKkWBjvmaGzi69rvyBd1IJ7zFPGI0jcID9vI4F5DmdG//YxkIbeQ7TS27hAVR+MULnBZNja2DUiuUBZyA==}
     engines: {node: ^18.0.0 || >=20.0.0}
     peerDependencies:
       '@vitest/browser': ^2.1.0 || ^3.0.0 || ^4.0.0-0
@@ -4011,7 +4011,7 @@ snapshots:
     optionalDependencies:
       vite: 7.0.6(@types/node@24.1.0)
 
-  vitest-browser-svelte@1.0.0(@vitest/browser@3.2.4)(svelte@5.36.17)(vitest@3.2.4):
+  vitest-browser-svelte@1.1.0(@vitest/browser@3.2.4)(svelte@5.36.17)(vitest@3.2.4):
     dependencies:
       '@vitest/browser': 3.2.4(playwright@1.54.2)(vite@7.0.6(@types/node@24.1.0))(vitest@3.2.4)
       svelte: 5.36.17
