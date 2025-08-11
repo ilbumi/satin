@@ -44,6 +44,7 @@ dev = [
     "ssort>=0.15.0",
     "strawberry-graphql[cli]>=0.278.0",
     "vulture>=2.14",
+    "types-bleach>=6.2.0.20250809",
 ]
 
 ###########
