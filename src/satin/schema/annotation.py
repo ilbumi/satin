@@ -1,39 +1,34 @@
 import strawberry
 
+from satin.models.annotation import Annotation as AnnotationModel
+from satin.models.annotation import BBox as BBoxModel
 
-@strawberry.type
+
+@strawberry.experimental.pydantic.type(model=AnnotationModel)
 class Annotation:
-    text: str | None = None
-    tags: list[str] | None = None
-
-    def __str__(self) -> str:
-        """Get string representation of the Annotation."""
-        return f"Annotation(text={self.text}, tags={self.tags})"
+    text: strawberry.auto
+    tags: strawberry.auto
 
 
-@strawberry.input
+@strawberry.experimental.pydantic.input(model=AnnotationModel)
 class AnnotationInput:
-    text: str | None = None
-    tags: list[str] | None = None
+    text: strawberry.auto
+    tags: strawberry.auto
 
 
-@strawberry.type
+@strawberry.experimental.pydantic.type(model=BBoxModel)
 class BBox:
-    x: float
-    y: float
-    width: float
-    height: float
-    annotation: Annotation
-
-    def __str__(self) -> str:
-        """Get string representation of the BBox."""
-        return f"BBox(x={self.x}, y={self.y}, width={self.width}, height={self.height}, annotation={self.annotation})"
+    x: strawberry.auto
+    y: strawberry.auto
+    width: strawberry.auto
+    height: strawberry.auto
+    annotation: strawberry.auto
 
 
-@strawberry.input
+@strawberry.experimental.pydantic.input(model=BBoxModel)
 class BBoxInput:
-    x: float
-    y: float
-    width: float
-    height: float
-    annotation: AnnotationInput
+    x: strawberry.auto
+    y: strawberry.auto
+    width: strawberry.auto
+    height: strawberry.auto
+    annotation: strawberry.auto

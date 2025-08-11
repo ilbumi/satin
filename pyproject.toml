@@ -5,8 +5,10 @@ description = "A Simple Annotation Tool for Images."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "bleach==6.2.0",
     "fastapi[granian]>=0.116.1",
     "granian>=2.4.2",
+    "pydantic>=2.10.0",
     "pydantic-settings>=2.10.1",
     "pymongo>=4.13.2",
     "strawberry-graphql[fastapi]>=0.278.0",
@@ -41,6 +43,8 @@ dev = [
     "myst-parser>=4.0.0",
     "ssort>=0.15.0",
     "strawberry-graphql[cli]>=0.278.0",
+    "vulture>=2.14",
+    "types-bleach>=6.2.0.20250809",
 ]
 
 ###########
@@ -99,3 +103,11 @@ lint.ignore = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
+
+[tool.vulture]
+exclude = ["tests/", "dir/"]
+ignore_decorators = []
+make_whitelist = true
+min_confidence = 80
+paths = ["src"]
+sort_by_size = true

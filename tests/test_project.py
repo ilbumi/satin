@@ -1,7 +1,7 @@
 from bson import ObjectId
 
+from satin.models.project import Project
 from satin.repositories import ProjectRepository
-from satin.schema.project import Project
 from tests.conftest import DatabaseFactory
 
 

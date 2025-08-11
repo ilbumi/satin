@@ -600,32 +600,8 @@ class TestTaskMutations:
             }
         }
         """
-
-        # Task creation should succeed (we don't validate foreign keys at creation time)
-        result = gql.mutate(
+        data, errors = gql.query_with_errors(
             create_mutation, {"imageId": "507f1f77bcf86cd799439011", "projectId": "507f1f77bcf86cd799439012"}
         )
-
-        task_id = result["createTask"]["id"]
-        assert task_id
-
-        # However, querying the task with invalid references should fail when trying to load related objects
-        query_mutation = """
-        query GetTask($id: ID!) {
-            task(id: $id) {
-                id
-                image {
-                    id
-                }
-                project {
-                    id
-                }
-            }
-        }
-        """
-
-        # This should fail when trying to load the non-existent image/project
-        data, errors = gql.query_with_errors(query_mutation, {"id": task_id})
-
-        # Should either return null data with errors due to missing references
-        assert data is None or (data and data["task"] is None) or errors is not None
+        assert data is None
+        assert len(errors) == 1

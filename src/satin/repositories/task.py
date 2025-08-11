@@ -4,14 +4,14 @@ from datetime import UTC, datetime
 from typing import Any
 
 import strawberry
-from bson import ObjectId
 from pymongo.asynchronous.database import AsyncDatabase
 
-from satin.schema.annotation import Annotation, BBox, BBoxInput
-from satin.schema.filters import QueryInput
-from satin.schema.image import Image
-from satin.schema.project import Project
-from satin.schema.task import Task, TaskStatus
+from satin.models.annotation import Annotation, BBox
+from satin.models.image import Image
+from satin.models.project import Project
+from satin.models.task import Task, TaskStatus
+from satin.schema.annotation import BBoxInput
+from satin.validators import ValidationError, validate_and_convert_object_id
 
 from .base import BaseRepository
 from .image import ImageRepository
@@ -85,7 +85,10 @@ class TaskRepository(BaseRepository[Task]):
         return None
 
     async def get_all_tasks(
-        self, limit: int | None = None, offset: int = 0, query_input: QueryInput | None = None
+        self,
+        limit: int | None = None,
+        offset: int = 0,
+        query_input=None,  # QueryModel | None
     ) -> list[Task]:
         """Fetch paginated tasks with joins for related Image and Project data."""
         pipeline: list[dict[str, Any]] = []
@@ -162,12 +165,12 @@ class TaskRepository(BaseRepository[Task]):
             # Convert joined image and project data to proper objects
             if "image" in task_data:
                 image_data = task_data["image"]
-                task_data["image"] = Image(id=strawberry.ID(str(image_data["_id"])), url=image_data["url"])
+                task_data["image"] = Image(id=str(image_data["_id"]), url=image_data["url"])
 
             if "project" in task_data:
                 project_data = task_data["project"]
                 task_data["project"] = Project(
-                    id=strawberry.ID(str(project_data["_id"])),
+                    id=str(project_data["_id"]),
                     name=project_data["name"],
                     description=project_data["description"],
                 )
@@ -197,10 +200,17 @@ class TaskRepository(BaseRepository[Task]):
                 else:
                     converted_bboxes.append(bbox)
 
+        try:
+            validated_image_id = validate_and_convert_object_id(image_id)
+            validated_project_id = validate_and_convert_object_id(project_id)
+        except ValidationError as e:
+            error_msg = f"Invalid ID provided: {e!s}"
+            raise ValueError(error_msg) from e
+
         task_data = {
-            "image_id": ObjectId(image_id),
-            "project_id": ObjectId(project_id),
-            "bboxes": [strawberry.asdict(x) for x in converted_bboxes],
+            "image_id": validated_image_id,
+            "project_id": validated_project_id,
+            "bboxes": [x.model_dump() for x in converted_bboxes],
             "status": status.value,
             "created_at": datetime.now(tz=UTC),
         }
@@ -235,9 +245,15 @@ class TaskRepository(BaseRepository[Task]):
         """Update a task in the database."""
         update_data: dict[str, Any] = {}
         if image_id is not None:
-            update_data["image_id"] = ObjectId(image_id)
+            try:
+                update_data["image_id"] = validate_and_convert_object_id(image_id)
+            except ValidationError:
+                return False
         if project_id is not None:
-            update_data["project_id"] = ObjectId(project_id)
+            try:
+                update_data["project_id"] = validate_and_convert_object_id(project_id)
+            except ValidationError:
+                return False
         if bboxes is not None:
             # Convert BBoxInput to BBox if needed
             converted_bboxes = []
@@ -246,7 +262,7 @@ class TaskRepository(BaseRepository[Task]):
                     converted_bboxes.append(bbox_input_to_bbox(bbox))
                 else:
                     converted_bboxes.append(bbox)
-            update_data["bboxes"] = [strawberry.asdict(x) for x in converted_bboxes]
+            update_data["bboxes"] = [x.model_dump() for x in converted_bboxes]
         if status is not None:
             update_data["status"] = status.value
 
@@ -258,7 +274,13 @@ class TaskRepository(BaseRepository[Task]):
 
     async def get_task_by_image_and_project(self, image_id: strawberry.ID, project_id: strawberry.ID) -> Task | None:
         """Find a task for a specific image and project combination."""
-        task_data = await self.collection.find_one({"image_id": ObjectId(image_id), "project_id": ObjectId(project_id)})
+        try:
+            validated_image_id = validate_and_convert_object_id(image_id)
+            validated_project_id = validate_and_convert_object_id(project_id)
+        except ValidationError:
+            return None
+
+        task_data = await self.collection.find_one({"image_id": validated_image_id, "project_id": validated_project_id})
 
         if task_data:
             task_data["id"] = str(task_data["_id"])
@@ -276,6 +298,6 @@ class TaskRepository(BaseRepository[Task]):
             return await self.to_domain_object(task_data)
         return None
 
-    async def count_all_tasks(self, query_input: QueryInput | None = None) -> int:
+    async def count_all_tasks(self, query_input=None) -> int:  # QueryModel | None
         """Count total number of tasks."""
         return await self.count_all(query_input=query_input)

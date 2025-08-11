@@ -15,6 +15,7 @@ db.projects.createIndex({ "name": 1 }, { unique: true });
 db.projects.createIndex({ "created_at": -1 });
 
 db.images.createIndex({ "url": 1 }, { unique: true });
+db.images.createIndex({ "project_id": 1 });
 db.images.createIndex({ "created_at": -1 });
 
 db.tasks.createIndex({ "project_id": 1 });

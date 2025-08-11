@@ -1,11 +1,12 @@
 import strawberry
 
 from satin.db import db
+from satin.models.task import TaskStatus
 from satin.repositories import RepositoryFactory
 from satin.schema.annotation import BBoxInput
 from satin.schema.image import Image
 from satin.schema.project import Project
-from satin.schema.task import Task, TaskStatus
+from satin.schema.task import Task
 
 # Global repository factory instance
 repo_factory = RepositoryFactory(db)
@@ -25,9 +26,12 @@ class Mutation:
         status: TaskStatus = TaskStatus.DRAFT,
     ) -> Task:
         """Create a new task."""
-        return await repo_factory.task_repo.create_task(
+        pydantic_task = await repo_factory.task_repo.create_task(
             image_id=image_id, project_id=project_id, bboxes=bboxes, status=status
-        )  # type: ignore[arg-type]
+        )
+        if pydantic_task is None:
+            return None
+        return Task.from_pydantic(pydantic_task)  # type: ignore[no-any-return,attr-defined]
 
     @strawberry.mutation
     async def update_task(
@@ -41,9 +45,12 @@ class Mutation:
         """Update an existing task."""
         success = await repo_factory.task_repo.update_task(
             task_id=id, image_id=image_id, project_id=project_id, bboxes=bboxes, status=status
-        )  # type: ignore[arg-type]
+        )
         if success:
-            return await repo_factory.task_repo.get_task(id)
+            pydantic_task = await repo_factory.task_repo.get_task(id)
+            if pydantic_task is None:
+                return None
+            return Task.from_pydantic(pydantic_task)  # type: ignore[no-any-return,attr-defined]
         return None
 
     @strawberry.mutation
@@ -55,7 +62,8 @@ class Mutation:
     @strawberry.mutation
     async def create_project(self, name: str, description: str) -> Project:
         """Create a new project."""
-        return await repo_factory.project_repo.create_project(name=name, description=description)
+        pydantic_project = await repo_factory.project_repo.create_project(name=name, description=description)
+        return Project.from_pydantic(pydantic_project)  # type: ignore[no-any-return,attr-defined]
 
     @strawberry.mutation
     async def update_project(
@@ -67,7 +75,10 @@ class Mutation:
         """Update an existing project."""
         success = await repo_factory.project_repo.update_project(project_id=id, name=name, description=description)
         if success:
-            return await repo_factory.project_repo.get_project(id)
+            pydantic_project = await repo_factory.project_repo.get_project(id)
+            if pydantic_project is None:
+                return None
+            return Project.from_pydantic(pydantic_project)  # type: ignore[no-any-return,attr-defined]
         return None
 
     @strawberry.mutation
@@ -79,7 +90,8 @@ class Mutation:
     @strawberry.mutation
     async def create_image(self, url: str) -> Image:
         """Create a new image."""
-        return await repo_factory.image_repo.create_image(url=url)
+        pydantic_image = await repo_factory.image_repo.create_image(url=url)
+        return Image.from_pydantic(pydantic_image)  # type: ignore[no-any-return,attr-defined]
 
     @strawberry.mutation
     async def update_image(
@@ -90,7 +102,10 @@ class Mutation:
         """Update an existing image."""
         success = await repo_factory.image_repo.update_image(image_id=id, url=url)
         if success:
-            return await repo_factory.image_repo.get_image(id)
+            pydantic_image = await repo_factory.image_repo.get_image(id)
+            if pydantic_image is None:
+                return None
+            return Image.from_pydantic(pydantic_image)  # type: ignore[no-any-return,attr-defined]
         return None
 
     @strawberry.mutation
