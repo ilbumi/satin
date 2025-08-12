@@ -4,7 +4,7 @@ set -e
 echo "🧪 Running E2E tests with Docker Compose..."
 
 # Start test services
-docker compose -f docker-compose.e2e.yml up -d
+docker compose -f docker-compose.e2e.yml up -d --remove-orphans
 
 # Wait for services to be healthy
 echo "⏳ Waiting for services..."
