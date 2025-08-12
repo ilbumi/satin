@@ -9,14 +9,14 @@ export interface TestFixtures {
 	setupTestData: () => Promise<void>;
 	cleanupTestData: () => Promise<void>;
 	mockGraphQLResponses: (page: Page) => Promise<void>;
-	navigateToAnnotation: (projectId: string, taskId: string) => Promise<void>;
+	navigateToAnnotation: (page: Page, projectId: string, taskId: string) => Promise<void>;
 }
 
 export const test = base.extend<TestFixtures>({
 	/**
 	 * Set up test data in the database
 	 */
-	setupTestData: async (_, use) => {
+	setupTestData: async ({ }, use) => {
 		const setupFn = async () => {
 			// In a real application, you would insert test data into your database
 			// For this example, we'll mock the API responses
@@ -39,7 +39,7 @@ export const test = base.extend<TestFixtures>({
 	/**
 	 * Clean up test data after tests
 	 */
-	cleanupTestData: async (_, use) => {
+	cleanupTestData: async ({ }, use) => {
 		const cleanupFn = async () => {
 			console.log('Cleaning up test data...');
 
@@ -53,7 +53,7 @@ export const test = base.extend<TestFixtures>({
 	/**
 	 * Mock GraphQL API responses for consistent testing
 	 */
-	mockGraphQLResponses: async (_, use) => {
+	mockGraphQLResponses: async ({ }, use) => {
 		const mockFn = async (page: Page) => {
 			// Mock the GraphQL endpoint
 			await page.route('**/graphql', async (route) => {
@@ -68,18 +68,18 @@ export const test = base.extend<TestFixtures>({
 				try {
 					const { query, variables } = JSON.parse(postData);
 
-					// Mock projects query
-					if (query.includes('getProjects')) {
+					// Mock projects query (frontend uses 'projects' query)
+					if (query.includes('projects') && variables?.limit !== undefined) {
 						await route.fulfill({
 							status: 200,
 							contentType: 'application/json',
 							body: JSON.stringify({
 								data: {
-									getProjects: {
-										items: mockProjects,
-										totalCount: mockProjects.length,
-										hasNextPage: false,
-										hasPreviousPage: false
+									projects: {
+										objects: mockProjects,
+										count: mockProjects.length,
+										limit: variables.limit,
+										offset: variables.offset || 0
 									}
 								}
 							})
@@ -87,8 +87,8 @@ export const test = base.extend<TestFixtures>({
 						return;
 					}
 
-					// Mock project by ID query
-					if (query.includes('getProject') && variables?.id) {
+					// Mock project by ID query (frontend uses 'project' query)
+					if (query.includes('project') && !query.includes('projects') && variables?.id) {
 						const project = mockProjects.find((p) => p.id === variables.id);
 						if (project) {
 							await route.fulfill({
@@ -96,7 +96,7 @@ export const test = base.extend<TestFixtures>({
 								contentType: 'application/json',
 								body: JSON.stringify({
 									data: {
-										getProject: {
+										project: {
 											...project,
 											tasks: mockTasks.filter((t) => t.projectId === project.id)
 										}
@@ -107,23 +107,18 @@ export const test = base.extend<TestFixtures>({
 						}
 					}
 
-					// Mock tasks query
-					if (query.includes('getTasks')) {
-						const projectId = variables?.projectId;
-						const tasks = projectId
-							? mockTasks.filter((t) => t.projectId === projectId)
-							: mockTasks;
-
+					// Mock images query (frontend uses 'images' query)
+					if (query.includes('images') && variables?.limit !== undefined) {
 						await route.fulfill({
 							status: 200,
 							contentType: 'application/json',
 							body: JSON.stringify({
 								data: {
-									getTasks: {
-										items: tasks,
-										totalCount: tasks.length,
-										hasNextPage: false,
-										hasPreviousPage: false
+									images: {
+										objects: mockImages,
+										count: mockImages.length,
+										limit: variables.limit,
+										offset: variables.offset || 0
 									}
 								}
 							})
@@ -131,22 +126,15 @@ export const test = base.extend<TestFixtures>({
 						return;
 					}
 
-					// Mock images query
-					if (query.includes('getImages')) {
-						const taskId = variables?.taskId;
-						const images = taskId ? mockImages.filter((i) => i.taskId === taskId) : mockImages;
-
+					// Mock task by image and project query
+					if (query.includes('taskByImageAndProject')) {
+						// Return null to simulate no existing task (will create new one)
 						await route.fulfill({
 							status: 200,
 							contentType: 'application/json',
 							body: JSON.stringify({
 								data: {
-									getImages: {
-										items: images,
-										totalCount: images.length,
-										hasNextPage: false,
-										hasPreviousPage: false
-									}
+									taskByImageAndProject: null
 								}
 							})
 						});
@@ -176,9 +164,9 @@ export const test = base.extend<TestFixtures>({
 					if (query.includes('createTask')) {
 						const newTask = {
 							id: `task-${Date.now()}`,
-							...variables.input,
-							status: 'pending',
-							assignedTo: null
+							project: mockProjects.find(p => p.id === variables.projectId) || mockProjects[0],
+							bboxes: variables.bboxes || [],
+							status: variables.status || 'DRAFT'
 						};
 						await route.fulfill({
 							status: 200,
@@ -186,6 +174,23 @@ export const test = base.extend<TestFixtures>({
 							body: JSON.stringify({
 								data: {
 									createTask: newTask
+								}
+							})
+						});
+						return;
+					}
+
+					if (query.includes('updateTask')) {
+						const updatedTask = {
+							id: variables.id,
+							bboxes: variables.bboxes || []
+						};
+						await route.fulfill({
+							status: 200,
+							contentType: 'application/json',
+							body: JSON.stringify({
+								data: {
+									updateTask: updatedTask
 								}
 							})
 						});
@@ -245,8 +250,8 @@ export const test = base.extend<TestFixtures>({
 	/**
 	 * Navigate to annotation workspace
 	 */
-	navigateToAnnotation: async ({ page }, use) => {
-		const navigateFn = async (projectId: string, taskId: string) => {
+	navigateToAnnotation: async ({ }, use) => {
+		const navigateFn = async (page: Page, projectId: string, taskId: string) => {
 			await page.goto(`/projects/${projectId}/annotate?task=${taskId}`);
 			await expect(page).toHaveTitle(/Annotation/);
 		};

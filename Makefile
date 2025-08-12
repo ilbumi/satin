@@ -14,6 +14,15 @@ test-all:
 	cd frontend && pnpm test --browser.headless
 	cd frontend && pnpm run test:e2e
 
+.PHONY: test-e2e
+test-e2e:
+	cd frontend && pnpm run test:e2e
+
+.PHONY: test-e2e-setup
+test-e2e-setup:
+	./scripts/test-backend-setup.sh
+	cd frontend && pnpm run test:e2e
+
 .PHONY: launch_backend
 launch_backend:
 	@echo "Starting MongoDB..."

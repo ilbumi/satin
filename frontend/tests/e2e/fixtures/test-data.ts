@@ -6,23 +6,17 @@ export const mockProjects = [
 	{
 		id: 'project-1',
 		name: 'Wildlife Classification',
-		description: 'Annotate images of various wildlife species for machine learning training',
-		createdAt: new Date('2024-01-15'),
-		taskCount: 150
+		description: 'Annotate images of various wildlife species for machine learning training'
 	},
 	{
 		id: 'project-2',
 		name: 'Medical Imaging',
-		description: 'Label medical scans for diagnostic AI development',
-		createdAt: new Date('2024-02-01'),
-		taskCount: 75
+		description: 'Label medical scans for diagnostic AI development'
 	},
 	{
 		id: 'project-3',
 		name: 'Document Analysis',
-		description: 'OCR training data with bounding boxes around text regions',
-		createdAt: new Date('2024-02-15'),
-		taskCount: 200
+		description: 'OCR training data with bounding boxes around text regions'
 	}
 ];
 
@@ -56,28 +50,13 @@ export const mockTasks = [
 export const mockImages = [
 	{
 		id: 'image-1',
-		taskId: 'task-1',
 		filename: 'elephant_001.jpg',
-		url: '/api/images/elephant_001.jpg',
-		width: 1920,
-		height: 1080,
-		annotations: []
+		url: '/api/images/elephant_001.jpg'
 	},
 	{
 		id: 'image-2',
-		taskId: 'task-2',
 		filename: 'lion_pride_001.jpg',
-		url: '/api/images/lion_pride_001.jpg',
-		width: 1600,
-		height: 900,
-		annotations: [
-			{
-				id: 'annotation-1',
-				type: 'bounding_box',
-				label: 'lion',
-				coordinates: { x: 100, y: 150, width: 300, height: 200 }
-			}
-		]
+		url: '/api/images/lion_pride_001.jpg'
 	}
 ];
 
@@ -104,7 +83,7 @@ export const mockAnnotations = [
 	}
 ];
 
-// GraphQL mutation templates
+// GraphQL mutation templates (matching actual frontend queries)
 export const CREATE_PROJECT_MUTATION = `
   mutation CreateProject($name: String!, $description: String!) {
     createProject(name: $name, description: $description) {
@@ -124,7 +103,35 @@ export const CREATE_TASK_MUTATION = `
         name
         description
       }
+      bboxes {
+        x
+        y
+        width
+        height
+        annotation {
+          text
+          tags
+        }
+      }
       status
+    }
+  }
+`;
+
+export const UPDATE_TASK_MUTATION = `
+  mutation UpdateTask($id: ID!, $bboxes: [BBoxInput!]) {
+    updateTask(id: $id, bboxes: $bboxes) {
+      id
+      bboxes {
+        x
+        y
+        width
+        height
+        annotation {
+          text
+          tags
+        }
+      }
     }
   }
 `;

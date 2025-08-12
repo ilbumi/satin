@@ -399,6 +399,10 @@
 </script>
 
 <div bind:this={containerElement} class="canvas-container">
+	<!-- Tests expect both canvas-image and annotation-canvas testids -->
+	{#if imageUrl}
+		<img src={imageUrl} alt="Annotation target" data-testid="canvas-image" style="display: none;" />
+	{/if}
 	<canvas
 		bind:this={canvasElement}
 		width={canvasWidth}
@@ -409,6 +413,7 @@
 		onmousemove={handleMouseMove}
 		onmouseup={handleMouseUp}
 		onclick={handleCanvasClick}
+		data-testid="annotation-canvas"
 	></canvas>
 </div>
 

@@ -249,9 +249,9 @@
 				<button class="primary-button" onclick={createNewProject}>Create First Project</button>
 			</div>
 		{:else}
-			<div class="projects-grid">
+			<div class="projects-grid" data-testid="project-list">
 				{#each projects as project (project.id)}
-					<div class="project-card">
+					<div class="project-card" data-testid="project-item">
 						<div class="project-header">
 							<h3>{project.name}</h3>
 							<div class="project-actions-header">

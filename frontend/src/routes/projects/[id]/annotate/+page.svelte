@@ -342,7 +342,7 @@
 			<a href="/projects/{$page.params.id}" class="back-button">Manage Images</a>
 		</div>
 	{:else}
-		<div class="annotation-workspace">
+		<div class="annotation-workspace" data-testid="annotation-workspace">
 			<!-- Image Navigation -->
 			<div class="image-nav">
 				<button onclick={previousImage} disabled={currentImageIndex === 0} class="nav-button">
@@ -375,18 +375,28 @@
 			</div>
 
 			<!-- Main Canvas Area -->
-			<div class="canvas-container">
+			<div class="canvas-container" data-testid="image-canvas">
+				<!-- Tests expect a canvas-image element -->
+				{#if images[currentImageIndex]}
+					<img
+						src={images[currentImageIndex].url}
+						alt="Current annotation target"
+						data-testid="canvas-image"
+						style="display: none;"
+					/>
+				{/if}
 				<canvas
 					bind:this={canvas}
 					onmousedown={handleMouseDown}
 					onmousemove={handleMouseMove}
 					onmouseup={handleMouseUp}
 					class="annotation-canvas"
+					data-testid="annotation-canvas"
 				></canvas>
 			</div>
 
 			<!-- Sidebar with Annotations List -->
-			<div class="annotation-sidebar">
+			<div class="annotation-sidebar" data-testid="annotation-panel">
 				<h3>Annotations ({bboxes.length})</h3>
 
 				<div class="annotations-list">

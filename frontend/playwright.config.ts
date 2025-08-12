@@ -77,16 +77,25 @@ export default defineConfig({
 	/* Run your local dev server before starting the tests */
 	webServer: [
 		{
-			command: 'cd .. && make launch_backend',
-			port: 8000,
+			command: '../scripts/test-backend-setup.sh',
 			reuseExistingServer: !process.env.CI,
-			timeout: 120 * 1000
+			timeout: 180 * 1000,
+			env: {
+				MONGO_DSN: process.env.MONGO_DSN || 'mongodb://localhost:27017/satin-test',
+				ENVIRONMENT: 'test',
+				LOG_LEVEL: 'info'
+			},
+			// Wait for GraphQL endpoint to be ready
+			url: 'http://localhost:8000/graphql'
 		},
 		{
-			command: 'pnpm run dev',
+			command: 'pnpm run dev --host 0.0.0.0',
 			port: 5173,
 			reuseExistingServer: !process.env.CI,
-			timeout: 120 * 1000
+			timeout: 120 * 1000,
+			env: {
+				VITE_API_URL: 'http://localhost:8000'
+			}
 		}
 	]
 });

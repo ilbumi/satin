@@ -19,6 +19,8 @@
 		"test:e2e:ui": "playwright test --ui",
 		"test:e2e:debug": "playwright test --debug",
 		"test:e2e:report": "playwright show-report",
+		"test:e2e:setup": "../scripts/test-backend-setup.sh && playwright test",
+		"test:e2e:health": "node -e \"require('./tests/e2e/utils/health-check.ts').validateTestEnvironment().then(() => console.log('✅ All services healthy')).catch(e => { console.error('❌', e.message); process.exit(1); })\"",
 		"test:all": "npm run test:unit -- --run && npm run test:e2e",
 		"storybook": "storybook dev -p 6006",
 		"build-storybook": "storybook build"
