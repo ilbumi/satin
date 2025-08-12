@@ -8,13 +8,32 @@ test:
 	uv run pytest -n 5 --cov .
 	cd frontend && pnpm test --browser.headless
 
+.PHONY: test-all
+test-all:
+	uv run pytest -n 5 --cov .
+	cd frontend && pnpm test --browser.headless
+	cd frontend && pnpm run test:e2e
+
 .PHONY: launch_backend
 launch_backend:
+	@echo "Starting MongoDB..."
+	docker-compose up -d mongodb
+	@echo "Waiting for MongoDB to be healthy..."
+	@until docker-compose ps mongodb | grep -q "healthy"; do \
+		echo "Waiting for MongoDB to start..."; \
+		sleep 2; \
+	done
+	@echo "MongoDB is ready! Starting backend server..."
 	uv run granian --interface asgi --host 0.0.0.0 --port 8000 --reload satin:app
 
 .PHONY: launch_frontend
 launch_frontend:
 	cd frontend && pnpm run dev --host 0.0.0.0
+
+.PHONY: stop_backend
+stop_backend:
+	@echo "Stopping MongoDB..."
+	docker-compose down mongodb
 
 .PHONY: format
 format: format-backend format-frontend
