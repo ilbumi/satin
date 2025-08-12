@@ -73,7 +73,7 @@ export default defineConfig({
 		//   name: 'Google Chrome',
 		//   use: { ...devices['Desktop Chrome'], channel: 'chrome' },
 		// },
-	],
+	]
 
 	/* Docker Compose services are managed externally by run-e2e.sh script */
 });

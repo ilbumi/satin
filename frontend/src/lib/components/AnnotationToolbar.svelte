@@ -3,9 +3,10 @@
 		activeTool: 'select' | 'bbox';
 		onToolChange: (tool: 'select' | 'bbox') => void;
 		onImageUpload?: (file: File) => void;
+		'data-testid'?: string;
 	}
 
-	const { activeTool, onToolChange, onImageUpload }: ToolbarProps = $props();
+	const { activeTool, onToolChange, onImageUpload, 'data-testid': testId }: ToolbarProps = $props();
 
 	let fileInput: HTMLInputElement;
 
@@ -22,7 +23,7 @@
 	}
 </script>
 
-<div class="toolbar">
+<div class="toolbar" data-testid={testId}>
 	<div class="tool-section">
 		<h3>Tools</h3>
 		<div class="tool-buttons">

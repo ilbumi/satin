@@ -18,6 +18,7 @@
 		isDrawing?: boolean;
 		onAnnotationCreate?: (bbox: Omit<BoundingBox, 'id' | 'isSelected'>) => void;
 		onAnnotationSelect?: (id: string) => void;
+		'data-testid'?: string;
 	}
 
 	const {
@@ -25,7 +26,8 @@
 		annotations = [],
 		isDrawing = false,
 		onAnnotationCreate,
-		onAnnotationSelect
+		onAnnotationSelect,
+		'data-testid': testId
 	}: Props = $props();
 
 	let canvasElement: HTMLCanvasElement;
@@ -398,7 +400,7 @@
 	});
 </script>
 
-<div bind:this={containerElement} class="canvas-container">
+<div bind:this={containerElement} class="canvas-container" data-testid={testId}>
 	<!-- Tests expect both canvas-image and annotation-canvas testids -->
 	{#if imageUrl}
 		<img src={imageUrl} alt="Annotation target" data-testid="canvas-image" style="display: none;" />

@@ -19,7 +19,10 @@ interface ServiceStatus {
 /**
  * Check if a URL is responding
  */
-async function checkUrl(url: string, timeout = 5000): Promise<{ healthy: boolean; error?: string; responseTime: number }> {
+async function checkUrl(
+	url: string,
+	timeout = 5000
+): Promise<{ healthy: boolean; error?: string; responseTime: number }> {
 	const startTime = Date.now();
 
 	try {
@@ -56,7 +59,10 @@ async function checkUrl(url: string, timeout = 5000): Promise<{ healthy: boolean
 /**
  * Check if GraphQL endpoint is responding with a schema introspection query
  */
-async function checkGraphQL(url: string, timeout = 5000): Promise<{ healthy: boolean; error?: string; responseTime: number }> {
+async function checkGraphQL(
+	url: string,
+	timeout = 5000
+): Promise<{ healthy: boolean; error?: string; responseTime: number }> {
 	const startTime = Date.now();
 
 	try {
@@ -66,7 +72,7 @@ async function checkGraphQL(url: string, timeout = 5000): Promise<{ healthy: boo
 		const response = await fetch(url, {
 			method: 'POST',
 			headers: {
-				'Content-Type': 'application/json',
+				'Content-Type': 'application/json'
 			},
 			body: JSON.stringify({
 				query: '{ __schema { types { name } } }'
@@ -113,7 +119,7 @@ async function waitForService(
 	checkFunction: () => Promise<{ healthy: boolean; error?: string; responseTime: number }>,
 	options: HealthCheckOptions = {}
 ): Promise<ServiceStatus> {
-	const { maxRetries = 30, retryDelay = 2000, timeout = 5000 } = options;
+	const { maxRetries = 30, retryDelay = 2000 } = options;
 
 	for (let attempt = 1; attempt <= maxRetries; attempt++) {
 		console.log(`Checking ${name} (attempt ${attempt}/${maxRetries})...`);
@@ -134,7 +140,7 @@ async function waitForService(
 
 		if (attempt < maxRetries) {
 			console.log(`⏳ Waiting ${retryDelay}ms before retry...`);
-			await new Promise(resolve => setTimeout(resolve, retryDelay));
+			await new Promise((resolve) => setTimeout(resolve, retryDelay));
 		}
 	}
 
@@ -149,20 +155,22 @@ async function waitForService(
 /**
  * Check health of backend API endpoint
  */
-export async function checkBackendHealth(baseUrl = 'http://localhost:8000', options?: HealthCheckOptions): Promise<ServiceStatus> {
+export async function checkBackendHealth(
+	baseUrl = process.env.API_BASE_URL || process.env.VITE_API_URL || 'http://localhost:8001',
+	options?: HealthCheckOptions
+): Promise<ServiceStatus> {
 	const healthUrl = `${baseUrl}/health`;
 
-	return waitForService(
-		'Backend Health',
-		() => checkUrl(healthUrl, options?.timeout),
-		options
-	);
+	return waitForService('Backend Health', () => checkUrl(healthUrl, options?.timeout), options);
 }
 
 /**
  * Check health of GraphQL endpoint
  */
-export async function checkGraphQLHealth(baseUrl = 'http://localhost:8000', options?: HealthCheckOptions): Promise<ServiceStatus> {
+export async function checkGraphQLHealth(
+	baseUrl = process.env.API_BASE_URL || process.env.VITE_API_URL || 'http://localhost:8001',
+	options?: HealthCheckOptions
+): Promise<ServiceStatus> {
 	const graphqlUrl = `${baseUrl}/graphql`;
 
 	return waitForService(
@@ -175,20 +183,19 @@ export async function checkGraphQLHealth(baseUrl = 'http://localhost:8000', opti
 /**
  * Check health of frontend application
  */
-export async function checkFrontendHealth(baseUrl = 'http://localhost:5173', options?: HealthCheckOptions): Promise<ServiceStatus> {
-	return waitForService(
-		'Frontend Application',
-		() => checkUrl(baseUrl, options?.timeout),
-		options
-	);
+export async function checkFrontendHealth(
+	baseUrl = 'http://localhost:5173',
+	options?: HealthCheckOptions
+): Promise<ServiceStatus> {
+	return waitForService('Frontend Application', () => checkUrl(baseUrl, options?.timeout), options);
 }
 
 /**
  * Check all services and return their status
  */
 export async function checkAllServices(
-	backendUrl = 'http://localhost:8000',
-	frontendUrl = 'http://localhost:5173',
+	backendUrl = process.env.API_BASE_URL || process.env.VITE_API_URL || 'http://localhost:8001',
+	frontendUrl = process.env.BASE_URL || 'http://localhost:3001',
 	options?: HealthCheckOptions
 ): Promise<ServiceStatus[]> {
 	console.log('🔍 Checking all services...');
@@ -199,15 +206,17 @@ export async function checkAllServices(
 		checkFrontendHealth(frontendUrl, options)
 	]);
 
-	const allHealthy = results.every(result => result.healthy);
+	const allHealthy = results.every((result) => result.healthy);
 
 	if (allHealthy) {
 		console.log('🎉 All services are healthy!');
 	} else {
 		console.log('❌ Some services are not healthy:');
-		results.filter(result => !result.healthy).forEach(result => {
-			console.log(`  - ${result.name}: ${result.error}`);
-		});
+		results
+			.filter((result) => !result.healthy)
+			.forEach((result) => {
+				console.log(`  - ${result.name}: ${result.error}`);
+			});
 	}
 
 	return results;
@@ -218,18 +227,18 @@ export async function checkAllServices(
  * Throws an error if any service is not healthy
  */
 export async function validateTestEnvironment(
-	backendUrl = 'http://localhost:8000',
-	frontendUrl = 'http://localhost:5173',
+	backendUrl = process.env.API_BASE_URL || process.env.VITE_API_URL || 'http://localhost:8001',
+	frontendUrl = process.env.BASE_URL || 'http://localhost:3001',
 	options?: HealthCheckOptions
 ): Promise<void> {
 	const results = await checkAllServices(backendUrl, frontendUrl, options);
 
-	const unhealthyServices = results.filter(result => !result.healthy);
+	const unhealthyServices = results.filter((result) => !result.healthy);
 
 	if (unhealthyServices.length > 0) {
-		const errorMessage = `Test environment validation failed. Unhealthy services:\n${
-			unhealthyServices.map(service => `- ${service.name}: ${service.error}`).join('\n')
-		}`;
+		const errorMessage = `Test environment validation failed. Unhealthy services:\n${unhealthyServices
+			.map((service) => `- ${service.name}: ${service.error}`)
+			.join('\n')}`;
 
 		throw new Error(errorMessage);
 	}

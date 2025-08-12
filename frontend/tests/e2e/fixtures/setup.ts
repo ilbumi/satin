@@ -16,14 +16,14 @@ export const test = base.extend<TestFixtures>({
 	/**
 	 * Set up test data in the database
 	 */
-	setupTestData: async ({ }, use) => {
+	setupTestData: async (_, use) => {
 		const setupFn = async () => {
 			// In a real application, you would insert test data into your database
 			// For this example, we'll mock the API responses
 			console.log('Setting up test data...');
 
 			// You could make actual API calls here to set up data:
-			// await fetch('http://localhost:8000/graphql', {
+			// await fetch(`${process.env.API_BASE_URL || process.env.VITE_API_URL || 'http://localhost:8001'}/graphql`, {
 			//   method: 'POST',
 			//   headers: { 'Content-Type': 'application/json' },
 			//   body: JSON.stringify({
@@ -39,12 +39,12 @@ export const test = base.extend<TestFixtures>({
 	/**
 	 * Clean up test data after tests
 	 */
-	cleanupTestData: async ({ }, use) => {
+	cleanupTestData: async (_, use) => {
 		const cleanupFn = async () => {
 			console.log('Cleaning up test data...');
 
 			// In a real application, you would clean up test data:
-			// await fetch('http://localhost:8000/test/cleanup', { method: 'POST' });
+			// await fetch(`${process.env.API_BASE_URL || process.env.VITE_API_URL || 'http://localhost:8001'}/test/cleanup`, { method: 'POST' });
 		};
 
 		await use(cleanupFn);
@@ -53,7 +53,7 @@ export const test = base.extend<TestFixtures>({
 	/**
 	 * Mock GraphQL API responses for consistent testing
 	 */
-	mockGraphQLResponses: async ({ }, use) => {
+	mockGraphQLResponses: async (_, use) => {
 		const mockFn = async (page: Page) => {
 			// Mock the GraphQL endpoint
 			await page.route('**/graphql', async (route) => {
@@ -164,7 +164,7 @@ export const test = base.extend<TestFixtures>({
 					if (query.includes('createTask')) {
 						const newTask = {
 							id: `task-${Date.now()}`,
-							project: mockProjects.find(p => p.id === variables.projectId) || mockProjects[0],
+							project: mockProjects.find((p) => p.id === variables.projectId) || mockProjects[0],
 							bboxes: variables.bboxes || [],
 							status: variables.status || 'DRAFT'
 						};
@@ -250,7 +250,7 @@ export const test = base.extend<TestFixtures>({
 	/**
 	 * Navigate to annotation workspace
 	 */
-	navigateToAnnotation: async ({ }, use) => {
+	navigateToAnnotation: async (_, use) => {
 		const navigateFn = async (page: Page, projectId: string, taskId: string) => {
 			await page.goto(`/projects/${projectId}/annotate?task=${taskId}`);
 			await expect(page).toHaveTitle(/Annotation/);

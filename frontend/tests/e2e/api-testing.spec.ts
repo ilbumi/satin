@@ -7,7 +7,7 @@ import {
 } from './fixtures/test-data';
 
 test.describe('GraphQL API Testing', () => {
-	const baseURL = process.env.BASE_URL || 'http://localhost:8000';
+	const baseURL = process.env.API_BASE_URL || process.env.VITE_API_URL || 'http://localhost:8001';
 	const graphqlEndpoint = `${baseURL}${API_ENDPOINTS.GRAPHQL}`;
 
 	test('should check API health endpoint', async ({ request }) => {

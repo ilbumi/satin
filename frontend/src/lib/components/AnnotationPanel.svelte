@@ -14,10 +14,16 @@
 		onAnnotationSelect?: (id: string) => void;
 		onAnnotationDelete?: (id: string) => void;
 		onAnnotationUpdate?: (id: string, updates: Partial<BoundingBox>) => void;
+		'data-testid'?: string;
 	}
 
-	const { annotations, onAnnotationSelect, onAnnotationDelete, onAnnotationUpdate }: Props =
-		$props();
+	const {
+		annotations,
+		onAnnotationSelect,
+		onAnnotationDelete,
+		onAnnotationUpdate,
+		'data-testid': testId
+	}: Props = $props();
 
 	let editingId = $state<string | null>(null);
 	let editingLabel = $state('');
@@ -53,7 +59,7 @@
 	}
 </script>
 
-<div class="annotation-panel">
+<div class="annotation-panel" data-testid={testId}>
 	<div class="panel-header">
 		<h3>Annotations ({annotations?.length || 0})</h3>
 	</div>
