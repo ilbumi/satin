@@ -13,8 +13,8 @@ test.describe('Basic E2E Tests', () => {
 	test('should navigate to projects page', async ({ page }) => {
 		await page.goto('/');
 
-		// Try to find and click projects link
-		const projectsLink = page.locator('text=Projects');
+		// Try to find and click projects link in navigation
+		const projectsLink = page.locator('nav').getByRole('link', { name: 'Projects' });
 		if (await projectsLink.isVisible()) {
 			await projectsLink.click();
 			await expect(page).toHaveURL(/\/projects/);

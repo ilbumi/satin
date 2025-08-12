@@ -439,7 +439,7 @@
 				</div>
 
 				{#if createError}
-					<div class="error-message" data-testid="name-error">
+					<div class="error-message" data-testid="error-message">
 						{createError}
 					</div>
 				{/if}
