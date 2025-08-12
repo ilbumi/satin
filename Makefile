@@ -4,22 +4,21 @@ PYCODE_PATHS=src/
 PYTESTS_PATH=tests/
 
 .PHONY: test
-test:
-	uv run pytest -n 5 --cov .
-	cd frontend && pnpm test --browser.headless
+test: test-backend test-frontend
 
 .PHONY: test-all
-test-all:
+test-all: test-backend test-frontend test-e2e
+
+.PHONY: test-backend
+test-backend:
 	uv run pytest -n 5 --cov .
+
+.PHONY: test-frontend
+test-frontend:
 	cd frontend && pnpm test --browser.headless
-	cd frontend && pnpm run test:e2e
 
 .PHONY: test-e2e
 test-e2e:
-	cd frontend && pnpm run test:e2e
-
-.PHONY: test-e2e-setup
-test-e2e-setup:
 	./scripts/test-backend-setup.sh
 	cd frontend && pnpm run test:e2e
 
