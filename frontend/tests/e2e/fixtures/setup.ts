@@ -148,7 +148,8 @@ export const test = base.extend<TestFixtures>({
 					if (query.includes('createProject')) {
 						const newProject = {
 							id: `project-${Date.now()}`,
-							...variables.input,
+							name: variables.name,
+							description: variables.description,
 							createdAt: new Date(),
 							taskCount: 0
 						};

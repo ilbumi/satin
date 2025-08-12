@@ -32,6 +32,7 @@
 				class:active={activeTool === 'select'}
 				onclick={() => onToolChange('select')}
 				title="Select annotations"
+				data-testid="select-tool"
 			>
 				<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
 					<path
@@ -46,6 +47,7 @@
 				class:active={activeTool === 'bbox'}
 				onclick={() => onToolChange('bbox')}
 				title="Draw bounding boxes"
+				data-testid="bbox-tool"
 			>
 				<svg
 					width="20"
@@ -87,6 +89,61 @@
 			style="display: none"
 			onchange={handleImageUpload}
 		/>
+	</div>
+
+	<div class="tool-section">
+		<h3>Zoom</h3>
+		<div class="zoom-controls">
+			<button class="zoom-button" data-testid="zoom-in-btn" title="Zoom in" aria-label="Zoom in">
+				<svg
+					width="20"
+					height="20"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+				>
+					<circle cx="11" cy="11" r="8"></circle>
+					<path d="m21 21-4.35-4.35"></path>
+					<path d="M11 8v6"></path>
+					<path d="M8 11h6"></path>
+				</svg>
+			</button>
+			<div class="zoom-level" data-testid="zoom-level">100%</div>
+			<button class="zoom-button" data-testid="zoom-out-btn" title="Zoom out" aria-label="Zoom out">
+				<svg
+					width="20"
+					height="20"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+				>
+					<circle cx="11" cy="11" r="8"></circle>
+					<path d="m21 21-4.35-4.35"></path>
+					<path d="M8 11h6"></path>
+				</svg>
+			</button>
+			<button
+				class="zoom-button fit-button"
+				data-testid="fit-to-screen-btn"
+				title="Fit to screen"
+				aria-label="Fit to screen"
+			>
+				<svg
+					width="20"
+					height="20"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+				>
+					<path
+						d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"
+					></path>
+				</svg>
+			</button>
+		</div>
 	</div>
 
 	<div class="tool-section">
@@ -184,5 +241,46 @@
 
 	.instructions p {
 		margin: 0;
+	}
+
+	.zoom-controls {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		align-items: center;
+	}
+
+	.zoom-button {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 36px;
+		height: 36px;
+		border: 1px solid #d1d9e0;
+		border-radius: 6px;
+		background-color: white;
+		color: #4a5568;
+		cursor: pointer;
+		transition: all 0.2s ease;
+	}
+
+	.zoom-button:hover {
+		background-color: #e2e8f0;
+		border-color: #a0aec0;
+	}
+
+	.zoom-level {
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: #333;
+		text-align: center;
+		padding: 0.25rem;
+		min-width: 50px;
+	}
+
+	.fit-button {
+		width: 100%;
+		height: 32px;
+		font-size: 0.75rem;
 	}
 </style>

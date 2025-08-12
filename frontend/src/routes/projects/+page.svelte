@@ -28,6 +28,34 @@
 	let editError = $state<string | null>(null);
 	let editProjectName = $state('');
 	let editProjectDescription = $state('');
+	let searchTerm = $state('');
+	let sortBy = $state<'name' | 'created'>('name');
+
+	// Computed filtered and sorted projects
+	const filteredAndSortedProjects = $derived(() => {
+		let filtered = projects;
+
+		// Filter by search term
+		if (searchTerm.trim()) {
+			filtered = projects.filter(
+				(project) =>
+					project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+					project.description.toLowerCase().includes(searchTerm.toLowerCase())
+			);
+		}
+
+		// Sort projects
+		filtered.sort((a, b) => {
+			if (sortBy === 'name') {
+				return a.name.localeCompare(b.name);
+			} else {
+				// Sort by creation date (assuming projects have a createdAt field)
+				return new Date(b.id).getTime() - new Date(a.id).getTime();
+			}
+		});
+
+		return filtered;
+	});
 
 	onMount(async () => {
 		await loadProjects();
@@ -210,14 +238,27 @@
 <div class="projects-page">
 	<header class="page-header">
 		<h1>Projects</h1>
-		<button class="create-button" data-testid="create-project-btn" onclick={createNewProject}>
-			<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-				<path
-					d="M8 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12Zm0 1.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9ZM8 5a.75.75 0 0 1 .75.75v1.5h1.5a.75.75 0 0 1 0 1.5h-1.5v1.5a.75.75 0 0 1-1.5 0v-1.5h-1.5a.75.75 0 0 1 0-1.5h1.5v-1.5A.75.75 0 0 1 8 5Z"
-				/>
-			</svg>
-			New Project
-		</button>
+		<div class="header-actions">
+			<input
+				type="text"
+				placeholder="Search projects..."
+				bind:value={searchTerm}
+				class="search-input"
+				data-testid="project-search-input"
+			/>
+			<select bind:value={sortBy} class="sort-select" data-testid="sort-select">
+				<option value="name">Sort by Name</option>
+				<option value="created">Sort by Date</option>
+			</select>
+			<button class="create-button" data-testid="create-project-btn" onclick={createNewProject}>
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+					<path
+						d="M8 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12Zm0 1.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9ZM8 5a.75.75 0 0 1 .75.75v1.5h1.5a.75.75 0 0 1 0 1.5h-1.5v1.5a.75.75 0 0 1-1.5 0v-1.5h-1.5a.75.75 0 0 1 0-1.5h1.5v-1.5A.75.75 0 0 1 8 5Z"
+					/>
+				</svg>
+				New Project
+			</button>
+		</div>
 	</header>
 
 	<main class="projects-content">
@@ -237,6 +278,17 @@
 				<p>{error}</p>
 				<button onclick={() => window.location.reload()}>Try Again</button>
 			</div>
+		{:else if filteredAndSortedProjects().length === 0 && searchTerm.trim()}
+			<div class="empty-state">
+				<svg width="64" height="64" viewBox="0 0 16 16" fill="currentColor">
+					<path
+						d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"
+					/>
+				</svg>
+				<h2>No Projects Found</h2>
+				<p>No projects match your search criteria. Try adjusting your search term.</p>
+				<button class="primary-button" onclick={() => (searchTerm = '')}>Clear Search</button>
+			</div>
 		{:else if projects.length === 0}
 			<div class="empty-state">
 				<svg width="64" height="64" viewBox="0 0 16 16" fill="currentColor">
@@ -250,7 +302,7 @@
 			</div>
 		{:else}
 			<div class="projects-grid" data-testid="project-list">
-				{#each projects as project (project.id)}
+				{#each filteredAndSortedProjects() as project (project.id)}
 					<div class="project-card" data-testid="project-item">
 						<div class="project-header">
 							<h3 data-testid="project-name">{project.name}</h3>
@@ -370,6 +422,7 @@
 						placeholder="Enter project name"
 						required
 						disabled={createLoading}
+						data-testid="project-name-input"
 					/>
 				</div>
 
@@ -381,11 +434,12 @@
 						placeholder="Enter project description (optional)"
 						rows="3"
 						disabled={createLoading}
+						data-testid="project-description-input"
 					></textarea>
 				</div>
 
 				{#if createError}
-					<div class="error-message">
+					<div class="error-message" data-testid="name-error">
 						{createError}
 					</div>
 				{/if}
@@ -403,6 +457,7 @@
 						type="submit"
 						class="submit-button"
 						disabled={createLoading || !projectName.trim()}
+						data-testid="submit-project-btn"
 					>
 						{#if createLoading}
 							<div class="button-spinner"></div>
@@ -431,6 +486,7 @@
 			role="presentation"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.key === 'Escape' && closeDeleteModal()}
+			data-testid="delete-confirmation-modal"
 		>
 			<div class="modal-header">
 				<h2>Delete Project</h2>
@@ -452,7 +508,7 @@
 					</svg>
 				</div>
 				<h3>Are you sure you want to delete this project?</h3>
-				<p>
+				<p data-testid="confirmation-message">
 					You're about to delete "<strong>{projectToDelete.name}</strong>". This action cannot be
 					undone. All associated data, images, and annotations will be permanently removed.
 				</p>
@@ -469,6 +525,7 @@
 						class="cancel-button"
 						onclick={closeDeleteModal}
 						disabled={deleteLoading}
+						data-testid="cancel-delete-btn"
 					>
 						Cancel
 					</button>
@@ -532,6 +589,7 @@
 						placeholder="Enter project name"
 						required
 						disabled={editLoading}
+						data-testid="project-name-input"
 					/>
 				</div>
 
@@ -543,6 +601,7 @@
 						placeholder="Enter project description (optional)"
 						rows="3"
 						disabled={editLoading}
+						data-testid="project-description-input"
 					></textarea>
 				</div>
 
@@ -594,6 +653,45 @@
 		max-width: 1200px;
 		margin-left: auto;
 		margin-right: auto;
+	}
+
+	.header-actions {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+	}
+
+	.search-input {
+		padding: 0.75rem;
+		border: 1px solid #d1d5db;
+		border-radius: 6px;
+		font-size: 0.875rem;
+		min-width: 200px;
+		transition:
+			border-color 0.2s,
+			box-shadow 0.2s;
+	}
+
+	.search-input:focus {
+		outline: none;
+		border-color: #3b82f6;
+		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+	}
+
+	.sort-select {
+		padding: 0.75rem;
+		border: 1px solid #d1d5db;
+		border-radius: 6px;
+		font-size: 0.875rem;
+		background-color: white;
+		cursor: pointer;
+		transition: border-color 0.2s;
+	}
+
+	.sort-select:focus {
+		outline: none;
+		border-color: #3b82f6;
+		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 	}
 
 	h1 {

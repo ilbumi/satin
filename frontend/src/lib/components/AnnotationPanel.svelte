@@ -64,7 +64,7 @@
 		<h3>Annotations ({annotations?.length || 0})</h3>
 	</div>
 
-	<div class="annotation-list">
+	<div class="annotation-list" data-testid="annotation-list">
 		{#each annotations || [] as annotation (annotation.id)}
 			<div
 				class="annotation-item"
@@ -73,6 +73,7 @@
 				onkeydown={(e) => e.key === 'Enter' && onAnnotationSelect?.(annotation.id)}
 				role="button"
 				tabindex="0"
+				data-testid="annotation-{annotation.id}"
 			>
 				<div class="annotation-header">
 					{#if editingId === annotation.id}
@@ -112,6 +113,7 @@
 									onAnnotationDelete?.(annotation.id);
 								}}
 								aria-label="Delete annotation"
+								data-testid="delete-annotation-btn"
 							>
 								<svg
 									width="14"

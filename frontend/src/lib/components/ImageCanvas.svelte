@@ -37,9 +37,9 @@
 
 	let canvasWidth = $state(800);
 	let canvasHeight = $state(600);
-	let imageScale = 1;
-	let imageOffsetX = 0;
-	let imageOffsetY = 0;
+	let imageScale = $state(1);
+	let imageOffsetX = $state(0);
+	let imageOffsetY = $state(0);
 
 	// Drawing state
 	let isMouseDown = $state(false);
@@ -60,7 +60,7 @@
 		string,
 		{ x: number; y: number; width: number; height: number }
 	>();
-	let scaledDimensions = { width: 0, height: 0 };
+	let scaledDimensions = $state({ width: 0, height: 0 });
 
 	onMount(() => {
 		if (imageUrl) {
@@ -403,8 +403,41 @@
 <div bind:this={containerElement} class="canvas-container" data-testid={testId}>
 	<!-- Tests expect both canvas-image and annotation-canvas testids -->
 	{#if imageUrl}
-		<img src={imageUrl} alt="Annotation target" data-testid="canvas-image" style="display: none;" />
+		<img
+			src={imageUrl}
+			alt="Current annotation target"
+			data-testid="canvas-image"
+			style="display: none;"
+		/>
 	{/if}
+
+	<!-- Render bounding boxes as DOM elements for E2E test interaction -->
+	{#each annotations || [] as annotation (annotation.id)}
+		<div
+			class="bounding-box-overlay"
+			data-testid="bounding-box"
+			data-annotation-id={annotation.id}
+			style="left: {imageOffsetX + annotation.x * scaledDimensions.width}px; top: {imageOffsetY +
+				annotation.y * scaledDimensions.height}px; width: {annotation.width *
+				scaledDimensions.width}px; height: {annotation.height * scaledDimensions.height}px;"
+			onclick={() => onAnnotationSelect?.(annotation.id)}
+			onkeydown={(e) => e.key === 'Enter' && onAnnotationSelect?.(annotation.id)}
+			role="button"
+			tabindex="0"
+		>
+			<!-- Resize handles for selected annotations -->
+			{#if annotation.isSelected}
+				<div class="resize-handle nw" data-testid="resize-handle" data-direction="nw"></div>
+				<div class="resize-handle n" data-testid="resize-handle" data-direction="n"></div>
+				<div class="resize-handle ne" data-testid="resize-handle" data-direction="ne"></div>
+				<div class="resize-handle e" data-testid="resize-handle" data-direction="e"></div>
+				<div class="resize-handle se" data-testid="resize-handle-se" data-direction="se"></div>
+				<div class="resize-handle s" data-testid="resize-handle" data-direction="s"></div>
+				<div class="resize-handle sw" data-testid="resize-handle" data-direction="sw"></div>
+				<div class="resize-handle w" data-testid="resize-handle" data-direction="w"></div>
+			{/if}
+		</div>
+	{/each}
 	<canvas
 		bind:this={canvasElement}
 		width={canvasWidth}
@@ -440,5 +473,74 @@
 
 	.annotation-canvas.drawing {
 		cursor: crosshair;
+	}
+
+	.bounding-box-overlay {
+		position: absolute;
+		border: 2px solid #4ecdc4;
+		pointer-events: auto;
+		cursor: pointer;
+		transition: border-color 0.2s;
+		z-index: 10;
+	}
+
+	.bounding-box-overlay[data-annotation-id]:hover {
+		border-color: #ff6b6b;
+	}
+
+	.resize-handle {
+		position: absolute;
+		width: 8px;
+		height: 8px;
+		background: #fff;
+		border: 1px solid #4ecdc4;
+		border-radius: 50%;
+		pointer-events: auto;
+		z-index: 11;
+	}
+
+	.resize-handle.nw {
+		top: -4px;
+		left: -4px;
+		cursor: nw-resize;
+	}
+	.resize-handle.n {
+		top: -4px;
+		left: 50%;
+		transform: translateX(-50%);
+		cursor: n-resize;
+	}
+	.resize-handle.ne {
+		top: -4px;
+		right: -4px;
+		cursor: ne-resize;
+	}
+	.resize-handle.e {
+		top: 50%;
+		right: -4px;
+		transform: translateY(-50%);
+		cursor: e-resize;
+	}
+	.resize-handle.se {
+		bottom: -4px;
+		right: -4px;
+		cursor: se-resize;
+	}
+	.resize-handle.s {
+		bottom: -4px;
+		left: 50%;
+		transform: translateX(-50%);
+		cursor: s-resize;
+	}
+	.resize-handle.sw {
+		bottom: -4px;
+		left: -4px;
+		cursor: sw-resize;
+	}
+	.resize-handle.w {
+		top: 50%;
+		left: -4px;
+		transform: translateY(-50%);
+		cursor: w-resize;
 	}
 </style>
