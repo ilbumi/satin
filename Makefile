@@ -1,7 +1,13 @@
 .DEFAULT_GOAL := help
-SHELL=bash
-PYCODE_PATHS=src/
-PYTESTS_PATH=tests/
+SHELL := bash
+
+# Load environment variables from .env file
+include .env
+export
+
+# Project paths
+PYCODE_PATHS := src/
+PYTESTS_PATH := tests/
 
 .PHONY: test
 test: test-backend test-frontend
@@ -19,24 +25,18 @@ test-frontend:
 
 .PHONY: test-e2e
 test-e2e:
-	./scripts/test-backend-setup.sh
-	cd frontend && pnpm run test:e2e
+	./scripts/run-e2e.sh
 
 .PHONY: launch_backend
 launch_backend:
-	@echo "Starting MongoDB..."
-	docker-compose up -d mongodb
-	@echo "Waiting for MongoDB to be healthy..."
-	@until docker-compose ps mongodb | grep -q "healthy"; do \
-		echo "Waiting for MongoDB to start..."; \
-		sleep 2; \
-	done
-	@echo "MongoDB is ready! Starting backend server..."
-	uv run granian --interface asgi --host 0.0.0.0 --port 8000 --reload satin:app
+	docker compose up -d mongodb
+	@until docker compose ps mongodb | grep -q "healthy"; do sleep 2; done
+	MONGO_DSN=mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@localhost:${MONGO_PORT}/${MONGO_DATABASE}?authSource=admin \
+	uv run granian --interface asgi --host 0.0.0.0 --port ${BACKEND_PORT} --reload satin:app
 
 .PHONY: launch_frontend
 launch_frontend:
-	cd frontend && pnpm run dev --host 0.0.0.0
+	cd frontend && pnpm run dev --host 0.0.0.0 --port ${FRONTEND_PORT}
 
 .PHONY: stop_backend
 stop_backend:
