@@ -16,7 +16,8 @@ export const test = base.extend<TestFixtures>({
 	/**
 	 * Set up test data in the database
 	 */
-	setupTestData: async (_, use) => {
+	// eslint-disable-next-line no-empty-pattern
+	setupTestData: async ({}, use) => {
 		const setupFn = async () => {
 			// In a real application, you would insert test data into your database
 			// For this example, we'll mock the API responses
@@ -39,7 +40,8 @@ export const test = base.extend<TestFixtures>({
 	/**
 	 * Clean up test data after tests
 	 */
-	cleanupTestData: async (_, use) => {
+	// eslint-disable-next-line no-empty-pattern
+	cleanupTestData: async ({}, use) => {
 		const cleanupFn = async () => {
 			console.log('Cleaning up test data...');
 
@@ -53,7 +55,8 @@ export const test = base.extend<TestFixtures>({
 	/**
 	 * Mock GraphQL API responses for consistent testing
 	 */
-	mockGraphQLResponses: async (_, use) => {
+	// eslint-disable-next-line no-empty-pattern
+	mockGraphQLResponses: async ({}, use) => {
 		const mockFn = async (page: Page) => {
 			// Mock the GraphQL endpoint
 			await page.route('**/graphql', async (route) => {
@@ -250,7 +253,8 @@ export const test = base.extend<TestFixtures>({
 	/**
 	 * Navigate to annotation workspace
 	 */
-	navigateToAnnotation: async (_, use) => {
+	// eslint-disable-next-line no-empty-pattern
+	navigateToAnnotation: async ({}, use) => {
 		const navigateFn = async (page: Page, projectId: string, taskId: string) => {
 			await page.goto(`/projects/${projectId}/annotate?task=${taskId}`);
 			await expect(page).toHaveTitle(/Annotation/);

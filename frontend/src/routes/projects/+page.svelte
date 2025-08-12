@@ -210,7 +210,7 @@
 <div class="projects-page">
 	<header class="page-header">
 		<h1>Projects</h1>
-		<button class="create-button" onclick={createNewProject}>
+		<button class="create-button" data-testid="create-project-btn" onclick={createNewProject}>
 			<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
 				<path
 					d="M8 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12Zm0 1.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9ZM8 5a.75.75 0 0 1 .75.75v1.5h1.5a.75.75 0 0 1 0 1.5h-1.5v1.5a.75.75 0 0 1-1.5 0v-1.5h-1.5a.75.75 0 0 1 0-1.5h1.5v-1.5A.75.75 0 0 1 8 5Z"
@@ -253,10 +253,11 @@
 				{#each projects as project (project.id)}
 					<div class="project-card" data-testid="project-item">
 						<div class="project-header">
-							<h3>{project.name}</h3>
+							<h3 data-testid="project-name">{project.name}</h3>
 							<div class="project-actions-header">
 								<button
 									class="edit-button"
+									data-testid="edit-project-btn"
 									onclick={() => openEditModal(project)}
 									aria-label="Edit project"
 								>
@@ -268,6 +269,7 @@
 								</button>
 								<button
 									class="delete-button"
+									data-testid="delete-project-btn"
 									onclick={() => openDeleteModal(project)}
 									aria-label="Delete project"
 								>
