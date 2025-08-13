@@ -28,7 +28,7 @@ export const test = base.extend<TestFixtures>({
 				}
 
 				retries++;
-				await new Promise(resolve => setTimeout(resolve, 1000));
+				await new Promise((resolve) => setTimeout(resolve, 1000));
 			}
 
 			throw new Error('Backend did not become ready in time');
