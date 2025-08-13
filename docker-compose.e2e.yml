@@ -29,7 +29,7 @@ services:
     restart: on-failure
     environment:
       - MONGO_DSN=mongodb://testuser:testpass@mongodb-test:27017/${MONGO_DATABASE}-test?authSource=admin
-      - CORS_ORIGINS=["http://localhost:3001","http://frontend-test:3000"]
+      - CORS_ORIGINS=["http://localhost:3001"]
     ports:
       - "8001:8000"  # Different port to avoid conflicts
     depends_on:
@@ -50,10 +50,10 @@ services:
       context: .
       dockerfile: docker/Dockerfile.frontend
       target: production
+      args:
+        VITE_BACKEND_URL: http://localhost:8001
     restart: on-failure
     environment:
-      - VITE_API_URL=http://localhost:8001
-      - API_BASE_URL=http://localhost:8001
       - BASE_URL=http://localhost:3001
     ports:
       - "3001:3000"  # Different port to avoid conflicts

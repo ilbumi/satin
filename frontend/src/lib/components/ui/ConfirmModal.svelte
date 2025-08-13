@@ -29,7 +29,7 @@
 </script>
 
 <BaseModal {show} {title} onClose={onCancel}>
-	<div class="confirm-modal-content">
+	<div class="confirm-modal-content" data-testid="delete-confirmation-modal">
 		<div class="warning-icon">
 			<svg width="48" height="48" viewBox="0 0 16 16" fill="currentColor">
 				<path
@@ -39,7 +39,7 @@
 		</div>
 
 		<h3>Are you sure?</h3>
-		<p>{message}</p>
+		<p data-testid="confirmation-message">{message}</p>
 
 		{#if error}
 			<div class="error-message">
@@ -48,10 +48,22 @@
 		{/if}
 
 		<div class="modal-actions">
-			<button type="button" class="cancel-button" onclick={onCancel} disabled={isLoading}>
+			<button
+				type="button"
+				class="cancel-button"
+				onclick={onCancel}
+				disabled={isLoading}
+				data-testid="cancel-delete-btn"
+			>
 				{cancelText}
 			</button>
-			<button type="button" class={confirmButtonClass} onclick={onConfirm} disabled={isLoading}>
+			<button
+				type="button"
+				class={confirmButtonClass}
+				onclick={onConfirm}
+				disabled={isLoading}
+				data-testid="confirm-delete-btn"
+			>
 				{#if isLoading}
 					<div class="button-spinner"></div>
 					Loading...

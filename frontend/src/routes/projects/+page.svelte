@@ -57,6 +57,11 @@
 		}
 	}
 
+	// Expose refresh function to window for testing
+	if (typeof window !== 'undefined') {
+		(window as Window & { refreshProjects?: () => Promise<void> }).refreshProjects = loadProjects;
+	}
+
 	// Create modal handlers
 	function openCreateModal() {
 		showCreateModal = true;
@@ -214,13 +219,13 @@
 					</div>
 				{/if}
 			{:else}
-				<div class="projects-grid" data-testid="projects-grid">
+				<div class="projects-grid" data-testid="project-list">
 					{#each filteredAndSortedProjects as project (project.id)}
-						<div class="project-card" data-testid="project-card">
+						<div class="project-card" data-testid="project-item">
 							<div class="card-header">
 								<h3>
 									<a href="/projects/{project.id}" data-testid="project-link">
-										{project.name}
+										<span data-testid="project-name">{project.name}</span>
 									</a>
 								</h3>
 								<div class="card-actions">

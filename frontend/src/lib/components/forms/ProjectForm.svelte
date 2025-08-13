@@ -26,6 +26,7 @@
 	let name = $state(initialName);
 	let description = $state(initialDescription);
 	let nameError = $state('');
+	let descriptionError = $state('');
 
 	// Update form when initial values change
 	$effect(() => {
@@ -35,11 +36,29 @@
 
 	function handleSubmit() {
 		// Basic validation
+		let hasError = false;
+
 		if (!name.trim()) {
 			nameError = 'Project name is required';
-			return;
+			hasError = true;
+		} else if (name.trim().length < 3) {
+			nameError = 'Project name must be at least 3 characters';
+			hasError = true;
+		} else if (name.trim().length > 100) {
+			nameError = 'Project name must be less than 100 characters';
+			hasError = true;
+		} else {
+			nameError = '';
 		}
-		nameError = '';
+
+		if (!description.trim()) {
+			descriptionError = 'Project description is required';
+			hasError = true;
+		} else {
+			descriptionError = '';
+		}
+
+		if (hasError) return;
 
 		onSubmit({
 			name: name.trim(),
@@ -56,6 +75,9 @@
 
 	function handleDescriptionChange(value: string) {
 		description = value;
+		if (descriptionError && value.trim()) {
+			descriptionError = '';
+		}
 	}
 
 	const submitText = mode === 'create' ? 'Create Project' : 'Update Project';
@@ -78,27 +100,46 @@
 		testId="project-name-input"
 		onValueChange={handleNameChange}
 	/>
+	{#if nameError}
+		<div class="field-error" data-testid="name-error">{nameError}</div>
+	{/if}
 
 	<FormField
 		id="project-description"
 		label="Description"
 		type="textarea"
 		value={description}
-		placeholder="Enter project description (optional)"
+		placeholder="Enter project description"
+		required={true}
 		disabled={isLoading}
+		error={descriptionError}
 		testId="project-description-input"
 		onValueChange={handleDescriptionChange}
 	/>
+	{#if descriptionError}
+		<div class="field-error" data-testid="description-error">{descriptionError}</div>
+	{/if}
 
 	{#if error}
 		<ErrorMessage message={error} testId="error-message" />
 	{/if}
 
 	<div class="form-actions">
-		<button type="button" class="cancel-button" onclick={onCancel} disabled={isLoading}>
+		<button
+			type="button"
+			class="cancel-button"
+			onclick={onCancel}
+			disabled={isLoading}
+			data-testid="cancel-project-btn"
+		>
 			Cancel
 		</button>
-		<button type="submit" class="submit-button" disabled={isLoading || !name.trim()}>
+		<button
+			type="submit"
+			class="submit-button"
+			disabled={isLoading || !name.trim()}
+			data-testid="submit-project-btn"
+		>
 			{#if isLoading}
 				<LoadingSpinner size="small" color="white" />
 				{mode === 'create' ? 'Creating...' : 'Updating...'}
@@ -110,6 +151,13 @@
 </form>
 
 <style>
+	.field-error {
+		color: #dc2626;
+		font-size: 0.875rem;
+		margin-top: 0.25rem;
+		margin-bottom: 0.75rem;
+	}
+
 	.form-actions {
 		display: flex;
 		gap: 0.75rem;

@@ -59,7 +59,7 @@ services:
       target: production
     restart: unless-stopped
     environment:
-      - VITE_API_URL=${VITE_API_URL}
+      - VITE_BACKEND_URL=${VITE_BACKEND_URL}
     ports:
       - "${FRONTEND_PORT}:3000"
     depends_on:

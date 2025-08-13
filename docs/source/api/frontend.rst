@@ -262,10 +262,10 @@ The frontend uses URQL for GraphQL operations with automatic caching and error h
 
    import { Client, cacheExchange, fetchExchange } from '@urql/svelte';
    import { browser } from '$app/environment';
-   import { VITE_API_URL } from '$env/static/private';
+   import { VITE_BACKEND_URL } from '$env/static/private';
 
    const client = new Client({
-     url: browser ? `${VITE_API_URL}/graphql` : 'http://localhost:8000/graphql',
+     url: browser ? `${VITE_BACKEND_URL}/graphql` : 'http://localhost:8000/graphql',
      exchanges: [cacheExchange, fetchExchange],
      requestPolicy: 'cache-and-network'
    });
