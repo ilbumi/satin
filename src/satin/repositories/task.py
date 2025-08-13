@@ -39,6 +39,18 @@ class TaskRepository(BaseRepository[Task]):
     def __init__(self, db: AsyncDatabase):
         """Initialize the TaskRepository with a database connection."""
         super().__init__(db, "tasks")
+        self._image_repo = ImageRepository(db)
+        self._project_repo = ProjectRepository(db)
+
+    async def _load_related_objects(self, task_data: dict[str, Any]) -> None:
+        """Load and attach related Image and Project objects to task data."""
+        if "image_id" in task_data:
+            task_data["image"] = await self._image_repo.get_image(task_data["image_id"])
+            del task_data["image_id"]
+
+        if "project_id" in task_data:
+            task_data["project"] = await self._project_repo.get_project(task_data["project_id"])
+            del task_data["project_id"]
 
     async def to_domain_object(self, data: dict[str, Any]) -> Task:
         """Convert database document to Task domain object."""
@@ -73,13 +85,7 @@ class TaskRepository(BaseRepository[Task]):
             del task_data["_id"]
 
             # Load related objects
-
-            image_repo = ImageRepository(self.db)
-            project_repo = ProjectRepository(self.db)
-            task_data["image"] = await image_repo.get_image(task_data["image_id"])
-            task_data["project"] = await project_repo.get_project(task_data["project_id"])
-            del task_data["image_id"]
-            del task_data["project_id"]
+            await self._load_related_objects(task_data)
 
             return await self.to_domain_object(task_data)
         return None
@@ -217,13 +223,9 @@ class TaskRepository(BaseRepository[Task]):
         created_data = await self.create(task_data)
 
         # Load related objects
-
-        image_repo = ImageRepository(self.db)
-        project_repo = ProjectRepository(self.db)
-        created_data["image"] = await image_repo.get_image(image_id)
-        created_data["project"] = await project_repo.get_project(project_id)
-        del created_data["image_id"]
-        del created_data["project_id"]
+        created_data["image_id"] = validated_image_id  # Temporarily set for helper method
+        created_data["project_id"] = validated_project_id
+        await self._load_related_objects(created_data)
 
         # Convert bboxes back to BBox objects
         created_data["bboxes"] = converted_bboxes
@@ -287,13 +289,7 @@ class TaskRepository(BaseRepository[Task]):
             del task_data["_id"]
 
             # Load related objects
-
-            image_repo = ImageRepository(self.db)
-            project_repo = ProjectRepository(self.db)
-            task_data["image"] = await image_repo.get_image(image_id)
-            task_data["project"] = await project_repo.get_project(project_id)
-            del task_data["image_id"]
-            del task_data["project_id"]
+            await self._load_related_objects(task_data)
 
             return await self.to_domain_object(task_data)
         return None
