@@ -1,13 +1,37 @@
 .DEFAULT_GOAL := help
 SHELL := bash
 
-# Load environment variables from .env file
-include .env
+# Load environment variables from .env file (optional)
+-include .env
 export
+
+# Default values for environment variables
+MONGO_USERNAME ?= admin
+MONGO_PASSWORD ?= password
+MONGO_PORT ?= 27017
+MONGO_DATABASE ?= satin
+BACKEND_PORT ?= 8000
+FRONTEND_PORT ?= 3000
 
 # Project paths
 PYCODE_PATHS := src/
 PYTESTS_PATH := tests/
+
+.PHONY: help
+help:
+	@echo "Available commands:"
+	@echo "  test               Run backend and frontend tests"
+	@echo "  test-all           Run all tests including e2e"
+	@echo "  test-backend       Run backend tests only"
+	@echo "  test-frontend      Run frontend tests only"
+	@echo "  test-e2e          Run e2e tests"
+	@echo "  launch_backend     Start backend with MongoDB"
+	@echo "  launch_frontend    Start frontend dev server"
+	@echo "  stop_backend      Stop MongoDB container"
+	@echo "  format            Format all code"
+	@echo "  lint              Lint all code"
+	@echo "  sync              Sync dependencies"
+	@echo "  docs              Build documentation"
 
 .PHONY: test
 test: test-backend test-frontend
