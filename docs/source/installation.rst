@@ -73,7 +73,7 @@ Create a ``.env`` file in the ``frontend`` directory:
 
 .. code-block:: bash
 
-    VITE_API_URL=http://localhost:8000
+    BACKEND_URL=http://localhost:8000
 
 Production Deployment
 --------------------

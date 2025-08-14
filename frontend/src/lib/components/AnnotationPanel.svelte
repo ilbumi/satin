@@ -14,10 +14,16 @@
 		onAnnotationSelect?: (id: string) => void;
 		onAnnotationDelete?: (id: string) => void;
 		onAnnotationUpdate?: (id: string, updates: Partial<BoundingBox>) => void;
+		'data-testid'?: string;
 	}
 
-	const { annotations, onAnnotationSelect, onAnnotationDelete, onAnnotationUpdate }: Props =
-		$props();
+	const {
+		annotations,
+		onAnnotationSelect,
+		onAnnotationDelete,
+		onAnnotationUpdate,
+		'data-testid': testId
+	}: Props = $props();
 
 	let editingId = $state<string | null>(null);
 	let editingLabel = $state('');
@@ -53,12 +59,12 @@
 	}
 </script>
 
-<div class="annotation-panel">
+<div class="annotation-panel" data-testid={testId}>
 	<div class="panel-header">
 		<h3>Annotations ({annotations?.length || 0})</h3>
 	</div>
 
-	<div class="annotation-list">
+	<div class="annotation-list" data-testid="annotation-list">
 		{#each annotations || [] as annotation (annotation.id)}
 			<div
 				class="annotation-item"
@@ -67,6 +73,7 @@
 				onkeydown={(e) => e.key === 'Enter' && onAnnotationSelect?.(annotation.id)}
 				role="button"
 				tabindex="0"
+				data-testid="annotation-{annotation.id}"
 			>
 				<div class="annotation-header">
 					{#if editingId === annotation.id}
@@ -106,6 +113,7 @@
 									onAnnotationDelete?.(annotation.id);
 								}}
 								aria-label="Delete annotation"
+								data-testid="delete-annotation-btn"
 							>
 								<svg
 									width="14"

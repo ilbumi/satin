@@ -23,6 +23,8 @@ __screenshots__/
 .env.development
 .env.test
 .env.production
+test-results/
+playwright-report/
 
 # Development notes
 *DE.md

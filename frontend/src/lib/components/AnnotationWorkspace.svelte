@@ -10,12 +10,13 @@
 	}
 </script>
 
-<div class="annotation-workspace">
+<div class="annotation-workspace" data-testid="annotation-workspace">
 	<div class="workspace-sidebar">
 		<AnnotationToolbar
 			activeTool={$annotationStore.currentTool}
 			onToolChange={annotationStore.setTool}
 			onImageUpload={handleImageUpload}
+			data-testid="annotation-toolbar"
 		/>
 	</div>
 
@@ -27,6 +28,7 @@
 				isDrawing={$annotationStore.currentTool === 'bbox'}
 				onAnnotationCreate={annotationStore.createAnnotation}
 				onAnnotationSelect={annotationStore.selectAnnotation}
+				data-testid="image-canvas"
 			/>
 		</div>
 	</div>
@@ -37,6 +39,7 @@
 			onAnnotationSelect={annotationStore.selectAnnotation}
 			onAnnotationDelete={annotationStore.deleteAnnotation}
 			onAnnotationUpdate={annotationStore.updateAnnotation}
+			data-testid="annotation-panel"
 		/>
 	</div>
 </div>

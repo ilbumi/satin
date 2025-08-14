@@ -219,14 +219,14 @@
 					Back to Projects
 				</a>
 				<div class="project-info">
-					<h1>{project.name}</h1>
+					<h1 data-testid="project-title">{project.name}</h1>
 					<p class="project-description">{project.description}</p>
 				</div>
 			</div>
 		</header>
 
 		<main class="project-content">
-			<section class="images-section">
+			<section class="images-section" data-testid="project-tasks">
 				<div class="section-header">
 					<h2>Images</h2>
 					<button class="add-image-button" onclick={openAddImageModal}>
