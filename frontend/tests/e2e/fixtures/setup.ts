@@ -56,7 +56,57 @@ export const test = base.extend<TestFixtures>({
 
 export { expect } from '@playwright/test';
 
-// Helper to create test data via API
+// Helper to create test data via UI (solves cache sync issues)
+export async function createProjectViaUI(page: Page, name: string, description: string) {
+	// Make project name unique to avoid duplicate key errors
+	const uniqueName = `${name} ${Date.now()}`;
+
+	// Click create project button
+	await page.click('[data-testid="create-project-btn"]');
+
+	// Wait for modal and fill form
+	await page.waitForSelector('[data-testid="project-name-input"]', { timeout: 5000 });
+	await page.fill('[data-testid="project-name-input"]', uniqueName);
+	await page.fill('[data-testid="project-description-input"]', description);
+
+	// Submit form
+	await page.click('[data-testid="submit-project-btn"]');
+
+	// Wait for either success (modal closes) or error message
+	try {
+		await Promise.race([
+			// Success: modal closes
+			page.waitForSelector('[data-testid="submit-project-btn"]', { state: 'detached', timeout: 15000 }),
+			// Error: error message appears
+			page.waitForSelector('[data-testid="error-message"]', { timeout: 15000 }).then(() => {
+				throw new Error('Project creation failed - error message appeared');
+			})
+		]);
+
+		// Wait for project to appear in the list
+		await page.waitForSelector(`[data-testid="project-name"]:has-text("${uniqueName}")`, { timeout: 10000 });
+
+	} catch (error) {
+		// Check if button is stuck in loading state
+		const loadingButton = await page.locator('[data-testid="submit-project-btn"]:has-text("Creating...")').isVisible();
+		if (loadingButton) {
+			throw new Error(`Project creation timed out - button stuck in loading state. Backend may be unreachable.`);
+		}
+
+		// Check for error messages
+		const errorMsg = await page.locator('[data-testid="error-message"]').textContent();
+		if (errorMsg) {
+			throw new Error(`Project creation failed: ${errorMsg}`);
+		}
+
+		throw error;
+	}
+
+	// Return project info
+	return { name: uniqueName, description };
+}
+
+// Keep the old API-based function for backward compatibility if needed
 export async function createTestProject(name: string, description: string) {
 	const apiUrl = process.env.VITE_BACKEND_URL || 'http://localhost:8001';
 
@@ -83,11 +133,14 @@ export async function createTestProject(name: string, description: string) {
 
 			const data = await response.json();
 			if (data.errors) {
+				console.error('GraphQL Error creating project:', data.errors);
 				throw new Error(`GraphQL Error: ${data.errors[0].message}`);
 			}
 
+			console.log('Created test project:', data.data.createProject);
+
 			// Add a small delay to ensure data is available
-			await new Promise((resolve) => setTimeout(resolve, 100));
+			await new Promise((resolve) => setTimeout(resolve, 500));
 
 			return data.data.createProject;
 		} catch (error) {
@@ -151,14 +204,34 @@ export async function deleteAllTestProjects() {
 }
 
 // Helper to wait for projects to load in UI
-export async function waitForProjectsToLoad(page: Page, timeout: number = 10000) {
+export async function waitForProjectsToLoad(page: Page) {
 	try {
-		// Wait for either project list or empty state
-		await page.waitForSelector('[data-testid="project-list"], .empty-state', { timeout });
-		// Additional small delay to ensure rendering is complete
+		// Wait for main content to be ready
+		await page.waitForSelector('main', { timeout: 5000 });
+
+		// Check if page is stuck in loading state
+		const loadingState = await page.locator('p:has-text("Loading projects...")').isVisible();
+		if (loadingState) {
+			// Wait a bit to see if loading resolves
+			await page.waitForTimeout(2000);
+
+			// Check again
+			const stillLoading = await page.locator('p:has-text("Loading projects...")').isVisible();
+			if (stillLoading) {
+				throw new Error('Projects page stuck in loading state - backend may be unreachable');
+			}
+		}
+
+		// Wait for either project list or empty state message
+		await page.waitForSelector(
+			'[data-testid="project-list"], h2:has-text("No projects yet")',
+			{ timeout: 10000 }
+		);
+
+		// Small delay for rendering
 		await page.waitForTimeout(200);
 	} catch (error) {
-		console.warn('Projects did not load within timeout, continuing anyway');
+		console.warn('Projects page did not load as expected, continuing anyway');
 		console.error(error);
 	}
 }

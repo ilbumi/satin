@@ -1,4 +1,4 @@
-import { test, expect, createTestProject, waitForProjectsToLoad } from './fixtures/setup';
+import { test, expect, createProjectViaUI, waitForProjectsToLoad } from './fixtures/setup';
 
 test.describe('Project Management', () => {
 	test.beforeEach(async ({ waitForBackend }) => {
@@ -72,7 +72,7 @@ test.describe('Project Management', () => {
 		// Wait for modal to appear
 		await page.waitForSelector('[data-testid="submit-project-btn"]', { timeout: 5000 });
 
-
+		await page.fill('[data-testid="project-description-input"]', 'A'); // Some non-empty description
 		// Test name length validation
 		await page.fill('[data-testid="project-name-input"]', 'A'); // Too short
 		await page.click('[data-testid="submit-project-btn"]');
@@ -93,15 +93,8 @@ test.describe('Project Management', () => {
 		await page.goto('/projects');
 		await waitForProjectsToLoad(page);
 
-		// First create a test project
-		const project = await createTestProject('Edit Test Project', 'Project to edit');
-
-		// Refresh to see the created project
-		await page.evaluate(() =>
-			(window as Window & { refreshProjects?: () => Promise<void> }).refreshProjects?.()
-		);
-		await page.waitForTimeout(1000); // Extra delay for API response
-		await waitForProjectsToLoad(page);
+		// Create a test project via UI (ensures cache consistency)
+		const project = await createProjectViaUI(page, 'Edit Test Project', 'Project to edit');
 
 		// Click edit button on the test project
 		const projectCard = page.locator(
@@ -131,15 +124,8 @@ test.describe('Project Management', () => {
 		await page.goto('/projects');
 		await waitForProjectsToLoad(page);
 
-		// First create a test project
-		const project = await createTestProject('Delete Test Project', 'Project to delete');
-
-		// Refresh to see the created project
-		await page.evaluate(() =>
-			(window as Window & { refreshProjects?: () => Promise<void> }).refreshProjects?.()
-		);
-		await page.waitForTimeout(1000); // Extra delay for API response
-		await waitForProjectsToLoad(page);
+		// Create a test project via UI (ensures cache consistency)
+		const project = await createProjectViaUI(page, 'Delete Test Project', 'Project to delete');
 
 		const initialProjectCount = await page.locator('[data-testid="project-item"]').count();
 
@@ -155,13 +141,24 @@ test.describe('Project Management', () => {
 
 		await page.click('[data-testid="confirm-delete-btn"]');
 
-		// Wait for the project to be removed
-		await page.waitForFunction(
-			(projectName) =>
-				!document.querySelector(`[data-testid="project-name"]:has-text("${projectName}")`),
-			project.name,
-			{ timeout: 10000 }
-		);
+		// Wait for modal to close or error to appear
+		await page.waitForTimeout(2000);
+
+		// Check if there's an error message
+		const errorMessage = await page.locator('.error-message').textContent();
+		if (errorMessage) {
+			console.log('Delete error:', errorMessage);
+		}
+
+		// Wait for the project to be removed (either the element disappears or we get empty state)
+		try {
+			await page.waitForSelector(`[data-testid="project-name"]:has-text("${project.name}")`, {
+				state: 'detached',
+				timeout: 10000
+			});
+		} catch {
+			// If the selector fails, project might already be gone, continue with verification
+		}
 
 		// Verify project is removed
 		const finalProjectCount = await page.locator('[data-testid="project-item"]').count();
@@ -172,15 +169,8 @@ test.describe('Project Management', () => {
 		await page.goto('/projects');
 		await waitForProjectsToLoad(page);
 
-		// First create a test project
-		const project = await createTestProject('Cancel Delete Test', 'Project not to delete');
-
-		// Refresh to see the created project
-		await page.evaluate(() =>
-			(window as Window & { refreshProjects?: () => Promise<void> }).refreshProjects?.()
-		);
-		await page.waitForTimeout(1000); // Extra delay for API response
-		await waitForProjectsToLoad(page);
+		// Create a test project via UI (ensures cache consistency)
+		const project = await createProjectViaUI(page, 'Cancel Delete Test', 'Project not to delete');
 
 		const initialProjectCount = await page.locator('[data-testid="project-item"]').count();
 
@@ -208,28 +198,24 @@ test.describe('Project Management', () => {
 		await page.goto('/projects');
 		await waitForProjectsToLoad(page);
 
+		// Create a project so we have something to search through
+		await createProjectViaUI(page, 'Searchable Project', 'This project can be found via search');
+
 		// Check if search input exists and is functional
 		const searchInput = page.locator('[data-testid="search-input"]');
 		await expect(searchInput).toBeVisible();
 
 		// Test that we can type in the search
-		await searchInput.fill('test search');
-		await expect(searchInput).toHaveValue('test search');
+		await searchInput.fill('Searchable');
+		await expect(searchInput).toHaveValue('Searchable');
 	});
 
 	test('should navigate to project detail page', async ({ page }) => {
 		await page.goto('/projects');
 		await waitForProjectsToLoad(page);
 
-		// Create a test project first
-		const project = await createTestProject('Navigation Test Project', 'Project for navigation');
-
-		// Refresh to see the created project
-		await page.evaluate(() =>
-			(window as Window & { refreshProjects?: () => Promise<void> }).refreshProjects?.()
-		);
-		await page.waitForTimeout(1000); // Extra delay for API response
-		await waitForProjectsToLoad(page);
+		// Create a test project via UI (ensures cache consistency)
+		const project = await createProjectViaUI(page, 'Navigation Test Project', 'Project for navigation');
 
 		// Click on project link
 		const projectLink = page.locator(
@@ -238,7 +224,7 @@ test.describe('Project Management', () => {
 		await projectLink.click();
 
 		// Verify navigation to project detail page
-		await expect(page).toHaveURL(new RegExp(`/projects/${project.id}`));
+		await expect(page).toHaveURL(/\/projects\/[a-f0-9]{24}$/);
 
 		// Verify project details are displayed
 		await expect(page.locator('[data-testid="project-title"]')).toContainText(project.name);
