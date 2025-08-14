@@ -215,7 +215,11 @@ test.describe('Project Management', () => {
 		await waitForProjectsToLoad(page);
 
 		// Create a test project via UI (ensures cache consistency)
-		const project = await createProjectViaUI(page, 'Navigation Test Project', 'Project for navigation');
+		const project = await createProjectViaUI(
+			page,
+			'Navigation Test Project',
+			'Project for navigation'
+		);
 
 		// Click on project link
 		const projectLink = page.locator(

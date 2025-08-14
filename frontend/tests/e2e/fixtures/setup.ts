@@ -76,7 +76,10 @@ export async function createProjectViaUI(page: Page, name: string, description: 
 	try {
 		await Promise.race([
 			// Success: modal closes
-			page.waitForSelector('[data-testid="submit-project-btn"]', { state: 'detached', timeout: 15000 }),
+			page.waitForSelector('[data-testid="submit-project-btn"]', {
+				state: 'detached',
+				timeout: 15000
+			}),
 			// Error: error message appears
 			page.waitForSelector('[data-testid="error-message"]', { timeout: 15000 }).then(() => {
 				throw new Error('Project creation failed - error message appeared');
@@ -84,13 +87,18 @@ export async function createProjectViaUI(page: Page, name: string, description: 
 		]);
 
 		// Wait for project to appear in the list
-		await page.waitForSelector(`[data-testid="project-name"]:has-text("${uniqueName}")`, { timeout: 10000 });
-
+		await page.waitForSelector(`[data-testid="project-name"]:has-text("${uniqueName}")`, {
+			timeout: 10000
+		});
 	} catch (error) {
 		// Check if button is stuck in loading state
-		const loadingButton = await page.locator('[data-testid="submit-project-btn"]:has-text("Creating...")').isVisible();
+		const loadingButton = await page
+			.locator('[data-testid="submit-project-btn"]:has-text("Creating...")')
+			.isVisible();
 		if (loadingButton) {
-			throw new Error(`Project creation timed out - button stuck in loading state. Backend may be unreachable.`);
+			throw new Error(
+				`Project creation timed out - button stuck in loading state. Backend may be unreachable.`
+			);
 		}
 
 		// Check for error messages
@@ -223,10 +231,9 @@ export async function waitForProjectsToLoad(page: Page) {
 		}
 
 		// Wait for either project list or empty state message
-		await page.waitForSelector(
-			'[data-testid="project-list"], h2:has-text("No projects yet")',
-			{ timeout: 10000 }
-		);
+		await page.waitForSelector('[data-testid="project-list"], h2:has-text("No projects yet")', {
+			timeout: 10000
+		});
 
 		// Small delay for rendering
 		await page.waitForTimeout(200);
