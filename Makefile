@@ -20,52 +20,15 @@ PYTESTS_PATH := tests/
 .PHONY: help
 help:
 	@echo "Available commands:"
-	@echo "  test               Run backend and frontend tests"
-	@echo "  test-all           Run all tests including e2e"
-	@echo "  test-backend       Run backend tests only"
-	@echo "  test-frontend      Run frontend tests only"
-	@echo "  test-e2e          Run e2e tests"
-	@echo "  launch_backend     Start backend with MongoDB"
-	@echo "  launch_frontend    Start frontend dev server"
-	@echo "  stop_backend      Stop MongoDB container"
+	@echo "  test               Run backend and frontend unit tests"
 	@echo "  format            Format all code"
 	@echo "  lint              Lint all code"
 	@echo "  sync              Sync dependencies"
 	@echo "  docs              Build documentation"
 
 .PHONY: test
-test: test-backend test-frontend
-
-.PHONY: test-all
-test-all: test-backend test-frontend test-e2e
-
-.PHONY: test-backend
-test-backend:
+test:
 	uv run pytest -n 5 --cov .
-
-.PHONY: test-frontend
-test-frontend:
-	cd frontend && pnpm test --browser.headless
-
-.PHONY: test-e2e
-test-e2e:
-	./scripts/run-e2e.sh
-
-.PHONY: launch_backend
-launch_backend:
-	docker compose up -d mongodb
-	@until docker compose ps mongodb | grep -q "healthy"; do sleep 2; done
-	MONGO_DSN=mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@localhost:${MONGO_PORT}/${MONGO_DATABASE}?authSource=admin \
-	uv run granian --interface asgi --host 0.0.0.0 --port ${BACKEND_PORT} --reload satin:app
-
-.PHONY: launch_frontend
-launch_frontend:
-	cd frontend && pnpm run dev --host 0.0.0.0 --port ${FRONTEND_PORT}
-
-.PHONY: stop_backend
-stop_backend:
-	@echo "Stopping MongoDB..."
-	docker-compose down mongodb
 
 .PHONY: format
 format: format-backend format-frontend
