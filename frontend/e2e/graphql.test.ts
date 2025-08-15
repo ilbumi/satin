@@ -1,14 +1,14 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test';
 
 test.describe('GraphQL Integration', () => {
 	test('should display GraphQL connection status', async ({ page }) => {
 		await page.goto('/');
 
 		// Wait for the page to load and show connection status
-		await expect(page.locator('h1')).toContainText('Satin - Image Annotation Platform');
+		await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 
-		// Check that GraphQL connection section is visible
-		await expect(page.getByRole('heading', { name: 'GraphQL Connection Status' })).toBeVisible();
+		// Check that system status section is visible
+		await expect(page.getByRole('heading', { name: 'System Status' })).toBeVisible();
 
 		// Wait for connection test to complete
 		await page.waitForTimeout(2000);
@@ -29,7 +29,7 @@ test.describe('GraphQL Integration', () => {
 		await page.waitForTimeout(3000);
 
 		// Check that test results section is visible
-		await expect(page.getByRole('heading', { name: 'Test Results' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'System Test Results' })).toBeVisible();
 
 		// Should show either test results or "Running tests..." message
 		const hasResults = (await page.locator('li').count()) > 0;

@@ -29,7 +29,7 @@ class StrawberryTypeProtocol(Protocol):
     """Protocol for Strawberry types with from_pydantic method."""
 
     @classmethod
-    def from_pydantic(cls, obj: Any, extra: dict[str, Any] | None = None) -> Any:
+    def from_pydantic(cls, _: Any, __: dict[str, Any] | None = None) -> Any:
         """Convert from Pydantic model."""
         ...
 
