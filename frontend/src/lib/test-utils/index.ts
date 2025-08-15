@@ -2,6 +2,7 @@
  * Test utility functions
  * Common utilities for testing across the application
  */
+export { render } from 'vitest-browser-svelte';
 
 /**
  * Wait for a specified amount of time (useful for testing async operations)

@@ -15,7 +15,7 @@ export const config = {
 	api: {
 		baseUrl: env.BACKEND_URL,
 		graphqlEndpoint: `${env.BACKEND_URL}/graphql`,
-		timeout: 30000, // 30 seconds
+		timeout: 5000, // 5 seconds
 		retries: 3
 	},
 

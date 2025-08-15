@@ -1,11 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { env, validateEnv, config } from './index.js';
-import { mockEnv } from '../test-utils/index.js';
 
 describe('Configuration', () => {
 	beforeEach(() => {
 		// Reset environment to default values
-		mockEnv({
+		Object.assign(import.meta.env, {
 			VITE_BACKEND_URL: 'http://localhost:8000'
 		});
 	});
@@ -19,7 +18,7 @@ describe('Configuration', () => {
 		});
 
 		it('should use default BACKEND_URL when not set', () => {
-			mockEnv({ VITE_BACKEND_URL: undefined as unknown as string });
+			Object.assign(import.meta.env, { VITE_BACKEND_URL: undefined as unknown as string });
 			expect(env.BACKEND_URL).toBe('http://localhost:8000');
 		});
 	});
@@ -34,7 +33,7 @@ describe('Configuration', () => {
 		it('should have api configuration', () => {
 			expect(config.api.baseUrl).toBe('http://localhost:8000');
 			expect(config.api.graphqlEndpoint).toBe('http://localhost:8000/graphql');
-			expect(config.api.timeout).toBe(30000);
+			expect(config.api.timeout).toBe(5000);
 			expect(config.api.retries).toBe(3);
 		});
 
