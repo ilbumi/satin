@@ -12,9 +12,11 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"format": "prettier --write .",
 		"lint": "prettier --check . && eslint .",
-		"test:unit": "vitest",
-		"test": "pnpm run test:unit -- --run && pnpm run test:e2e",
+		"test:unit": "vitest --run",
+		"test": "pnpm run test:unit && pnpm run test:e2e",
 		"test:e2e": "playwright test",
+		"test:unit:headless": "vitest --run --browser.headless",
+		"test:e2e:headless": "playwright test --headed=false",
 		"codegen": "graphql-codegen --config codegen.yml",
 		"codegen:watch": "graphql-codegen --config codegen.yml --watch"
 	},
