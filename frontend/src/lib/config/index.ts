@@ -15,8 +15,8 @@ export const config = {
 	api: {
 		baseUrl: env.BACKEND_URL,
 		graphqlEndpoint: `${env.BACKEND_URL}/graphql`,
-		timeout: 5000, // 5 seconds
-		retries: 3
+		timeout: 3000, // 5 seconds
+		retries: 2
 	},
 
 	/**
@@ -26,7 +26,7 @@ export const config = {
 		pageSize: 20,
 		maxFileSize: 10 * 1024 * 1024, // 10MB
 		supportedImageTypes: ['image/jpeg', 'image/png', 'image/webp'] as const,
-		toastDuration: 5000 // 5 seconds
+		toastDuration: 3000 // 5 seconds
 	},
 
 	/**

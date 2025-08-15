@@ -54,7 +54,13 @@
 
 <button {type} class={computedClasses} disabled={isDisabled} {onclick} aria-busy={loading}>
 	{#if loading}
-		<svg class="mr-2 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+		<svg
+			class="mr-2 h-4 w-4 animate-spin"
+			fill="none"
+			viewBox="0 0 24 24"
+			role="img"
+			aria-label="Loading spinner"
+		>
 			<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
 			></circle>
 			<path

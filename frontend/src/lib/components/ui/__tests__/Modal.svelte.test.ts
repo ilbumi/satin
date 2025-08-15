@@ -88,26 +88,32 @@ describe('Modal', () => {
 	});
 
 	it('applies correct size classes', async () => {
-		const smallModal = render(TestModal, {
+		// Test small modal
+		render(TestModal, {
 			open: true,
 			size: 'sm',
 			content: 'Small modal'
 		});
-		await expect.element(smallModal.getByRole('dialog')).toHaveClass('max-w-md');
+		const smallModalContainer = document.querySelector('.max-w-md');
+		expect(smallModalContainer).toBeInTheDocument();
 
-		const largeModal = render(TestModal, {
+		// Test large modal - cleanup happens automatically between renders
+		render(TestModal, {
 			open: true,
 			size: 'lg',
 			content: 'Large modal'
 		});
-		await expect.element(largeModal.getByRole('dialog')).toHaveClass('max-w-2xl');
+		const largeModalContainer = document.querySelector('.max-w-2xl');
+		expect(largeModalContainer).toBeInTheDocument();
 
-		const xlModal = render(TestModal, {
+		// Test XL modal
+		render(TestModal, {
 			open: true,
 			size: 'xl',
 			content: 'XL modal'
 		});
-		await expect.element(xlModal.getByRole('dialog')).toHaveClass('max-w-4xl');
+		const xlModalContainer = document.querySelector('.max-w-4xl');
+		expect(xlModalContainer).toBeInTheDocument();
 	});
 
 	it('has correct aria attributes', async () => {

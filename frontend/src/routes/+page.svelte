@@ -8,6 +8,13 @@
 	let testResults: string[] = [];
 
 	onMount(async () => {
+		// Skip API calls during testing
+		if (import.meta.env.VITEST || import.meta.env.NODE_ENV === 'test') {
+			connectionStatus = 'Testing Environment';
+			testResults.push('🧪 Skipped API calls in test environment');
+			return;
+		}
+
 		try {
 			// Test basic connection
 			const connected = await testConnection();

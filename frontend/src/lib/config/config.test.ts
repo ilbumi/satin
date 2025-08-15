@@ -33,15 +33,15 @@ describe('Configuration', () => {
 		it('should have api configuration', () => {
 			expect(config.api.baseUrl).toBe('http://localhost:8000');
 			expect(config.api.graphqlEndpoint).toBe('http://localhost:8000/graphql');
-			expect(config.api.timeout).toBe(5000);
-			expect(config.api.retries).toBe(3);
+			expect(config.api.timeout).toBe(3000);
+			expect(config.api.retries).toBe(2);
 		});
 
 		it('should have ui configuration', () => {
 			expect(config.ui.pageSize).toBe(20);
 			expect(config.ui.maxFileSize).toBe(10 * 1024 * 1024);
 			expect(config.ui.supportedImageTypes).toEqual(['image/jpeg', 'image/png', 'image/webp']);
-			expect(config.ui.toastDuration).toBe(5000);
+			expect(config.ui.toastDuration).toBe(3000);
 		});
 
 		it('should have feature flags', () => {
