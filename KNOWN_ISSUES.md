@@ -1,172 +1,131 @@
-# Known Issues
+# Known Issues Checklist
 
-This document outlines known issues with the current version of the software. Please refer to this list before reporting new issues.
+**Note:** As of 2025-08-17, this document has been converted to a checklist format for better progress tracking. Priorities focus on functionality over security, with the original security assessment preserved at the end.
 
-## 🔴 Critical Security Issues
-
-### 1. No Authentication/Authorization
-- **Location**: `src/satin/schema/query.py:27-136`, `src/satin/schema/mutation.py:15-100`
-- **Impact**: All GraphQL endpoints are completely unprotected
-- **Risk**: Anyone can create, read, update, delete all data
-- **Details**: No user context, session management, or access control mechanisms
-
-### 2. MongoDB Injection Vulnerabilities
-- **Location**: `src/satin/repositories/base.py:33`
-- **Impact**: Potential for NoSQL injection attacks
-- **Risk**: Data exfiltration, data manipulation, denial of service
-- **Details**:
-  - Direct ObjectId construction from user input without validation
-  - Regex filter operator (`src/satin/schema/filters.py:40`) allows arbitrary patterns
-  - No input sanitization in filter building functions
-
-### 3. Docker Security Misconfigurations
-- **Location**: `docker-compose.yml:7-8,11`
-- **Impact**: Database exposed to external attacks
-- **Risk**: Unauthorized database access, credential exposure
-- **Details**:
-  - MongoDB exposed on host port 27017
-  - Hardcoded credentials in docker-compose file
-  - No network segmentation between services
-
-## 🟡 High-Risk Security Issues
-
-### 4. GraphQL Security Gaps
-- **Location**: `src/satin/schema/`, `src/satin/schema/filters.py:5`
-- **Impact**: Resource exhaustion, denial of service
-- **Risk**: API abuse, performance degradation
-- **Details**:
-  - No rate limiting or query depth limiting
-  - No query complexity analysis
-  - Max limit of 1000 items per query is too high
-  - Vulnerable to nested query attacks
-
-### 5. CORS Misconfiguration
-- **Location**: `src/satin/main.py:21-23`
-- **Impact**: Potential for cross-origin attacks
-- **Risk**: CSRF attacks, credential theft
-- **Details**:
-  - Overly permissive with `allow_headers=["*"]`
-  - `allow_credentials=True` without proper authentication
-
-### 6. Input Validation Gaps
-- **Location**: `src/satin/schema/filters.py:71,80,89`, `src/satin/schema/mutation.py:80`
-- **Impact**: Malformed data, injection attacks
-- **Risk**: Data corruption, code execution
-- **Details**:
-  - Using `strawberry.scalars.JSON` accepts any JSON without validation
-  - No validation on image URLs (potential SSRF)
-  - Missing field-level validation in Pydantic models
-
-## 🟠 Medium-Risk Issues
-
-### 7. Error Handling
-- **Location**: Throughout `src/satin/repositories/`
-- **Impact**: Information disclosure, unstable application
-- **Risk**: Exposing internal structure, debugging information
-- **Details**:
-  - No structured error handling in repositories
-  - Database errors exposed directly to clients
-  - Missing try-catch blocks in async operations
-
-### 8. Data Exposure
-- **Location**: `src/satin/repositories/base.py`, GraphQL resolvers
-- **Impact**: Information disclosure
-- **Risk**: Leaking sensitive metadata
-- **Details**:
-  - Full MongoDB documents returned without filtering
-  - No field-level permissions
-  - All fields accessible via GraphQL introspection
-
-### 9. Frontend Security
-- **Location**: `frontend/src/lib/graphql/client.ts:4`
-- **Impact**: Client-side vulnerabilities
-- **Risk**: XSS, CSRF, request tampering
-- **Details**:
-  - No CSRF protection mechanisms
-  - API URL configurable via environment variable without validation
-  - No request signing or integrity checks
-  - No content security policy
-
-## 🟢 Low-Risk/Best Practice Issues
-
-### 10. Dependency Management
-- **Impact**: Potential vulnerabilities in dependencies
-- **Risk**: Supply chain attacks
-- **Details**:
-  - No automated vulnerability scanning in CI/CD
-  - No dependency pinning in Docker base images
-  - Missing security-focused linting rules
-
-### 11. Logging & Monitoring
-- **Impact**: Inability to detect attacks
-- **Risk**: Undetected breaches
-- **Details**:
-  - No security event logging
-  - No audit trail for data modifications
-  - Missing intrusion detection mechanisms
-  - No rate limit monitoring
-
-### 12. Code Quality & Architecture
-- **Impact**: Maintainability and security issues
-- **Risk**: Bugs leading to vulnerabilities
-- **Details**:
-  - Dead code detected (potential attack surface)
-  - "Update-Then-Fetch" pattern in mutations (race conditions)
-  - Duplicated pagination logic in `query.py`
-  - Type error suppressed with `# type: ignore` in `src/satin/schema/mutation.py`
-
-## Functional Issues
-
-### Frontend
-- **Missing Keyboard Accessibility:** The `ImageCanvas.svelte` component is not accessible via keyboard, making it unusable for users who cannot use a mouse.
-- **No Error Handling:** The frontend does not handle API errors, which can lead to a poor user experience.
-- **Caching Issues:** `/projects` seems to be cached in the browser, which can lead to outdated information being displayed. To resolve this, reload the page.
-- **Incomplete Features:** Number of images, number of annotations, and button `Annotate` do nothing for now. They should be implemented in the future.
+## How to Use This Checklist
+- `- [ ]` = Not started
+- `- [~]` = Partially completed *(see notes)*
+- `- [x]` = Completed
+- 📍 = File location
 
 ## Priority Remediation Plan
 
-### Immediate Actions (P0)
-1. **Implement Authentication & Authorization**
-   - Add JWT-based authentication
-   - Implement role-based access control (RBAC)
-   - Secure all GraphQL endpoints
+### P1: Incomplete Core Features
+- [ ] **Implement Core Annotation Actions**
+  - Display the number of images in a project
+  - Display the number of annotations in a project
+  - Implement "Annotate" button functionality
+  - 📍 `ProjectCard.svelte`, `ImageCanvas.svelte`
 
-2. **Fix Injection Vulnerabilities**
-   - Validate and sanitize all user inputs
-   - Implement parameterized queries
-   - Add input type validation
+- [ ] **Missing Image Upload Functionality**
+  - Upload buttons exist but have no implementation
+  - Users cannot add images to projects
+  - 📍 `frontend/src/routes/projects/[id]/+page.svelte:216-219`
 
-### High Priority (P1)
-3. **Secure MongoDB Deployment**
-   - Enable MongoDB authentication
-   - Use environment variables for credentials
-   - Implement network isolation
+- [ ] **Hardcoded Project Statistics**
+  - All project stats (image counts, annotation counts) display as hardcoded 0 values
+  - 📍 `frontend/src/routes/projects/[id]/+page.svelte:174-199`
 
-4. **GraphQL Security**
-   - Implement query depth limiting
-   - Add rate limiting (consider graphql-rate-limit)
-   - Add query complexity analysis
+### P2: Critical UX & Integration Issues
+- [ ] **Non-SvelteKit Navigation**
+  - Using `window.location.href` and `window.history.back()` instead of SvelteKit's navigation system
+  - 📍 `frontend/src/routes/projects/[id]/+page.svelte:94, 143`
 
-### Medium Priority (P2)
-5. **Comprehensive Error Handling**
-   - Implement structured error responses
-   - Add logging framework
-   - Sanitize error messages
+- [ ] **Browser-Native Confirm Dialogs**
+  - Using `window.confirm()` instead of custom modal components, inconsistent with app design
+  - 📍 `frontend/src/routes/projects/[id]/+page.svelte:82-86`
 
-6. **Frontend Security**
-   - Implement CSRF tokens
-   - Add Content Security Policy headers
-   - Validate API endpoints
+- [ ] **Browser Caching Issues**
+  - The `/projects` page seems to be aggressively cached by the browser, causing stale data to be shown
+  - 📍 Frontend routing/data fetching logic
 
-### Low Priority (P3)
-7. **CI/CD Security**
-   - Add dependency vulnerability scanning
-   - Implement security linting
-   - Add automated security testing
+- [ ] **Missing Keyboard Accessibility**
+  - The `ImageCanvas.svelte` component is not usable with a keyboard
+  - 📍 `frontend/src/lib/components/ImageCanvas.svelte`
 
-## Notes
-- **⚠️ WARNING**: This application should NOT be deployed to production without addressing at least P0 and P1 issues
-- Consider using established authentication solutions (Auth0, AWS Cognito, etc.)
-- Implement security headers (Helmet.js for Node.js applications)
-- Regular security audits should be performed
-- All security issues should be addressed before any public deployment
+- [ ] **Hardcoded Status Values**
+  - Project status is hardcoded as 'active' throughout frontend since backend doesn't support status field
+  - 📍 `frontend/src/routes/projects/[id]/+page.svelte:116, 146`
+
+### P3: Code Quality & Technical Debt
+- [~] **Frontend Error Handling** *(Partially Improved)*
+  - Basic error handling implemented in project details page with try-catch blocks and error UI
+  - Needs expansion across all components
+  - 📍 `frontend/src/routes/projects/[id]/+page.svelte:33-54`
+
+- [ ] **Backend Type Safety Issues**
+  - Multiple `# type: ignore` comments suppress type checking throughout GraphQL schema files
+  - 📍 `src/satin/schema/query.py`, `src/satin/schema/mutation.py`, `src/satin/schema/filters.py`
+
+- [ ] **Update-Then-Fetch Mutation Pattern**
+  - Mutations update data then re-fetch, causing potential race conditions and performance issues
+  - 📍 `src/satin/schema/mutation.py:49-53, 77-81, 104-108`
+
+- [ ] **Duplicated Pagination Logic**
+  - Same pagination code repeated across projects, images, and tasks queries
+  - 📍 `src/satin/schema/query.py`
+
+- [ ] **Global Repository Instance**
+  - Using global `repo_factory` instead of proper dependency injection pattern
+  - 📍 `src/satin/schema/query.py:15`, `src/satin/schema/mutation.py:12`
+
+- [ ] **Missing Error Boundaries**
+  - No error handling at component boundaries, errors can crash entire page sections
+  - 📍 Frontend components
+
+- [ ] **No Caching Strategy**
+  - Frontend re-fetches data on every navigation, no caching or state management
+  - 📍 Frontend data fetching logic
+
+- [ ] **Test Utility Confusion**
+  - Mixing vitest-browser API with custom implementations, inconsistent testing patterns
+  - 📍 `frontend/src/lib/test-utils/index.ts`
+
+- [~] **Missing E2E Test Coverage** *(Partially Improved)*
+  - Additional E2E test files added (projects.test.ts, demo.test.ts, graphql.test.ts)
+  - Still insufficient coverage for full application
+  - 📍 `frontend/e2e/` directory
+
+---
+## Deprioritized Security Issues
+
+The following issues were identified during a security review on 2025-08-16. They are currently de-prioritized but are preserved here for future reference.
+
+**⚠️ WARNING**: This application should NOT be deployed to a production environment without addressing these issues.
+
+### 🔴 Critical Security Issues
+- [ ] **No Authentication/Authorization**
+  - All GraphQL endpoints are completely unprotected
+
+- [ ] **MongoDB Injection Vulnerabilities**
+  - Direct use of user input in database queries
+
+- [ ] **Docker Security Misconfigurations**
+  - Exposed database port and hardcoded credentials
+
+### 🟡 High-Risk Security Issues
+- [ ] **GraphQL Security Gaps**
+  - No rate limiting, query depth/complexity limits
+
+- [ ] **CORS Misconfiguration**
+  - Overly permissive CORS policy
+
+- [ ] **Input Validation Gaps**
+  - Lack of validation on user-provided data (e.g., URLs, JSON)
+
+### 🟠 Medium-Risk Issues
+- [ ] **Error Handling**
+  - Internal errors are exposed to the client
+
+- [ ] **Data Exposure**
+  - Full database documents are returned to the client
+
+- [ ] **Frontend Security**
+  - No CSRF protection or Content Security Policy
+
+### 🟢 Low-Risk/Best Practice Issues
+- [ ] **Dependency Management**
+  - No automated vulnerability scanning for dependencies
+
+- [ ] **Logging & Monitoring**
+  - Lack of security event logging or audit trails
