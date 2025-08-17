@@ -65,6 +65,12 @@
 		"@urql/core": "^6.0.1",
 		"@urql/svelte": "^5.0.0",
 		"graphql": "^16.11.0",
-		"wonka": "^6.3.5"
+		"wonka": "^6.3.5",
+		"zod": "^4.0.17"
+	},
+	"msw": {
+		"workerDirectory": [
+			"static"
+		]
 	}
 }

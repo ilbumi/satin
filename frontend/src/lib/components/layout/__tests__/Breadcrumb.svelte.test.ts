@@ -7,7 +7,7 @@ describe('Breadcrumb', () => {
 		const screen = render(TestBreadcrumb);
 
 		// Should show dashboard by default
-		await expect.element(screen.getByText('Dashboard')).toBeInTheDocument();
+		await expect.element(screen.getByText('Dashboard')).toBeVisible();
 	});
 
 	it('accepts custom breadcrumbs', async () => {
@@ -18,8 +18,8 @@ describe('Breadcrumb', () => {
 
 		const screen = render(TestBreadcrumb, { customBreadcrumbs });
 
-		await expect.element(screen.getByText('Custom Home')).toBeInTheDocument();
-		await expect.element(screen.getByText('Custom Page')).toBeInTheDocument();
+		await expect.element(screen.getByText('Custom Home')).toBeVisible();
+		await expect.element(screen.getByText('Custom Page')).toBeVisible();
 	});
 
 	it('renders breadcrumb icons', async () => {
@@ -30,7 +30,7 @@ describe('Breadcrumb', () => {
 
 		const screen = render(TestBreadcrumb, { customBreadcrumbs });
 
-		await expect.element(screen.getByText('🏠')).toBeInTheDocument();
-		await expect.element(screen.getByText('📁')).toBeInTheDocument();
+		await expect.element(screen.getByText('🏠')).toBeVisible();
+		await expect.element(screen.getByText('📁')).toBeVisible();
 	});
 });

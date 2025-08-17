@@ -9,6 +9,7 @@
 		label?: string;
 		helperText?: string;
 		errorText?: string;
+		error?: string;
 		state?: InputState;
 		disabled?: boolean;
 		required?: boolean;
@@ -30,6 +31,7 @@
 		label,
 		helperText,
 		errorText,
+		error,
 		state = 'default',
 		disabled = false,
 		required = false,
@@ -61,12 +63,15 @@
 			'ring-green-300 focus:ring-green-600 disabled:bg-gray-50 disabled:text-gray-500 disabled:ring-gray-200'
 	};
 
+	// Determine actual state (use error if provided)
+	const actualState = $derived(error ? 'error' : state);
+
 	// Compute final classes
-	const computedClasses = `${baseClasses} ${stateClasses[state]} ${className}`;
+	const computedClasses = $derived(`${baseClasses} ${stateClasses[actualState]} ${className}`);
 
 	// Determine which text to show below the input
-	const displayText = $derived(state === 'error' && errorText ? errorText : helperText);
-	const textColor = $derived(state === 'error' ? 'text-red-600' : 'text-gray-500');
+	const displayText = $derived(error || (actualState === 'error' && errorText) || helperText);
+	const textColor = $derived(actualState === 'error' ? 'text-red-600' : 'text-gray-500');
 </script>
 
 <div class="w-full">
@@ -91,7 +96,7 @@
 			{autocomplete}
 			id={inputId}
 			class={computedClasses}
-			aria-invalid={state === 'error'}
+			aria-invalid={actualState === 'error'}
 			aria-describedby={displayText ? `${inputId}-description` : undefined}
 			{oninput}
 			{onchange}

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '$lib/test-utils';
 import Select from '../Select.svelte';
-import type { SelectOption } from '../Select.svelte';
+import type { SelectOption } from '../types';
 
 const mockOptions: SelectOption[] = [
 	{ value: 'option1', label: 'Option 1' },

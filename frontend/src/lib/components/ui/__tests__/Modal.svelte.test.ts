@@ -95,7 +95,7 @@ describe('Modal', () => {
 			content: 'Small modal'
 		});
 		const smallModalContainer = document.querySelector('.max-w-md');
-		expect(smallModalContainer).toBeInTheDocument();
+		await expect.element(smallModalContainer!).toBeVisible();
 
 		// Test large modal - cleanup happens automatically between renders
 		render(TestModal, {
@@ -104,7 +104,7 @@ describe('Modal', () => {
 			content: 'Large modal'
 		});
 		const largeModalContainer = document.querySelector('.max-w-2xl');
-		expect(largeModalContainer).toBeInTheDocument();
+		await expect.element(largeModalContainer!).toBeVisible();
 
 		// Test XL modal
 		render(TestModal, {
@@ -113,7 +113,7 @@ describe('Modal', () => {
 			content: 'XL modal'
 		});
 		const xlModalContainer = document.querySelector('.max-w-4xl');
-		expect(xlModalContainer).toBeInTheDocument();
+		await expect.element(xlModalContainer!).toBeVisible();
 	});
 
 	it('has correct aria attributes', async () => {

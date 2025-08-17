@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '$lib/test-utils';
-import Toast, { type ToastPosition } from '../Toast.svelte';
+import Toast from '../Toast.svelte';
+import type { ToastPosition } from '../types';
 
 describe('Toast', () => {
 	it('renders when mounted', async () => {
@@ -19,7 +20,7 @@ describe('Toast', () => {
 		});
 
 		const successAlert = document.querySelector('.bg-green-50');
-		expect(successAlert).toBeInTheDocument();
+		await expect.element(successAlert!).toBeVisible();
 
 		render(Toast, {
 			type: 'error',
@@ -27,7 +28,7 @@ describe('Toast', () => {
 		});
 
 		const errorAlert = document.querySelector('.bg-red-50');
-		expect(errorAlert).toBeInTheDocument();
+		await expect.element(errorAlert!).toBeVisible();
 
 		render(Toast, {
 			type: 'warning',
@@ -35,7 +36,7 @@ describe('Toast', () => {
 		});
 
 		const warningAlert = document.querySelector('.bg-yellow-50');
-		expect(warningAlert).toBeInTheDocument();
+		await expect.element(warningAlert!).toBeVisible();
 
 		render(Toast, {
 			type: 'info',
@@ -43,7 +44,7 @@ describe('Toast', () => {
 		});
 
 		const infoAlert = document.querySelector('.bg-blue-50');
-		expect(infoAlert).toBeInTheDocument();
+		await expect.element(infoAlert!).toBeVisible();
 	});
 
 	it('renders message and title', async () => {

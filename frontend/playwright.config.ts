@@ -1,7 +1,4 @@
 import { defineConfig } from '@playwright/test';
-import { server } from './src/mocks/server';
-
-server.listen();
 
 export default defineConfig({
 	webServer: {
@@ -12,5 +9,9 @@ export default defineConfig({
 	testDir: 'e2e',
 	use: {
 		headless: true
-	}
+	},
+	// Run tests in serial to avoid interference
+	workers: 1,
+	// Fresh context for each test
+	fullyParallel: false
 });

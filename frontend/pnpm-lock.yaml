@@ -20,6 +20,9 @@ importers:
       wonka:
         specifier: ^6.3.5
         version: 6.3.5
+      zod:
+        specifier: ^4.0.17
+        version: 4.0.17
     devDependencies:
       '@eslint/compat':
         specifier: ^1.2.5
@@ -3126,6 +3129,9 @@ packages:
   zimmerframe@1.1.2:
     resolution: {integrity: sha512-rAbqEGa8ovJy4pyBxZM70hg4pE6gDgaQ0Sl9M3enG3I0d6H4XSAM3GeNGLKnsBpuijUow064sf7ww1nutC5/3w==}
 
+  zod@4.0.17:
+    resolution: {integrity: sha512-1PHjlYRevNxxdy2JZ8JcNAw7rX8V9P1AKkP+x/xZfxB0K5FYfuV+Ug6P/6NVSR2jHQ+FzDDoDHS04nYUsOIyLQ==}
+
 snapshots:
 
   '@0no-co/graphql.web@1.2.0(graphql@16.11.0)':
@@ -6192,3 +6198,5 @@ snapshots:
   yoctocolors-cjs@2.1.2: {}
 
   zimmerframe@1.1.2: {}
+
+  zod@4.0.17: {}

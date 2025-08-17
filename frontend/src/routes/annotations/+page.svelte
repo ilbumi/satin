@@ -61,7 +61,7 @@
 	<div class="mb-8">
 		<h2 class="mb-4 text-xl font-semibold text-gray-900">Active Workspaces</h2>
 		<div class="grid gap-6 md:grid-cols-2">
-			{#each workspaces as workspace (workspace.name)}
+			{#each workspaces as workspace (workspace.id)}
 				<Card>
 					{#snippet header()}
 						<div class="flex items-start justify-between">

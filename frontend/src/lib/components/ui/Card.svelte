@@ -4,6 +4,7 @@
 	export interface CardProps {
 		variant?: CardVariant;
 		class?: string;
+		'data-testid'?: string;
 		header?: import('svelte').Snippet;
 		footer?: import('svelte').Snippet;
 		children?: import('svelte').Snippet;
@@ -12,6 +13,7 @@
 	let {
 		variant = 'default',
 		class: className = '',
+		'data-testid': dataTestId,
 		header,
 		footer,
 		children
@@ -31,7 +33,7 @@
 	const computedClasses = `${baseClasses} ${variantClasses[variant]} ${className}`;
 </script>
 
-<div class={computedClasses}>
+<div class={computedClasses} data-testid={dataTestId}>
 	{#if header}
 		<div class="border-b border-gray-200 bg-gray-50 px-6 py-4">
 			{@render header()}

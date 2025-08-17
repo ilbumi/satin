@@ -9,6 +9,7 @@
 		closeOnBackdropClick?: boolean;
 		closeOnEscape?: boolean;
 		onclose?: () => void;
+		onClose?: () => void;
 		children?: import('svelte').Snippet;
 		header?: import('svelte').Snippet;
 		footer?: import('svelte').Snippet;
@@ -22,12 +23,15 @@
 		closeOnBackdropClick = true,
 		closeOnEscape = true,
 		onclose,
+		onClose,
 		children,
 		header,
-		footer
-	}: ModalProps = $props();
+		footer,
+		...rest
+	}: ModalProps &
+		Omit<import('svelte/elements').SvelteHTMLElements['dialog'], keyof ModalProps> = $props();
 
-	let dialogElement: HTMLDialogElement;
+	let dialogElement = $state<HTMLDialogElement>();
 	let previousActiveElement: Element | null = null;
 
 	// Size classes for the modal
@@ -41,7 +45,10 @@
 
 	// Handle close modal
 	function closeModal() {
-		if (onclose) {
+		// Call whichever close handler is provided (prefer onClose over onclose)
+		if (onClose) {
+			onClose();
+		} else if (onclose) {
 			onclose();
 		}
 		open = false;
@@ -56,13 +63,15 @@
 
 	// Handle backdrop click
 	function handleBackdropClick(event: MouseEvent) {
-		if (closeOnBackdropClick && event.target === dialogElement) {
+		if (closeOnBackdropClick && dialogElement && event.target === dialogElement) {
 			closeModal();
 		}
 	}
 
 	// Focus trap helpers
-	function getFocusableElements(container: HTMLElement): HTMLElement[] {
+	function getFocusableElements(container: HTMLElement | null): HTMLElement[] {
+		if (!container) return [];
+
 		const focusableSelectors = [
 			'button:not([disabled])',
 			'[href]',
@@ -75,7 +84,7 @@
 	}
 
 	function handleFocusTrap(event: KeyboardEvent) {
-		if (event.key !== 'Tab') return;
+		if (event.key !== 'Tab' || !dialogElement) return;
 
 		const focusableElements = getFocusableElements(dialogElement);
 		const firstElement = focusableElements[0];
@@ -96,20 +105,33 @@
 
 	// Handle modal open/close effects
 	$effect(() => {
-		if (open) {
+		if (open && dialogElement) {
 			// Store previously focused element
 			previousActiveElement = document.activeElement;
 
 			// Show modal and focus first focusable element
-			dialogElement?.showModal();
+			try {
+				dialogElement.showModal();
+			} catch (error) {
+				console.error('Failed to open modal:', error);
+			}
 
 			// Focus first focusable element or the dialog itself
-			const focusableElements = getFocusableElements(dialogElement);
-			if (focusableElements.length > 0) {
-				focusableElements[0].focus();
-			} else {
-				dialogElement?.focus();
-			}
+			requestAnimationFrame(() => {
+				if (!dialogElement) return;
+
+				const focusableElements = getFocusableElements(dialogElement);
+				try {
+					if (focusableElements.length > 0) {
+						focusableElements[0].focus();
+					} else {
+						dialogElement.focus();
+					}
+				} catch (error) {
+					// Element might not be focusable, ignore the error
+					console.debug('Could not focus modal element:', error);
+				}
+			});
 
 			// Add event listeners
 			document.addEventListener('keydown', handleKeydown);
@@ -117,9 +139,15 @@
 
 			// Prevent body scroll
 			document.body.style.overflow = 'hidden';
-		} else {
+		} else if (!open && dialogElement) {
 			// Close modal
-			dialogElement?.close();
+			try {
+				if (dialogElement.hasAttribute('open')) {
+					dialogElement.close();
+				}
+			} catch (error) {
+				console.error('Failed to close modal:', error);
+			}
 
 			// Remove event listeners
 			document.removeEventListener('keydown', handleKeydown);
@@ -130,7 +158,12 @@
 
 			// Restore focus to previously focused element
 			if (previousActiveElement instanceof HTMLElement) {
-				previousActiveElement.focus();
+				try {
+					previousActiveElement.focus();
+				} catch (error) {
+					// Element might not be focusable anymore, ignore the error
+					console.debug('Could not restore focus to previous element:', error);
+				}
 			}
 		}
 
@@ -143,60 +176,64 @@
 	});
 </script>
 
-<dialog
-	bind:this={dialogElement}
-	class="backdrop:bg-opacity-75 backdrop:bg-gray-500 backdrop:backdrop-blur-sm"
-	onclick={handleBackdropClick}
-	aria-labelledby={title ? 'modal-title' : undefined}
->
-	<div class="flex min-h-full items-center justify-center p-4">
-		<div
-			class="w-full {sizeClasses[
-				size
-			]} transform overflow-hidden rounded-lg bg-white shadow-xl transition-all"
-		>
-			{#if header || title || showCloseButton}
-				<div class="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-					<div class="flex items-center">
-						{#if header}
-							{@render header()}
-						{:else if title}
-							<h3 id="modal-title" class="text-lg font-semibold text-gray-900">
-								{title}
-							</h3>
+{#if open}
+	<dialog
+		bind:this={dialogElement}
+		class="backdrop:bg-opacity-75 z-50 backdrop:bg-gray-500 backdrop:backdrop-blur-sm"
+		onclick={handleBackdropClick}
+		{...rest}
+		aria-modal="true"
+		aria-labelledby={title ? 'modal-title' : undefined}
+	>
+		<div class="flex min-h-full items-center justify-center p-4">
+			<div
+				class="w-full {sizeClasses[
+					size
+				]} transform overflow-hidden rounded-lg bg-white shadow-xl transition-all"
+			>
+				{#if header || title || showCloseButton}
+					<div class="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+						<div class="flex items-center">
+							{#if header}
+								{@render header()}
+							{:else if title}
+								<h3 id="modal-title" class="text-lg font-semibold text-gray-900">
+									{title}
+								</h3>
+							{/if}
+						</div>
+
+						{#if showCloseButton}
+							<button
+								type="button"
+								onclick={closeModal}
+								class="rounded-md bg-white text-gray-400 hover:text-gray-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
+								aria-label="Close modal"
+							>
+								<svg
+									class="h-6 w-6"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke-width="1.5"
+									stroke="currentColor"
+								>
+									<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+								</svg>
+							</button>
 						{/if}
 					</div>
+				{/if}
 
-					{#if showCloseButton}
-						<button
-							type="button"
-							onclick={closeModal}
-							class="rounded-md bg-white text-gray-400 hover:text-gray-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
-							aria-label="Close modal"
-						>
-							<svg
-								class="h-6 w-6"
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke-width="1.5"
-								stroke="currentColor"
-							>
-								<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-							</svg>
-						</button>
-					{/if}
+				<div class="px-6 py-4">
+					{@render children?.()}
 				</div>
-			{/if}
 
-			<div class="px-6 py-4">
-				{@render children?.()}
+				{#if footer}
+					<div class="border-t border-gray-200 px-6 py-4">
+						{@render footer()}
+					</div>
+				{/if}
 			</div>
-
-			{#if footer}
-				<div class="border-t border-gray-200 px-6 py-4">
-					{@render footer()}
-				</div>
-			{/if}
 		</div>
-	</div>
-</dialog>
+	</dialog>
+{/if}

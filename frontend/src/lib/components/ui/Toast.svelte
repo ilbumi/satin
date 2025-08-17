@@ -19,6 +19,7 @@
 		showCloseButton?: boolean;
 		persistent?: boolean;
 		onclose?: () => void;
+		onClose?: () => void;
 	}
 
 	let {
@@ -29,7 +30,8 @@
 		position = 'top-right',
 		showCloseButton = true,
 		persistent = false,
-		onclose
+		onclose,
+		onClose
 	}: ToastProps = $props();
 
 	let visible = $state(true);
@@ -90,9 +92,12 @@
 		if (timeoutId) {
 			clearTimeout(timeoutId);
 		}
-		// Allow animation to complete before calling onclose
+		// Allow animation to complete before calling close handler
 		setTimeout(() => {
-			if (onclose) {
+			// Call whichever close handler is provided (prefer onClose over onclose)
+			if (onClose) {
+				onClose();
+			} else if (onclose) {
 				onclose();
 			}
 		}, 300);

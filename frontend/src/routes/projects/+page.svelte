@@ -1,30 +1,113 @@
 <script lang="ts">
-	import { Button, Card } from '$lib/components/ui';
+	import { onMount } from 'svelte';
+	import { Button, Toast } from '$lib/components/ui';
+	import {
+		ProjectList,
+		ProjectFilters,
+		ProjectPagination,
+		CreateProjectModal,
+		EditProjectModal
+	} from '$lib/components/projects';
+	import { projectStore } from '$lib/features/projects/store.svelte';
+	import type {
+		ProjectSummary,
+		CreateProjectForm,
+		UpdateProjectForm
+	} from '$lib/features/projects/types';
 
-	// Placeholder data - will be replaced with real GraphQL queries in Block 4
-	const projects = [
-		{
-			id: '1',
-			name: 'Medical Images Dataset',
-			description: 'Collection of medical scans for annotation',
-			imageCount: 150,
-			status: 'active'
-		},
-		{
-			id: '2',
-			name: 'Vehicle Detection',
-			description: 'Traffic camera images for vehicle detection training',
-			imageCount: 892,
-			status: 'active'
-		},
-		{
-			id: '3',
-			name: 'Plant Disease Classification',
-			description: 'Agricultural images for plant disease identification',
-			imageCount: 456,
-			status: 'completed'
+	let showCreateModal = $state(false);
+	let showEditModal = $state(false);
+	let editingProject = $state<ProjectSummary | null>(null);
+	let showToast = $state(false);
+	let toastMessage = $state('');
+	let toastType = $state<'success' | 'error'>('success');
+
+	function showSuccessToast(message: string) {
+		toastMessage = message;
+		toastType = 'success';
+		showToast = true;
+	}
+
+	function showErrorToast(message: string) {
+		toastMessage = message;
+		toastType = 'error';
+		showToast = true;
+	}
+
+	function handleCreateProject() {
+		showCreateModal = true;
+	}
+
+	function handleEditProject(project: ProjectSummary) {
+		editingProject = project;
+		showEditModal = true;
+	}
+
+	async function handleDeleteProject(project: ProjectSummary) {
+		if (
+			!confirm(`Are you sure you want to delete "${project.name}"? This action cannot be undone.`)
+		) {
+			return;
 		}
-	];
+
+		try {
+			const success = await projectStore.deleteProject(project.id);
+			if (success) {
+				showSuccessToast('Project deleted successfully');
+			} else {
+				showErrorToast('Failed to delete project');
+			}
+		} catch (error) {
+			showErrorToast(error instanceof Error ? error.message : 'Failed to delete project');
+		}
+	}
+
+	async function handleCreateSubmit(data: CreateProjectForm) {
+		try {
+			const project = await projectStore.createProject(data);
+			if (project) {
+				showSuccessToast('Project created successfully');
+			} else {
+				showErrorToast('Failed to create project');
+			}
+		} catch (error) {
+			showErrorToast(error instanceof Error ? error.message : 'Failed to create project');
+			throw error; // Re-throw to keep modal open
+		}
+	}
+
+	async function handleEditSubmit(data: UpdateProjectForm) {
+		try {
+			const project = await projectStore.updateProject(data);
+			if (project) {
+				showSuccessToast('Project updated successfully');
+				editingProject = null;
+			} else {
+				showErrorToast('Failed to update project');
+			}
+		} catch (error) {
+			showErrorToast(error instanceof Error ? error.message : 'Failed to update project');
+			throw error; // Re-throw to keep modal open
+		}
+	}
+
+	function handleCloseCreateModal() {
+		showCreateModal = false;
+	}
+
+	function handleCloseEditModal() {
+		showEditModal = false;
+		editingProject = null;
+	}
+
+	function handleRetry() {
+		projectStore.refetch();
+	}
+
+	// Load projects on mount
+	onMount(() => {
+		projectStore.fetchProjects();
+	});
 </script>
 
 <svelte:head>
@@ -37,44 +120,88 @@
 			<h1 class="text-3xl font-bold text-gray-900">Projects</h1>
 			<p class="mt-2 text-gray-600">Manage your annotation projects</p>
 		</div>
-		<Button variant="primary">
+		<Button variant="primary" onclick={handleCreateProject}>
 			<span class="mr-2">➕</span>
 			New Project
 		</Button>
 	</div>
 
-	<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-		{#each projects as project (project.id)}
-			<Card>
-				{#snippet header()}
-					<div class="flex items-center justify-between">
-						<h3 class="text-lg font-semibold text-gray-900">{project.name}</h3>
-						<span
-							class="rounded-full px-2 py-1 text-xs {project.status === 'active'
-								? 'bg-green-100 text-green-800'
-								: 'bg-gray-100 text-gray-800'}"
-						>
-							{project.status}
-						</span>
-					</div>
-				{/snippet}
+	<!-- Filters -->
+	<ProjectFilters
+		filters={projectStore.filters}
+		onFiltersChange={projectStore.setFilters}
+		onClear={() => projectStore.setFilters({ search: '', status: 'all' })}
+	/>
 
-				<p class="mb-4 text-gray-600">{project.description}</p>
-				<div class="flex items-center justify-between text-sm text-gray-500">
-					<span>📷 {project.imageCount} images</span>
-					<a href="/projects/{project.id}" class="text-blue-600 hover:text-blue-800"> View → </a>
+	<!-- Error display -->
+	{#if projectStore.error}
+		<div class="mb-6 rounded-md border border-red-200 bg-red-50 p-4">
+			<div class="flex">
+				<div class="flex-shrink-0">
+					<span class="text-red-400">⚠️</span>
 				</div>
-			</Card>
-		{/each}
-	</div>
-
-	<!-- Empty state for when no projects exist -->
-	{#if projects.length === 0}
-		<div class="py-12 text-center">
-			<div class="mb-4 text-6xl">📁</div>
-			<h3 class="mb-2 text-lg font-medium text-gray-900">No projects yet</h3>
-			<p class="mb-6 text-gray-600">Create your first annotation project to get started</p>
-			<Button variant="primary">Create Project</Button>
+				<div class="ml-3">
+					<h3 class="text-sm font-medium text-red-800">Error</h3>
+					<div class="mt-2 text-sm text-red-700">
+						{projectStore.error}
+					</div>
+					<div class="mt-4">
+						<Button variant="secondary" size="sm" onclick={() => projectStore.clearError()}>
+							Dismiss
+						</Button>
+					</div>
+				</div>
+			</div>
 		</div>
 	{/if}
+
+	<!-- Project List -->
+	<ProjectList
+		projects={projectStore.projects}
+		loading={projectStore.loading}
+		error={projectStore.error}
+		onCreateProject={handleCreateProject}
+		onEditProject={handleEditProject}
+		onDeleteProject={handleDeleteProject}
+		onRetry={handleRetry}
+	/>
+
+	<!-- Pagination -->
+	{#if projectStore.hasProjects}
+		<ProjectPagination
+			limit={projectStore.pagination.limit}
+			offset={projectStore.pagination.offset}
+			totalCount={projectStore.pagination.totalCount}
+			hasMore={projectStore.pagination.hasMore}
+			loading={projectStore.loading}
+			onNext={projectStore.nextPage}
+			onPrev={projectStore.prevPage}
+		/>
+	{/if}
 </div>
+
+<!-- Modals -->
+<CreateProjectModal
+	open={showCreateModal}
+	onClose={handleCloseCreateModal}
+	onSubmit={handleCreateSubmit}
+/>
+
+<EditProjectModal
+	open={showEditModal}
+	project={editingProject}
+	onClose={handleCloseEditModal}
+	onSubmit={handleEditSubmit}
+/>
+
+<!-- Toast Notifications -->
+{#if showToast}
+	<Toast
+		type={toastType}
+		title={toastType === 'success' ? 'Success' : 'Error'}
+		message={toastMessage}
+		onClose={() => (showToast = false)}
+		persistent={false}
+		duration={4000}
+	/>
+{/if}

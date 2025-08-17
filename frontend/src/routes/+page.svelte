@@ -76,7 +76,7 @@
 				{#if testResults.length === 0}
 					<p class="text-sm text-gray-500">Loading...</p>
 				{:else}
-					{#each testResults.slice(0, 3) as result, index (index)}
+					{#each testResults.slice(0, 3) as result (result)}
 						<p class="font-mono text-xs text-gray-600">{result}</p>
 					{/each}
 				{/if}

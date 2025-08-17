@@ -8,10 +8,23 @@ export { default as Spinner } from './Spinner.svelte';
 export { default as Card } from './Card.svelte';
 
 // Type exports for better TypeScript support
-export type { ButtonProps, ButtonVariant, ButtonSize } from './Button.svelte';
-export type { InputProps, InputType, InputState } from './Input.svelte';
-export type { SelectProps, SelectOption, SelectState } from './Select.svelte';
-export type { ModalProps, ModalSize } from './Modal.svelte';
-export type { ToastProps, ToastType, ToastPosition } from './Toast.svelte';
-export type { SpinnerProps, SpinnerSize } from './Spinner.svelte';
-export type { CardProps, CardVariant } from './Card.svelte';
+export type {
+	ButtonProps,
+	ButtonVariant,
+	ButtonSize,
+	InputProps,
+	InputType,
+	InputState,
+	SelectProps,
+	SelectOption,
+	SelectState,
+	ModalProps,
+	ModalSize,
+	ToastProps,
+	ToastType,
+	ToastPosition,
+	SpinnerProps,
+	SpinnerSize,
+	CardProps,
+	CardVariant
+} from './types';

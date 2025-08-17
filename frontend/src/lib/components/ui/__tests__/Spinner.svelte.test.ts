@@ -7,7 +7,7 @@ describe('Spinner', () => {
 		const { container } = render(Spinner);
 
 		const spinner = container.querySelector('svg');
-		expect(spinner).toBeInTheDocument();
+		expect(spinner).toBeVisible();
 		expect(spinner).toHaveClass('animate-spin');
 		expect(spinner).toHaveClass('h-6 w-6'); // medium size
 		expect(spinner).toHaveClass('text-blue-600'); // default color
