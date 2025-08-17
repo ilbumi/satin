@@ -40,28 +40,20 @@ This directory contains reusable UI components for the Satin frontend applicatio
 
 ```svelte
 <script>
-  import { Button } from '$lib/components/ui';
+	import { Button } from '$lib/components/ui';
 </script>
 
 <!-- Primary Button -->
-<Button variant="primary" onclick={() => console.log('Clicked!')}>
-  Save Changes
-</Button>
+<Button variant="primary" onclick={() => console.log('Clicked!')}>Save Changes</Button>
 
 <!-- Secondary Button -->
-<Button variant="secondary" size="sm">
-  Cancel
-</Button>
+<Button variant="secondary" size="sm">Cancel</Button>
 
 <!-- Danger Button -->
-<Button variant="danger" loading={isDeleting}>
-  Delete Project
-</Button>
+<Button variant="danger" loading={isDeleting}>Delete Project</Button>
 
 <!-- Ghost Button -->
-<Button variant="ghost" disabled={true}>
-  Disabled Action
-</Button>
+<Button variant="ghost" disabled={true}>Disabled Action</Button>
 ```
 
 **Props:**
@@ -76,43 +68,35 @@ This directory contains reusable UI components for the Satin frontend applicatio
 
 ```svelte
 <script>
-  import { Input } from '$lib/components/ui';
+	import { Input } from '$lib/components/ui';
 
-  let email = $state('');
-  let password = $state('');
+	let email = $state('');
+	let password = $state('');
 </script>
 
 <!-- Text Input -->
-<Input
-  type="text"
-  placeholder="Enter your name"
-  bind:value={name}
-/>
+<Input type="text" placeholder="Enter your name" bind:value={name} />
 
 <!-- Email Input with Label -->
 <Input
-  type="email"
-  label="Email Address"
-  placeholder="you@example.com"
-  bind:value={email}
-  required={true}
+	type="email"
+	label="Email Address"
+	placeholder="you@example.com"
+	bind:value={email}
+	required={true}
 />
 
 <!-- Password Input with Error -->
 <Input
-  type="password"
-  label="Password"
-  bind:value={password}
-  error="Password must be at least 8 characters"
-  state="error"
+	type="password"
+	label="Password"
+	bind:value={password}
+	error="Password must be at least 8 characters"
+	state="error"
 />
 
 <!-- Disabled Input -->
-<Input
-  label="Project ID"
-  value="proj_12345"
-  disabled={true}
-/>
+<Input label="Project ID" value="proj_12345" disabled={true} />
 ```
 
 **Props:**
@@ -130,32 +114,32 @@ This directory contains reusable UI components for the Satin frontend applicatio
 
 ```svelte
 <script>
-  import { Select } from '$lib/components/ui';
+	import { Select } from '$lib/components/ui';
 
-  let selectedStatus = $state('active');
+	let selectedStatus = $state('active');
 
-  const statusOptions = [
-    { value: 'active', label: 'Active' },
-    { value: 'inactive', label: 'Inactive' },
-    { value: 'archived', label: 'Archived' }
-  ];
+	const statusOptions = [
+		{ value: 'active', label: 'Active' },
+		{ value: 'inactive', label: 'Inactive' },
+		{ value: 'archived', label: 'Archived' }
+	];
 </script>
 
 <Select
-  label="Project Status"
-  options={statusOptions}
-  bind:value={selectedStatus}
-  placeholder="Choose status..."
+	label="Project Status"
+	options={statusOptions}
+	bind:value={selectedStatus}
+	placeholder="Choose status..."
 />
 
 <!-- With Error State -->
 <Select
-  label="Category"
-  options={categories}
-  bind:value={category}
-  state="error"
-  error="Please select a category"
-  required={true}
+	label="Category"
+	options={categories}
+	bind:value={category}
+	state="error"
+	error="Please select a category"
+	required={true}
 />
 ```
 
@@ -174,43 +158,30 @@ This directory contains reusable UI components for the Satin frontend applicatio
 
 ```svelte
 <script>
-  import { Modal, Button } from '$lib/components/ui';
+	import { Modal, Button } from '$lib/components/ui';
 
-  let showModal = $state(false);
-  let showConfirmModal = $state(false);
+	let showModal = $state(false);
+	let showConfirmModal = $state(false);
 </script>
 
 <!-- Basic Modal -->
 <Modal bind:open={showModal} title="Edit Project" size="md">
-  <p>Modal content goes here...</p>
+	<p>Modal content goes here...</p>
 
-  {#snippet footer()}
-    <Button variant="secondary" onclick={() => showModal = false}>
-      Cancel
-    </Button>
-    <Button variant="primary" onclick={handleSave}>
-      Save Changes
-    </Button>
-  {/snippet}
+	{#snippet footer()}
+		<Button variant="secondary" onclick={() => (showModal = false)}>Cancel</Button>
+		<Button variant="primary" onclick={handleSave}>Save Changes</Button>
+	{/snippet}
 </Modal>
 
 <!-- Confirmation Modal -->
-<Modal
-  bind:open={showConfirmModal}
-  title="Delete Project"
-  size="sm"
-  closeOnBackdropClick={false}
->
-  <p>Are you sure you want to delete this project? This action cannot be undone.</p>
+<Modal bind:open={showConfirmModal} title="Delete Project" size="sm" closeOnBackdropClick={false}>
+	<p>Are you sure you want to delete this project? This action cannot be undone.</p>
 
-  {#snippet footer()}
-    <Button variant="secondary" onclick={() => showConfirmModal = false}>
-      Cancel
-    </Button>
-    <Button variant="danger" onclick={handleDelete}>
-      Delete
-    </Button>
-  {/snippet}
+	{#snippet footer()}
+		<Button variant="secondary" onclick={() => (showConfirmModal = false)}>Cancel</Button>
+		<Button variant="danger" onclick={handleDelete}>Delete</Button>
+	{/snippet}
 </Modal>
 ```
 
@@ -234,41 +205,37 @@ This directory contains reusable UI components for the Satin frontend applicatio
 
 ```svelte
 <script>
-  import { Toast } from '$lib/components/ui';
+	import { Toast } from '$lib/components/ui';
 
-  let showToast = $state(false);
+	let showToast = $state(false);
 
-  function showSuccess() {
-    showToast = true;
-  }
+	function showSuccess() {
+		showToast = true;
+	}
 </script>
 
 <!-- Success Toast -->
 {#if showToast}
-  <Toast
-    type="success"
-    title="Success"
-    message="Project saved successfully!"
-    onClose={() => showToast = false}
-    duration={3000}
-  />
+	<Toast
+		type="success"
+		title="Success"
+		message="Project saved successfully!"
+		onClose={() => (showToast = false)}
+		duration={3000}
+	/>
 {/if}
 
 <!-- Error Toast -->
 <Toast
-  type="error"
-  title="Error"
-  message="Failed to save project. Please try again."
-  persistent={true}
-  showCloseButton={true}
+	type="error"
+	title="Error"
+	message="Failed to save project. Please try again."
+	persistent={true}
+	showCloseButton={true}
 />
 
 <!-- Info Toast -->
-<Toast
-  type="info"
-  message="Your session will expire in 5 minutes"
-  position="bottom-center"
-/>
+<Toast type="info" message="Your session will expire in 5 minutes" position="bottom-center" />
 ```
 
 **Props:**
@@ -286,33 +253,31 @@ This directory contains reusable UI components for the Satin frontend applicatio
 
 ```svelte
 <script>
-  import { Card, Button } from '$lib/components/ui';
+	import { Card, Button } from '$lib/components/ui';
 </script>
 
 <!-- Basic Card -->
 <Card>
-  <h3>Project Statistics</h3>
-  <p>Total images: 150</p>
-  <p>Annotated: 45</p>
+	<h3>Project Statistics</h3>
+	<p>Total images: 150</p>
+	<p>Annotated: 45</p>
 </Card>
 
 <!-- Card with Header and Footer -->
 <Card variant="bordered">
-  {#snippet header()}
-    <h2 class="text-lg font-semibold">Recent Projects</h2>
-  {/snippet}
+	{#snippet header()}
+		<h2 class="text-lg font-semibold">Recent Projects</h2>
+	{/snippet}
 
-  <div class="space-y-2">
-    <div>Medical Images Dataset</div>
-    <div>Traffic Signs Collection</div>
-    <div>Wildlife Photography</div>
-  </div>
+	<div class="space-y-2">
+		<div>Medical Images Dataset</div>
+		<div>Traffic Signs Collection</div>
+		<div>Wildlife Photography</div>
+	</div>
 
-  {#snippet footer()}
-    <Button variant="secondary" size="sm">
-      View All Projects
-    </Button>
-  {/snippet}
+	{#snippet footer()}
+		<Button variant="secondary" size="sm">View All Projects</Button>
+	{/snippet}
 </Card>
 ```
 
@@ -331,7 +296,7 @@ This directory contains reusable UI components for the Satin frontend applicatio
 
 ```svelte
 <script>
-  import { Spinner } from '$lib/components/ui';
+	import { Spinner } from '$lib/components/ui';
 </script>
 
 <!-- Small Spinner -->
@@ -348,8 +313,8 @@ This directory contains reusable UI components for the Satin frontend applicatio
 
 <!-- With Text -->
 <div class="flex items-center space-x-3">
-  <Spinner size="md" />
-  <span>Loading projects...</span>
+	<Spinner size="md" />
+	<span>Loading projects...</span>
 </div>
 ```
 
@@ -390,7 +355,5 @@ Components use Tailwind CSS classes and can be customized by:
 Example:
 
 ```svelte
-<Button class="w-full mb-4 shadow-lg" variant="primary">
-  Custom Styled Button
-</Button>
+<Button class="mb-4 w-full shadow-lg" variant="primary">Custom Styled Button</Button>
 ```

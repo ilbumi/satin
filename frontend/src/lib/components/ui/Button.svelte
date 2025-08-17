@@ -10,6 +10,7 @@
 		type?: 'button' | 'submit' | 'reset';
 		onclick?: (event: MouseEvent) => void;
 		class?: string;
+		'aria-label'?: string;
 		children?: import('svelte').Snippet;
 	}
 
@@ -21,6 +22,7 @@
 		type = 'button',
 		onclick,
 		class: className = '',
+		'aria-label': ariaLabel,
 		children
 	}: ButtonProps = $props();
 
@@ -52,7 +54,14 @@
 	let isDisabled = $derived(disabled || loading);
 </script>
 
-<button {type} class={computedClasses} disabled={isDisabled} {onclick} aria-busy={loading}>
+<button
+	{type}
+	class={computedClasses}
+	disabled={isDisabled}
+	{onclick}
+	aria-busy={loading}
+	aria-label={ariaLabel}
+>
 	{#if loading}
 		<svg
 			class="mr-2 h-4 w-4 animate-spin"
