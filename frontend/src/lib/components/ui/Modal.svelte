@@ -163,7 +163,7 @@
 {#if open}
 	<dialog
 		bind:this={dialogElement}
-		class="backdrop:bg-opacity-75 z-50 block backdrop:bg-gray-500 backdrop:backdrop-blur-sm"
+		class="backdrop:bg-opacity-50 fixed inset-0 z-50 m-0 h-full max-h-none w-full max-w-none bg-transparent backdrop:bg-gray-900 backdrop:backdrop-blur-sm"
 		onclick={handleBackdropClick}
 		{...rest}
 		aria-modal="true"
