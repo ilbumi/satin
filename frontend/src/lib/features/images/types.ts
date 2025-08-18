@@ -35,14 +35,6 @@ export interface ImageSummary {
 	projectName?: string;
 }
 
-export interface ImageUploadFile {
-	file: File;
-	preview: string; // Object URL for preview
-	progress: number;
-	status: 'pending' | 'uploading' | 'success' | 'error';
-	error?: string;
-}
-
 export interface ImageFilters {
 	search: string;
 	status: ImageStatus | 'all';
@@ -67,6 +59,7 @@ export interface ImageListState {
 
 export interface ImageOperations {
 	fetchImages: () => Promise<void>;
+	addImagesByUrl: (urls: string[]) => Promise<ImageDetail[]>;
 	uploadImages: (files: File[]) => Promise<ImageDetail[]>;
 	deleteImage: (id: string) => Promise<boolean>;
 	setFilters: (filters: Partial<ImageFilters>) => void;
@@ -76,13 +69,6 @@ export interface ImageOperations {
 
 export interface CreateImageInput {
 	url: string;
-	filename: string;
-	fileSize: number;
-	mimeType: string;
-	dimensions?: {
-		width: number;
-		height: number;
-	};
 	projectId?: string;
 }
 

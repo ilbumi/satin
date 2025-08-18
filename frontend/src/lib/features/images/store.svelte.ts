@@ -1,11 +1,5 @@
 import { imageService } from './service';
-import type {
-	ImageListState,
-	ImageOperations,
-	ImageFilters,
-	ImageDetail,
-	ImageUploadFile
-} from './types';
+import type { ImageListState, ImageOperations, ImageFilters, ImageDetail } from './types';
 
 function createImageStore() {
 	const state = $state<ImageListState>({
@@ -24,10 +18,17 @@ function createImageStore() {
 		}
 	});
 
+	// Adding state
+	const addingState = $state<{
+		adding: boolean;
+	}>({
+		adding: false
+	});
+
 	// Upload state
 	const uploadState = $state<{
 		uploading: boolean;
-		uploads: ImageUploadFile[];
+		uploads: Array<{ id: string; progress: number; status: string }>;
 	}>({
 		uploading: false,
 		uploads: []
@@ -58,28 +59,21 @@ function createImageStore() {
 		}
 	}
 
-	async function uploadImages(files: File[]): Promise<ImageDetail[]> {
+	async function addImagesByUrl(urls: string[]): Promise<ImageDetail[]> {
 		try {
-			uploadState.uploading = true;
+			addingState.adding = true;
+			state.error = null;
 
-			// Validate files first
-			const validFiles: File[] = [];
+			// Validate URLs first
+			const validUrls: string[] = [];
 			const errors: string[] = [];
 
-			for (const file of files) {
-				const validation = imageService.validateImageFile(file);
+			for (const url of urls) {
+				const validation = imageService.validateImageUrl(url);
 				if (validation.valid) {
-					validFiles.push(file);
-
-					// Add to upload tracking
-					uploadState.uploads.push({
-						file,
-						preview: URL.createObjectURL(file),
-						progress: 0,
-						status: 'pending'
-					});
+					validUrls.push(url.trim());
 				} else {
-					errors.push(`${file.name}: ${validation.error}`);
+					errors.push(`${url}: ${validation.error}`);
 				}
 			}
 
@@ -87,31 +81,14 @@ function createImageStore() {
 				state.error = errors.join('\n');
 			}
 
-			if (validFiles.length === 0) {
+			if (validUrls.length === 0) {
 				return [];
 			}
 
-			// Start uploads
-			const uploadPromises = validFiles.map(async (file) => {
-				const uploadFile = uploadState.uploads.find((u) => u.file === file);
-				if (!uploadFile) return null;
-
+			// Add images by URL
+			const addPromises = validUrls.map(async (url) => {
 				try {
-					uploadFile.status = 'uploading';
-					uploadFile.progress = 0;
-
-					// Simulate progress updates (in real implementation, this would come from upload service)
-					const progressInterval = setInterval(() => {
-						if (uploadFile.progress < 90) {
-							uploadFile.progress += Math.random() * 20;
-						}
-					}, 100);
-
-					const result = await imageService.uploadImage(file);
-
-					clearInterval(progressInterval);
-					uploadFile.progress = 100;
-					uploadFile.status = 'success';
+					const result = await imageService.addImageByUrl(url);
 
 					// Add to images list optimistically
 					const summary = imageService.mapImageToSummary(result);
@@ -120,30 +97,65 @@ function createImageStore() {
 
 					return result;
 				} catch (error) {
-					uploadFile.status = 'error';
-					uploadFile.error = error instanceof Error ? error.message : 'Upload failed';
-					console.error('Upload error:', error);
+					console.error('Add image error:', error);
 					return null;
 				}
 			});
 
-			const results = await Promise.all(uploadPromises);
+			const results = await Promise.all(addPromises);
 			return results.filter((result): result is ImageDetail => result !== null);
+		} catch (error) {
+			state.error = error instanceof Error ? error.message : 'Failed to add images';
+			console.error('Store.addImagesByUrl error:', error);
+			return [];
+		} finally {
+			addingState.adding = false;
+		}
+	}
+
+	async function uploadImages(files: File[]): Promise<ImageDetail[]> {
+		try {
+			uploadState.uploading = true;
+			state.error = null;
+
+			const results: ImageDetail[] = [];
+			const errors: string[] = [];
+
+			for (const file of files) {
+				try {
+					// Validate file first
+					const validation = imageService.validateImageFile(file);
+					if (!validation.valid) {
+						errors.push(`${file.name}: ${validation.error}`);
+						continue;
+					}
+
+					// Upload the file
+					const result = await imageService.uploadImage(file);
+
+					// Add to images list optimistically
+					const summary = imageService.mapImageToSummary(result);
+					state.images.unshift(summary);
+					state.pagination.totalCount += 1;
+
+					results.push(result);
+				} catch (error) {
+					const errorMsg = error instanceof Error ? error.message : 'Upload failed';
+					errors.push(`${file.name}: ${errorMsg}`);
+				}
+			}
+
+			if (errors.length > 0) {
+				state.error = errors.join('\n');
+			}
+
+			return results;
 		} catch (error) {
 			state.error = error instanceof Error ? error.message : 'Failed to upload images';
 			console.error('Store.uploadImages error:', error);
 			return [];
 		} finally {
 			uploadState.uploading = false;
-			// Clean up upload state after a delay
-			setTimeout(() => {
-				uploadState.uploads.forEach((upload) => {
-					if (upload.preview) {
-						URL.revokeObjectURL(upload.preview);
-					}
-				});
-				uploadState.uploads = [];
-			}, 3000);
 		}
 	}
 
@@ -249,6 +261,7 @@ function createImageStore() {
 
 	const operations: ImageOperations = {
 		fetchImages,
+		addImagesByUrl,
 		uploadImages,
 		deleteImage,
 		setFilters,
@@ -278,6 +291,11 @@ function createImageStore() {
 		},
 		get stats() {
 			return imageStats;
+		},
+
+		// Adding state
+		get adding() {
+			return addingState.adding;
 		},
 
 		// Upload state

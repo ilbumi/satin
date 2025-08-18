@@ -4,7 +4,6 @@ export type {
 	ImageDetail,
 	ImageSummary,
 	ImageStatus,
-	ImageUploadFile,
 	ImageFilters,
 	ImageListState,
 	ImageOperations,

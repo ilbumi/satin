@@ -9,20 +9,23 @@
 
 	export interface SelectProps {
 		value?: string;
-		options: SelectOption[];
+		options?: SelectOption[];
 		placeholder?: string;
 		label?: string;
 		helperText?: string;
 		errorText?: string;
+		error?: string;
 		state?: SelectState;
 		disabled?: boolean;
 		required?: boolean;
 		id?: string;
 		name?: string;
 		class?: string;
+		'data-testid'?: string;
 		onchange?: (event: Event) => void;
 		onfocus?: (event: FocusEvent) => void;
 		onblur?: (event: FocusEvent) => void;
+		children?: import('svelte').Snippet;
 	}
 
 	let {
@@ -32,15 +35,18 @@
 		label,
 		helperText,
 		errorText,
+		error,
 		state = 'default',
 		disabled = false,
 		required = false,
 		id,
 		name,
 		class: className = '',
+		'data-testid': dataTestId,
 		onchange,
 		onfocus,
-		onblur
+		onblur,
+		children
 	}: SelectProps = $props();
 
 	// Generate unique ID if not provided
@@ -60,12 +66,13 @@
 			'ring-green-300 focus:ring-green-600 disabled:bg-gray-50 disabled:text-gray-500 disabled:ring-gray-200'
 	};
 
-	// Compute final classes
-	const computedClasses = `${baseClasses} ${stateClasses[state]} ${className}`;
+	// Determine actual state and text to show
+	const actualState = $derived(error ? 'error' : state);
+	const displayText = $derived(error || (actualState === 'error' && errorText) || helperText);
+	const textColor = $derived(actualState === 'error' ? 'text-red-600' : 'text-gray-500');
 
-	// Determine which text to show below the select
-	const displayText = $derived(state === 'error' && errorText ? errorText : helperText);
-	const textColor = $derived(state === 'error' ? 'text-red-600' : 'text-gray-500');
+	// Compute final classes
+	const computedClasses = $derived(`${baseClasses} ${stateClasses[actualState]} ${className}`);
 </script>
 
 <div class="w-full">
@@ -86,7 +93,8 @@
 			{name}
 			id={selectId}
 			class={computedClasses}
-			aria-invalid={state === 'error'}
+			data-testid={dataTestId}
+			aria-invalid={actualState === 'error'}
 			aria-describedby={displayText ? `${selectId}-description` : undefined}
 			{onchange}
 			{onfocus}
@@ -96,11 +104,15 @@
 				<option value="" disabled selected={!value}>{placeholder}</option>
 			{/if}
 
-			{#each options as option (option.value)}
-				<option value={option.value} disabled={option.disabled}>
-					{option.label}
-				</option>
-			{/each}
+			{#if children}
+				{@render children()}
+			{:else}
+				{#each options as option (option.value)}
+					<option value={option.value} disabled={option.disabled}>
+						{option.label}
+					</option>
+				{/each}
+			{/if}
 		</select>
 
 		<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">

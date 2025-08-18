@@ -8,6 +8,11 @@ import { testConnection, api } from './index';
  * Run all connectivity tests
  */
 export async function runConnectivityTests(): Promise<void> {
+	// Skip connectivity tests in test environment
+	if (import.meta.env.VITEST || import.meta.env.NODE_ENV === 'test') {
+		return;
+	}
+
 	console.log('🧪 Running GraphQL connectivity tests...');
 
 	// Test 1: Basic connection

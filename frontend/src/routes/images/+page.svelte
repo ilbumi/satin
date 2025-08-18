@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Button, Card, Modal, Toast } from '$lib/components/ui';
-	import { ImageGallery, ImageUpload, ImageViewer } from '$lib/components/images';
+	import { ImageGallery, AddImageByUrl, ImageViewer, ImageUpload } from '$lib/components/images';
 	import { imageStore } from '$lib/features/images/store.svelte';
 	import type { ImageSummary, ImageDetail, ImageFilters } from '$lib/features/images/types';
 
+	let showAddModal = $state(false);
 	let showUploadModal = $state(false);
 	let showViewer = $state(false);
 	let selectedImage = $state<ImageSummary | null>(null);
@@ -44,10 +45,26 @@
 		window.location.href = `/annotations?imageId=${image.id}`;
 	}
 
-	function handleUploadSuccess(images: ImageDetail[]) {
-		showUploadModal = false;
-		showSuccessToast(`${images.length} image${images.length > 1 ? 's' : ''} uploaded successfully`);
+	function handleAddSuccess(images: ImageDetail[]) {
+		showAddModal = false;
+		showSuccessToast(`${images.length} image${images.length > 1 ? 's' : ''} added successfully`);
 		imageStore.refetch();
+	}
+
+	function handleAddError(error: string) {
+		showErrorToast(error);
+	}
+
+	async function handleUploadSuccess(files: File[]) {
+		try {
+			const results = await imageStore.uploadImages(files);
+			showUploadModal = false;
+			showSuccessToast(
+				`${results.length} image${results.length > 1 ? 's' : ''} uploaded successfully`
+			);
+		} catch (error) {
+			showErrorToast(error instanceof Error ? error.message : 'Upload failed');
+		}
 	}
 
 	function handleUploadError(error: string) {
@@ -78,10 +95,16 @@
 			<h1 class="text-3xl font-bold text-gray-900">Images</h1>
 			<p class="mt-2 text-gray-600">Browse and manage your image collection</p>
 		</div>
-		<Button variant="primary" onclick={() => (showUploadModal = true)}>
-			<span class="mr-2">📤</span>
-			Upload Images
-		</Button>
+		<div class="flex gap-3">
+			<Button variant="primary" onclick={() => (showUploadModal = true)}>
+				<span class="mr-2">📤</span>
+				Upload Images
+			</Button>
+			<Button variant="secondary" onclick={() => (showAddModal = true)}>
+				<span class="mr-2">🌐</span>
+				Add by URL
+			</Button>
+		</div>
 	</div>
 
 	<!-- Stats -->
@@ -128,9 +151,14 @@
 	/>
 </div>
 
-<!-- Upload Modal -->
+<!-- Upload Images Modal -->
 <Modal bind:open={showUploadModal} title="Upload Images" size="lg" closeOnBackdropClick={true}>
-	<ImageUpload multiple={true} onUpload={handleUploadSuccess} onError={handleUploadError} />
+	<ImageUpload onUpload={handleUploadSuccess} onError={handleUploadError} multiple={true} />
+</Modal>
+
+<!-- Add Images Modal -->
+<Modal bind:open={showAddModal} title="Add Images by URL" size="lg" closeOnBackdropClick={true}>
+	<AddImageByUrl multiple={true} onAdd={handleAddSuccess} onError={handleAddError} />
 </Modal>
 
 <!-- Image Viewer -->

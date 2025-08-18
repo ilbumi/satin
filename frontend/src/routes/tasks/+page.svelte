@@ -1,65 +1,101 @@
 <script lang="ts">
-	import { Button, Card } from '$lib/components/ui';
+	import { onMount } from 'svelte';
+	import { Button } from '$lib/components/ui';
+	import TaskList from '$lib/components/tasks/TaskList.svelte';
+	import TaskFilters from '$lib/components/tasks/TaskFilters.svelte';
+	import CreateTaskModal from '$lib/components/tasks/CreateTaskModal.svelte';
+	import EditTaskModal from '$lib/components/tasks/EditTaskModal.svelte';
+	import { taskStore } from '$lib/features/tasks/store.svelte';
+	import type {
+		TaskSummary,
+		CreateTaskForm,
+		UpdateTaskForm,
+		TaskFilters as TaskFiltersType
+	} from '$lib/features/tasks/types';
 
-	// Placeholder data - will be replaced with real GraphQL queries in Block 6
-	const tasks = [
-		{
-			id: '1',
-			title: 'Annotate chest X-rays',
-			projectName: 'Medical Images Dataset',
-			assignee: 'Dr. Smith',
-			status: 'in_progress',
-			priority: 'high',
-			dueDate: '2024-01-25',
-			progress: 60
-		},
-		{
-			id: '2',
-			title: 'Label vehicle types',
-			projectName: 'Vehicle Detection',
-			assignee: 'John Doe',
-			status: 'pending',
-			priority: 'medium',
-			dueDate: '2024-01-30',
-			progress: 0
-		},
-		{
-			id: '3',
-			title: 'Classify plant diseases',
-			projectName: 'Plant Disease Classification',
-			assignee: 'Jane Wilson',
-			status: 'completed',
-			priority: 'low',
-			dueDate: '2024-01-20',
-			progress: 100
-		}
-	];
+	// Modal states
+	let showCreateModal = $state(false);
+	let showEditModal = $state(false);
+	let taskToEdit: TaskSummary | null = $state(null);
 
-	function getStatusColor(status: string) {
-		switch (status) {
-			case 'completed':
-				return 'bg-green-100 text-green-800';
-			case 'in_progress':
-				return 'bg-yellow-100 text-yellow-800';
-			case 'pending':
-				return 'bg-gray-100 text-gray-800';
-			default:
-				return 'bg-gray-100 text-gray-800';
+	// Mock data for projects and images (in real app, these would come from separate stores)
+	let projects = $state([
+		{ id: '1', name: 'Medical Images Dataset' },
+		{ id: '2', name: 'Vehicle Detection' },
+		{ id: '3', name: 'Plant Disease Classification' }
+	]);
+
+	let images = $state([
+		{ id: '1', url: '/images/chest-xray-001.jpg', name: 'chest-xray-001.jpg' },
+		{ id: '2', url: '/images/vehicle-001.jpg', name: 'vehicle-001.jpg' },
+		{ id: '3', url: '/images/plant-leaf-001.jpg', name: 'plant-leaf-001.jpg' }
+	]);
+
+	// Load tasks when component mounts
+	onMount(() => {
+		taskStore.loadTasks();
+	});
+
+	// Event handlers
+	function handleCreateTask() {
+		showCreateModal = true;
+	}
+
+	function handleEditTask(task: TaskSummary) {
+		taskToEdit = task;
+		showEditModal = true;
+	}
+
+	async function handleDeleteTask(task: TaskSummary) {
+		if (confirm(`Are you sure you want to delete the task "${task.title}"?`)) {
+			try {
+				await taskStore.deleteTask(task.id);
+			} catch (error) {
+				console.error('Failed to delete task:', error);
+				// Error is already handled in the store
+			}
 		}
 	}
 
-	function getPriorityColor(priority: string) {
-		switch (priority) {
-			case 'high':
-				return 'bg-red-100 text-red-800';
-			case 'medium':
-				return 'bg-yellow-100 text-yellow-800';
-			case 'low':
-				return 'bg-green-100 text-green-800';
-			default:
-				return 'bg-gray-100 text-gray-800';
-		}
+	function handleRetry() {
+		taskStore.refreshTasks();
 	}
+
+	function handleLoadMore() {
+		taskStore.loadMoreTasks();
+	}
+
+	async function handleFiltersChange(filters: TaskFiltersType) {
+		await taskStore.updateFilters(filters);
+	}
+
+	async function handleCreateSubmit(data: CreateTaskForm) {
+		await taskStore.createTask(data);
+		showCreateModal = false;
+	}
+
+	async function handleEditSubmit(data: UpdateTaskForm) {
+		await taskStore.updateTask(data);
+		showEditModal = false;
+		taskToEdit = null;
+	}
+
+	function handleCreateModalClose() {
+		showCreateModal = false;
+	}
+
+	function handleEditModalClose() {
+		showEditModal = false;
+		taskToEdit = null;
+	}
+
+	// Computed values from store
+	let tasks = $derived(taskStore.state.list.tasks);
+	let loading = $derived(taskStore.state.list.loading);
+	let error = $derived(taskStore.state.list.error);
+	let hasMore = $derived(taskStore.state.list.hasMore);
+	let filters = $derived(taskStore.state.filters);
+	let statistics = $derived(taskStore.statistics);
 </script>
 
 <svelte:head>
@@ -67,94 +103,90 @@
 </svelte:head>
 
 <div class="p-6">
+	<!-- Header -->
 	<div class="mb-8 flex items-center justify-between">
 		<div>
 			<h1 class="text-3xl font-bold text-gray-900">Tasks</h1>
 			<p class="mt-2 text-gray-600">Manage annotation tasks and assignments</p>
 		</div>
-		<Button variant="primary">
+		<Button variant="primary" onclick={handleCreateTask}>
 			<span class="mr-2">➕</span>
 			New Task
 		</Button>
 	</div>
 
-	<!-- Task Filter Tabs -->
+	<!-- Task Statistics Tabs -->
 	<div class="mb-6 border-b border-gray-200">
 		<nav class="flex space-x-8">
-			<button class="border-b-2 border-blue-500 px-1 py-2 text-sm font-medium text-blue-600">
-				All Tasks ({tasks.length})
+			<button
+				class="border-b-2 px-1 py-2 text-sm font-medium {filters.status === 'all' || !filters.status
+					? 'border-blue-500 text-blue-600'
+					: 'border-transparent text-gray-500 hover:text-gray-700'}"
+				onclick={() => handleFiltersChange({ status: 'all' })}
+			>
+				All Tasks ({statistics.total})
 			</button>
 			<button
-				class="border-b-2 border-transparent px-1 py-2 text-sm font-medium text-gray-500 hover:text-gray-700"
+				class="border-b-2 px-1 py-2 text-sm font-medium {filters.status === 'DRAFT'
+					? 'border-blue-500 text-blue-600'
+					: 'border-transparent text-gray-500 hover:text-gray-700'}"
+				onclick={() => handleFiltersChange({ status: 'DRAFT' })}
 			>
-				In Progress ({tasks.filter((t) => t.status === 'in_progress').length})
+				Draft ({statistics.draft})
 			</button>
 			<button
-				class="border-b-2 border-transparent px-1 py-2 text-sm font-medium text-gray-500 hover:text-gray-700"
+				class="border-b-2 px-1 py-2 text-sm font-medium {filters.status === 'FINISHED'
+					? 'border-blue-500 text-blue-600'
+					: 'border-transparent text-gray-500 hover:text-gray-700'}"
+				onclick={() => handleFiltersChange({ status: 'FINISHED' })}
 			>
-				Pending ({tasks.filter((t) => t.status === 'pending').length})
+				Finished ({statistics.finished})
 			</button>
 			<button
-				class="border-b-2 border-transparent px-1 py-2 text-sm font-medium text-gray-500 hover:text-gray-700"
+				class="border-b-2 px-1 py-2 text-sm font-medium {filters.status === 'REVIEWED'
+					? 'border-blue-500 text-blue-600'
+					: 'border-transparent text-gray-500 hover:text-gray-700'}"
+				onclick={() => handleFiltersChange({ status: 'REVIEWED' })}
 			>
-				Completed ({tasks.filter((t) => t.status === 'completed').length})
+				Reviewed ({statistics.reviewed})
 			</button>
 		</nav>
 	</div>
 
-	<!-- Tasks Grid -->
-	<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-		{#each tasks as task (task.id)}
-			<Card>
-				{#snippet header()}
-					<div class="flex items-start justify-between">
-						<h3 class="line-clamp-2 text-lg font-semibold text-gray-900">{task.title}</h3>
-						<span class="rounded-full px-2 py-1 text-xs {getPriorityColor(task.priority)}">
-							{task.priority}
-						</span>
-					</div>
-				{/snippet}
-
-				<div class="space-y-3">
-					<div>
-						<p class="text-sm text-gray-600">📁 {task.projectName}</p>
-						<p class="text-sm text-gray-600">👤 {task.assignee}</p>
-						<p class="text-sm text-gray-600">📅 Due: {task.dueDate}</p>
-					</div>
-
-					<div>
-						<div class="mb-1 flex items-center justify-between">
-							<span class="text-sm font-medium text-gray-700">Progress</span>
-							<span class="text-sm text-gray-600">{task.progress}%</span>
-						</div>
-						<div class="h-2 w-full rounded-full bg-gray-200">
-							<div
-								class="h-2 rounded-full bg-blue-600 transition-all duration-300"
-								style="width: {task.progress}%"
-							></div>
-						</div>
-					</div>
-
-					<div class="flex items-center justify-between">
-						<span class="rounded-full px-2 py-1 text-xs {getStatusColor(task.status)}">
-							{task.status.replace('_', ' ')}
-						</span>
-						<a href="/tasks/{task.id}" class="text-sm text-blue-600 hover:text-blue-800">
-							View →
-						</a>
-					</div>
-				</div>
-			</Card>
-		{/each}
+	<!-- Filters -->
+	<div class="mb-6">
+		<TaskFilters {filters} {projects} {loading} onFiltersChange={handleFiltersChange} />
 	</div>
 
-	<!-- Empty state -->
-	{#if tasks.length === 0}
-		<div class="py-12 text-center">
-			<div class="mb-4 text-6xl">✅</div>
-			<h3 class="mb-2 text-lg font-medium text-gray-900">No tasks yet</h3>
-			<p class="mb-6 text-gray-600">Create your first annotation task to get started</p>
-			<Button variant="primary">Create Task</Button>
-		</div>
-	{/if}
+	<!-- Task List -->
+	<TaskList
+		{tasks}
+		{loading}
+		{error}
+		{hasMore}
+		onCreateTask={handleCreateTask}
+		onEditTask={handleEditTask}
+		onDeleteTask={handleDeleteTask}
+		onRetry={handleRetry}
+		onLoadMore={handleLoadMore}
+	/>
+
+	<!-- Create Task Modal -->
+	<CreateTaskModal
+		open={showCreateModal}
+		{projects}
+		{images}
+		onClose={handleCreateModalClose}
+		onSubmit={handleCreateSubmit}
+	/>
+
+	<!-- Edit Task Modal -->
+	<EditTaskModal
+		open={showEditModal}
+		task={taskToEdit}
+		{projects}
+		{images}
+		onClose={handleEditModalClose}
+		onSubmit={handleEditSubmit}
+	/>
 </div>

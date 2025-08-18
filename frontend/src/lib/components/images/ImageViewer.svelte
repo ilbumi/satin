@@ -136,14 +136,14 @@
 			// Update the image prop (would need parent to handle this)
 			// This is a simplified approach - in real implementation,
 			// you'd want to emit an event to the parent component
-			console.log('Navigate to next image');
+			// TODO: Implement next image navigation
 		}
 	}
 
 	function navigatePrev() {
 		if (hasPrev()) {
 			// Update the image prop (would need parent to handle this)
-			console.log('Navigate to previous image');
+			// TODO: Implement previous image navigation
 		}
 	}
 

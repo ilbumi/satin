@@ -18,6 +18,8 @@
 		name?: string;
 		class?: string;
 		autocomplete?: HTMLInputElement['autocomplete'];
+		'aria-label'?: string;
+		'data-testid'?: string;
 		oninput?: (event: Event) => void;
 		onchange?: (event: Event) => void;
 		onfocus?: (event: FocusEvent) => void;
@@ -40,6 +42,8 @@
 		name,
 		class: className = '',
 		autocomplete,
+		'aria-label': ariaLabel,
+		'data-testid': dataTestId,
 		oninput,
 		onchange,
 		onfocus,
@@ -96,6 +100,8 @@
 			{autocomplete}
 			id={inputId}
 			class={computedClasses}
+			aria-label={ariaLabel}
+			data-testid={dataTestId}
 			aria-invalid={actualState === 'error'}
 			aria-describedby={displayText ? `${inputId}-description` : undefined}
 			{oninput}

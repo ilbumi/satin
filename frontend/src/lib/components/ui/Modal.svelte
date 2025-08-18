@@ -184,6 +184,7 @@
 		{...rest}
 		aria-modal="true"
 		aria-labelledby={title ? 'modal-title' : undefined}
+		data-testid="modal"
 	>
 		<div class="flex min-h-full items-center justify-center p-4">
 			<div

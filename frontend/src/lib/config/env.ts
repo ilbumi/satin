@@ -49,7 +49,10 @@ export function validateEnv(): void {
 	try {
 		// Access the env property to trigger validation
 		const url = env.BACKEND_URL;
-		console.log(`Environment validated. Backend URL: ${url}`);
+		// Only log in development, not in tests
+		if (!import.meta.env.VITEST && import.meta.env.NODE_ENV !== 'test') {
+			console.log(`Environment validated. Backend URL: ${url}`);
+		}
 	} catch (error) {
 		console.error('Environment validation failed:', error);
 		throw error;

@@ -16,13 +16,7 @@ import type {
 	DeleteImageMutation,
 	QueryInput
 } from '$lib/graphql/generated/graphql';
-import type {
-	ImageDetail,
-	ImageSummary,
-	ImageFilters,
-	CreateImageInput,
-	UpdateImageInput
-} from './types';
+import type { ImageDetail, ImageSummary, ImageFilters, UpdateImageInput } from './types';
 
 export class ImageService {
 	/**
@@ -93,41 +87,19 @@ export class ImageService {
 	}
 
 	/**
-	 * Upload a single image
+	 * Add a single image by URL
 	 */
-	async uploadImage(file: File, projectId?: string): Promise<ImageDetail> {
+	async addImageByUrl(url: string): Promise<ImageDetail> {
 		try {
-			// Create FormData for file upload
-			const formData = new FormData();
-			formData.append('file', file);
-			if (projectId) {
-				formData.append('projectId', projectId);
+			// Validate URL format
+			const validation = this.validateImageUrl(url);
+			if (!validation.valid) {
+				throw new Error(validation.error);
 			}
-
-			// Upload file to backend (this would be a REST endpoint for file uploads)
-			const uploadResponse = await fetch('/api/images/upload', {
-				method: 'POST',
-				body: formData
-			});
-
-			if (!uploadResponse.ok) {
-				throw new Error(`Upload failed: ${uploadResponse.statusText}`);
-			}
-
-			const uploadData = await uploadResponse.json();
 
 			// Create image record in GraphQL
-			const createInput: CreateImageInput = {
-				url: uploadData.url,
-				filename: file.name,
-				fileSize: file.size,
-				mimeType: file.type,
-				dimensions: uploadData.dimensions,
-				projectId
-			};
-
 			const result = await graphqlClient
-				.mutation<CreateImageMutation>(CREATE_IMAGE, createInput)
+				.mutation<CreateImageMutation>(CREATE_IMAGE, { url })
 				.toPromise();
 
 			if (result.error) {
@@ -141,30 +113,30 @@ export class ImageService {
 
 			return this.mapImageToDetail(result.data.createImage);
 		} catch (error) {
-			console.error('ImageService.uploadImage error:', error);
+			console.error('ImageService.addImageByUrl error:', error);
 			throw error;
 		}
 	}
 
 	/**
-	 * Upload multiple images
+	 * Add multiple images by URLs
 	 */
-	async uploadImages(files: File[], projectId?: string): Promise<ImageDetail[]> {
+	async addImagesByUrl(urls: string[]): Promise<ImageDetail[]> {
 		const results: ImageDetail[] = [];
 		const errors: string[] = [];
 
-		for (const file of files) {
+		for (const url of urls) {
 			try {
-				const result = await this.uploadImage(file, projectId);
+				const result = await this.addImageByUrl(url);
 				results.push(result);
 			} catch (error) {
-				const errorMsg = error instanceof Error ? error.message : 'Upload failed';
-				errors.push(`${file.name}: ${errorMsg}`);
+				const errorMsg = error instanceof Error ? error.message : 'Add failed';
+				errors.push(`${url}: ${errorMsg}`);
 			}
 		}
 
 		if (errors.length > 0) {
-			console.warn('Some uploads failed:', errors);
+			console.warn('Some image additions failed:', errors);
 			// Could throw or handle partial success differently based on requirements
 		}
 
@@ -218,20 +190,22 @@ export class ImageService {
 	}
 
 	/**
-	 * Get image dimensions from file
+	 * Validate image URL
 	 */
-	async getImageDimensions(file: File): Promise<{ width: number; height: number }> {
-		return new Promise((resolve, reject) => {
-			const img = new window.Image();
-			img.onload = () => {
-				resolve({
-					width: img.naturalWidth,
-					height: img.naturalHeight
-				});
-			};
-			img.onerror = reject;
-			img.src = URL.createObjectURL(file);
-		});
+	validateImageUrl(url: string): { valid: boolean; error?: string } {
+		if (!url.trim()) {
+			return { valid: false, error: 'URL is required' };
+		}
+
+		try {
+			const urlObj = new URL(url);
+			if (!['http:', 'https:'].includes(urlObj.protocol)) {
+				return { valid: false, error: 'URL must use HTTP or HTTPS protocol' };
+			}
+			return { valid: true };
+		} catch {
+			return { valid: false, error: 'Invalid URL format' };
+		}
 	}
 
 	/**
@@ -286,6 +260,52 @@ export class ImageService {
 	}
 
 	/**
+	 * Validate image file for upload
+	 */
+	validateImageFile(file: File): { valid: boolean; error?: string } {
+		const maxSize = 10 * 1024 * 1024; // 10MB
+		const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+
+		if (!allowedTypes.includes(file.type)) {
+			return {
+				valid: false,
+				error: 'File type not supported. Please use JPEG, PNG, GIF, or WebP.'
+			};
+		}
+
+		if (file.size > maxSize) {
+			return { valid: false, error: 'File size too large. Maximum size is 10MB.' };
+		}
+
+		return { valid: true };
+	}
+
+	/**
+	 * Upload image file
+	 */
+	async uploadImage(file: File): Promise<ImageDetail> {
+		const validation = this.validateImageFile(file);
+		if (!validation.valid) {
+			throw new Error(validation.error);
+		}
+
+		const formData = new FormData();
+		formData.append('file', file);
+
+		const response = await fetch('/api/images/upload', {
+			method: 'POST',
+			body: formData
+		});
+
+		if (!response.ok) {
+			throw new Error(response.statusText || 'Upload failed');
+		}
+
+		const imageData = await response.json();
+		return this.mapImageToDetail(imageData);
+	}
+
+	/**
 	 * Format file size for display
 	 */
 	formatFileSize(bytes: number): string {
@@ -296,30 +316,6 @@ export class ImageService {
 		const i = Math.floor(Math.log(bytes) / Math.log(k));
 
 		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-	}
-
-	/**
-	 * Validate image file
-	 */
-	validateImageFile(file: File): { valid: boolean; error?: string } {
-		const maxSize = 10 * 1024 * 1024; // 10MB
-		const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-
-		if (!allowedTypes.includes(file.type)) {
-			return {
-				valid: false,
-				error: 'File type not supported. Please use JPEG, PNG, or WebP.'
-			};
-		}
-
-		if (file.size > maxSize) {
-			return {
-				valid: false,
-				error: 'File size too large. Maximum size is 10MB.'
-			};
-		}
-
-		return { valid: true };
 	}
 }
 

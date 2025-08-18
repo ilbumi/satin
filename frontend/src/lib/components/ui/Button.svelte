@@ -11,6 +11,7 @@
 		onclick?: (event: MouseEvent) => void;
 		class?: string;
 		'aria-label'?: string;
+		'data-testid'?: string;
 		children?: import('svelte').Snippet;
 	}
 
@@ -23,6 +24,7 @@
 		onclick,
 		class: className = '',
 		'aria-label': ariaLabel,
+		'data-testid': dataTestId,
 		children
 	}: ButtonProps = $props();
 
@@ -61,6 +63,7 @@
 	{onclick}
 	aria-busy={loading}
 	aria-label={ariaLabel}
+	data-testid={dataTestId}
 >
 	{#if loading}
 		<svg

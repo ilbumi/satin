@@ -5,9 +5,15 @@ async function enableMocking() {
 		try {
 			const { enableMocking } = await import('./mocks/browser');
 			await enableMocking();
-			console.log('🔶 MSW: Service worker enabled for development/testing');
+			// Only log in development, not in tests
+			if (!import.meta.env.VITEST && import.meta.env.NODE_ENV !== 'test') {
+				console.log('🔶 MSW: Service worker enabled for development/testing');
+			}
 		} catch (error) {
-			console.warn('MSW: Failed to enable service worker:', error);
+			// Only warn in development, not in tests
+			if (!import.meta.env.VITEST && import.meta.env.NODE_ENV !== 'test') {
+				console.warn('MSW: Failed to enable service worker:', error);
+			}
 		}
 	}
 }
