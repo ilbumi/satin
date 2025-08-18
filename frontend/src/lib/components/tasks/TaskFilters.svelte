@@ -14,17 +14,27 @@
 
 	// Local state for debounced search
 	// Using $state + $effect instead of writable $derived because we need debouncing
-	// eslint-disable-next-line svelte/prefer-writable-derived
 	let localFilters: TaskFilters = $state({ ...filters });
 	let searchTimeout: NodeJS.Timeout | null = null;
+	let lastExternalFilters = $state({ ...filters });
 
-	// Watch for external filter changes
+	// Local state for input binding
+	let searchValue = $state(filters.search || '');
+
+	// Watch for external filter changes - only update if they actually changed
 	$effect(() => {
-		localFilters = { ...filters };
+		// Check if external filters have actually changed
+		if (JSON.stringify(filters) !== JSON.stringify(lastExternalFilters)) {
+			localFilters = { ...filters };
+			searchValue = filters.search || '';
+			lastExternalFilters = { ...filters };
+		}
 	});
 
 	// Debounced search handler
-	function handleSearchChange(value: string) {
+	function handleSearchChange(event: Event) {
+		const value = (event.currentTarget as HTMLInputElement)?.value || '';
+		searchValue = value;
 		localFilters.search = value;
 
 		// Clear existing timeout
@@ -59,7 +69,10 @@
 			priority: 'all'
 		};
 		localFilters = clearedFilters;
+		searchValue = '';
 		onFiltersChange(clearedFilters);
+		// Update tracking to prevent reactive override
+		lastExternalFilters = { ...clearedFilters };
 	}
 
 	// Check if any filters are active
@@ -97,8 +110,8 @@
 			<Input
 				type="text"
 				placeholder="Search tasks..."
-				value={localFilters.search || ''}
-				oninput={(e) => handleSearchChange((e.currentTarget as HTMLInputElement)?.value || '')}
+				bind:value={searchValue}
+				oninput={handleSearchChange}
 				disabled={loading}
 				class="w-full"
 				data-testid="search-input"

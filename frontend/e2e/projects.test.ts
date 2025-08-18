@@ -13,7 +13,7 @@ test.describe('Project Management', () => {
 		const modalCount = await openModals.count();
 		if (modalCount > 0) {
 			await page.keyboard.press('Escape');
-			await page.waitForTimeout(500);
+			await expect(page.getByRole('dialog')).not.toBeVisible();
 		}
 	});
 
@@ -27,7 +27,7 @@ test.describe('Project Management', () => {
 
 	test('should display project list', async ({ page }) => {
 		// Wait for page to be ready
-		await page.waitForTimeout(2000);
+		await expect(page.getByRole('heading', { name: 'Projects', exact: true })).toBeVisible();
 
 		// Should show project cards or empty state
 		const projectCards = page.locator('[data-testid="project-card"]');
@@ -60,21 +60,24 @@ test.describe('Project Management', () => {
 	});
 
 	test('should open create project modal', async ({ page }) => {
-		// Ensure we start fresh - wait a bit and check for any existing modals
-		await page.waitForTimeout(500);
+		// Ensure we start fresh - check for any existing modals
 		const existingModals = await page.locator('dialog[open]').count();
 		if (existingModals > 0) {
 			await page.keyboard.press('Escape');
-			await page.waitForTimeout(500);
+			await expect(page.getByRole('dialog')).not.toBeVisible();
 		}
+
+		// Wait for page to be fully loaded
+		await page.waitForLoadState('networkidle');
 
 		// Click New Project button
 		const newProjectButton = page.getByRole('button', { name: /new project/i });
 		await expect(newProjectButton).toBeVisible();
+
 		await newProjectButton.click();
 
-		// Wait for modal to appear with longer timeout
-		await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 });
+		// Wait for modal to appear - use data-testid for reliable selection
+		await expect(page.getByTestId('create-project-modal')).toBeVisible({ timeout: 5000 });
 		await expect(page.getByText('Create New Project')).toBeVisible();
 
 		// Form fields should be visible
@@ -84,12 +87,14 @@ test.describe('Project Management', () => {
 
 	test('should create a new project', async ({ page }) => {
 		// Ensure we start fresh
-		await page.waitForTimeout(500);
 		const existingModals = await page.locator('dialog[open]').count();
 		if (existingModals > 0) {
 			await page.keyboard.press('Escape');
-			await page.waitForTimeout(500);
+			await expect(page.getByRole('dialog')).not.toBeVisible();
 		}
+
+		// Wait for page to be fully loaded
+		await page.waitForLoadState('networkidle');
 
 		// Open create modal
 		const newProjectButton = page.getByRole('button', { name: /new project/i });
@@ -97,7 +102,7 @@ test.describe('Project Management', () => {
 		await newProjectButton.click();
 
 		// Wait for modal to appear
-		await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 });
+		await expect(page.getByTestId('create-project-modal')).toBeVisible({ timeout: 5000 });
 
 		// Fill in the form
 		await page.getByLabel(/project name/i).fill('Test E2E Project');
@@ -111,34 +116,42 @@ test.describe('Project Management', () => {
 		await page.getByRole('button', { name: /create project/i }).click();
 
 		// Modal should close
-		await expect(page.getByRole('dialog')).not.toBeVisible();
+		await expect(page.getByTestId('create-project-modal')).not.toBeVisible({ timeout: 5000 });
 
 		// Should show success feedback (toast notification)
-		await expect(page.getByText(/project created successfully/i)).toBeVisible();
+		await expect(page.getByText(/project created successfully/i)).toBeVisible({ timeout: 5000 });
+
+		// Wait for network requests to complete
+		await page.waitForLoadState('networkidle');
 
 		// Project should appear in the list
-		await expect(page.getByText('Test E2E Project')).toBeVisible();
+		await expect(page.getByText('Test E2E Project')).toBeVisible({ timeout: 5000 });
 	});
 
 	test('should validate create project form', async ({ page }) => {
 		// Ensure we start fresh
-		await page.waitForTimeout(500);
 		const existingModals = await page.locator('dialog[open]').count();
 		if (existingModals > 0) {
 			await page.keyboard.press('Escape');
-			await page.waitForTimeout(500);
+			await page.waitForTimeout(500); // Give time for modal to close
 		}
+
+		// Wait for page to be fully loaded
+		await page.waitForLoadState('networkidle');
 
 		// Open create modal
 		const newProjectButton = page.getByRole('button', { name: /new project/i });
 		await expect(newProjectButton).toBeVisible();
+
 		await newProjectButton.click();
 
-		// Wait for modal to open
-		await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 });
+		// Wait for modal to appear
+		await expect(page.getByTestId('create-project-modal')).toBeVisible({ timeout: 5000 });
 
-		// Try to submit empty form - be more specific to get the modal button
-		const createButton = page.locator('dialog').getByRole('button', { name: /create project/i });
+		// Try to submit empty form - button should be disabled
+		const createButton = page
+			.getByTestId('create-project-modal')
+			.getByRole('button', { name: /create project/i });
 		await expect(createButton).toBeDisabled();
 
 		// Fill name with too short value
@@ -158,12 +171,14 @@ test.describe('Project Management', () => {
 
 	test('should cancel project creation', async ({ page }) => {
 		// Ensure we start fresh
-		await page.waitForTimeout(500);
 		const existingModals = await page.locator('dialog[open]').count();
 		if (existingModals > 0) {
 			await page.keyboard.press('Escape');
-			await page.waitForTimeout(500);
+			await expect(page.getByRole('dialog')).not.toBeVisible();
 		}
+
+		// Wait for page to be fully loaded
+		await page.waitForLoadState('networkidle');
 
 		// Open create modal
 		const newProjectButton = page.getByRole('button', { name: /new project/i });
@@ -171,7 +186,7 @@ test.describe('Project Management', () => {
 		await newProjectButton.click();
 
 		// Wait for modal to appear
-		await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 });
+		await expect(page.getByTestId('create-project-modal')).toBeVisible({ timeout: 5000 });
 
 		// Fill some data
 		await page.getByLabel(/project name/i).fill('Test Project');
@@ -180,55 +195,67 @@ test.describe('Project Management', () => {
 		await page.getByRole('button', { name: /cancel/i }).click();
 
 		// Modal should close
-		await expect(page.getByRole('dialog')).not.toBeVisible();
+		await expect(page.getByTestId('create-project-modal')).not.toBeVisible({ timeout: 3000 });
 
-		// No project should be created
+		// No project should be created (wait for network to settle)
+		await page.waitForLoadState('networkidle');
 		expect(await page.getByText('Test Project').count()).toBe(0);
 	});
 
 	test('should filter projects by search', async ({ page }) => {
 		// Wait for projects to load
-		await page.waitForTimeout(1000);
+		await expect(page.getByRole('heading', { name: 'Projects', exact: true })).toBeVisible();
+		await page.waitForLoadState('networkidle');
+
+		// First, verify all projects are visible using specific headings
+		await expect(page.getByRole('heading', { name: 'Medical Images Dataset' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Vehicle Detection' })).toBeVisible();
 
 		// Enter search term
 		const searchInput = page.getByLabel(/search projects/i);
 		await searchInput.fill('Medical');
 
-		// Wait for filter to apply
-		await page.waitForTimeout(500);
+		// Wait for filter to apply - give more time for debounce
+		await expect(searchInput).toHaveValue('Medical');
+		await page.waitForTimeout(500); // Wait for debounce + network request
 
-		// Should filter the results
-		await expect(page.getByText('Medical Images Dataset')).toBeVisible();
+		// Should filter the results - Medical project should still be visible
+		await expect(page.getByRole('heading', { name: 'Medical Images Dataset' })).toBeVisible();
 
-		// Other projects should not be visible (if they exist)
-		const vehicleProject = page.getByText('Vehicle Detection');
-		if (await vehicleProject.isVisible()) {
-			// If vehicle project was visible before, it should be hidden now
-			await expect(vehicleProject).not.toBeVisible();
-		}
+		// Other projects should not be visible - wait for them to disappear
+		await expect(page.getByRole('heading', { name: 'Vehicle Detection' })).not.toBeVisible({
+			timeout: 5000
+		});
 	});
 
 	test('should clear search filters', async ({ page }) => {
 		// Wait for projects to load
-		await page.waitForTimeout(1000);
+		await expect(page.getByRole('heading', { name: 'Projects', exact: true })).toBeVisible();
+		await page.waitForLoadState('networkidle');
 
 		// Apply search filter
-		await page.getByLabel(/search projects/i).fill('Medical');
-		await page.waitForTimeout(500);
+		const searchInput = page.getByLabel(/search projects/i);
+		await searchInput.fill('Medical');
+		await expect(searchInput).toHaveValue('Medical');
+		await page.waitForTimeout(500); // Wait for debounce
+
+		// Wait for clear button to appear
+		const clearButton = page.getByRole('button', { name: /clear filters/i });
+		await expect(clearButton).toBeVisible({ timeout: 3000 });
 
 		// Clear filters
-		const clearButton = page.getByRole('button', { name: /clear filters/i });
-		if (await clearButton.isVisible()) {
-			await clearButton.click();
-		}
+		await clearButton.click();
+
+		// Wait for the clear action to take effect
+		await page.waitForTimeout(500);
 
 		// Search input should be cleared
-		await expect(page.getByLabel(/search projects/i)).toHaveValue('');
+		await expect(searchInput).toHaveValue('', { timeout: 3000 });
 	});
 
 	test('should navigate to project detail page', async ({ page }) => {
 		// Wait for projects to load
-		await page.waitForTimeout(1000);
+		await expect(page.getByRole('heading', { name: 'Projects', exact: true })).toBeVisible();
 
 		// Find a project view link
 		const viewLink = page.getByRole('link', { name: /view/i }).first();

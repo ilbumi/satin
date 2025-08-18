@@ -14,17 +14,36 @@ export const test = base.extend<{ worker: MockServiceWorker }>({
 		// Start the worker for this page
 		await worker.use(page);
 
-		// Wait a bit for the service worker to register
-		await page.waitForTimeout(100);
+		// Wait longer for the service worker to register properly
+		await page.waitForTimeout(500);
 
-		// Verify the worker is running by checking for the service worker
-		await page.evaluate(() => {
-			if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-				console.log('✅ Service worker is active');
-			} else {
-				console.warn('⚠️ Service worker not active');
+		// Verify the worker is running and wait for it to be ready
+		let retries = 0;
+		const maxRetries = 10;
+
+		while (retries < maxRetries) {
+			const isWorkerReady = await page.evaluate(() => {
+				return new Promise<boolean>((resolve) => {
+					if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+						console.log('✅ Service worker is active');
+						resolve(true);
+					} else {
+						console.warn('⚠️ Service worker not active, waiting...');
+						resolve(false);
+					}
+				});
+			});
+
+			if (isWorkerReady) {
+				break;
 			}
-		});
+
+			await page.waitForTimeout(200);
+			retries++;
+		}
+
+		// Additional wait to ensure MSW handlers are registered
+		await page.waitForTimeout(300);
 
 		await use(worker);
 	}

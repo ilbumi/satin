@@ -7,15 +7,24 @@
 		onClear?: boolean;
 	}
 
-	let { filters, onClear = false }: Props = $props();
+	let { filters: initialFilters, onClear = false }: Props = $props();
 
 	let filtersChangeCalled = $state(false);
 	let clearCalled = $state(false);
 	let lastFiltersChange = $state<Partial<ProjectFiltersType> | null>(null);
+	// eslint-disable-next-line svelte/prefer-writable-derived
+	let currentFilters = $state<ProjectFiltersType>({ ...initialFilters });
+
+	// Update current filters when initial filters change
+	$effect(() => {
+		currentFilters = { ...initialFilters };
+	});
 
 	function handleFiltersChange(newFilters: Partial<ProjectFiltersType>) {
 		filtersChangeCalled = true;
 		lastFiltersChange = newFilters;
+		// Simulate parent updating filters
+		currentFilters = { ...currentFilters, ...newFilters };
 	}
 
 	function handleClear() {
@@ -37,7 +46,7 @@
 </script>
 
 <ProjectFilters
-	{filters}
+	filters={currentFilters}
 	onFiltersChange={handleFiltersChange}
 	onClear={onClear ? handleClear : undefined}
 />

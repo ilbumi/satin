@@ -109,13 +109,6 @@
 			// Store previously focused element
 			previousActiveElement = document.activeElement;
 
-			// Show modal and focus first focusable element
-			try {
-				dialogElement.showModal();
-			} catch (error) {
-				console.error('Failed to open modal:', error);
-			}
-
 			// Focus first focusable element or the dialog itself
 			requestAnimationFrame(() => {
 				if (!dialogElement) return;
@@ -139,16 +132,7 @@
 
 			// Prevent body scroll
 			document.body.style.overflow = 'hidden';
-		} else if (!open && dialogElement) {
-			// Close modal
-			try {
-				if (dialogElement.hasAttribute('open')) {
-					dialogElement.close();
-				}
-			} catch (error) {
-				console.error('Failed to close modal:', error);
-			}
-
+		} else if (!open) {
 			// Remove event listeners
 			document.removeEventListener('keydown', handleKeydown);
 			document.removeEventListener('keydown', handleFocusTrap);
@@ -179,12 +163,13 @@
 {#if open}
 	<dialog
 		bind:this={dialogElement}
-		class="backdrop:bg-opacity-75 z-50 backdrop:bg-gray-500 backdrop:backdrop-blur-sm"
+		class="backdrop:bg-opacity-75 z-50 block backdrop:bg-gray-500 backdrop:backdrop-blur-sm"
 		onclick={handleBackdropClick}
 		{...rest}
 		aria-modal="true"
 		aria-labelledby={title ? 'modal-title' : undefined}
-		data-testid="modal"
+		data-testid={rest['data-testid'] || 'modal'}
+		open
 	>
 		<div class="flex min-h-full items-center justify-center p-4">
 			<div

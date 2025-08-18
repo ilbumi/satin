@@ -30,8 +30,8 @@ test.describe('Images Page', () => {
 			}
 		});
 
-		// Small delay to ensure cleanup is complete
-		await page.waitForTimeout(100);
+		// Ensure cleanup is complete
+		await expect(page.getByRole('dialog')).not.toBeVisible();
 	});
 
 	test.afterEach(async ({ page }) => {
@@ -86,8 +86,8 @@ test.describe('Images Page', () => {
 		await expect(uploadButton).toBeVisible();
 		await uploadButton.click();
 
-		// Small delay after click to allow state change
-		await page.waitForTimeout(200);
+		// Wait for state change to complete
+		await page.waitForLoadState('networkidle');
 
 		// Check if modal opens with longer timeout
 		await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 });
@@ -159,8 +159,8 @@ test.describe('Images Page', () => {
 		const searchInput = page.getByPlaceholder('Search images...');
 		await searchInput.fill('test image');
 
-		// Wait for debounced search (300ms)
-		await page.waitForTimeout(350);
+		// Wait for debounced search to complete
+		await expect(searchInput).toHaveValue('test image');
 
 		// The search should be applied (we can't easily test results without real data)
 		await expect(searchInput).toHaveValue('test image');
@@ -207,8 +207,8 @@ test.describe('Images Page', () => {
 		await expect(uploadButton).toBeVisible();
 		await uploadButton.click();
 
-		// Small delay after click
-		await page.waitForTimeout(200);
+		// Wait for UI to update after click
+		await page.waitForLoadState('networkidle');
 
 		// Wait for modal to open first
 		await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 });

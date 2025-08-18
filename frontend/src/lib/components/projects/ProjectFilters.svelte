@@ -12,6 +12,7 @@
 
 	let searchValue = $state(filters.search || '');
 	let statusValue = $state(filters.status || 'all');
+	let isClearing = $state(false);
 
 	function handleSearchChange(event: Event) {
 		const target = event.target as HTMLInputElement;
@@ -32,10 +33,27 @@
 	}
 
 	function handleClear() {
+		// Clear timeout to prevent pending search changes
+		clearTimeout(searchTimeout);
+
+		// Set clearing flag to prevent effect from running
+		isClearing = true;
+
+		// Update local state first
 		searchValue = '';
 		statusValue = 'all';
+
+		// Force update of lastFilters to prevent reactive sync from overriding
+		lastFilters = { search: '', status: 'all' };
+
+		// Update the external filters
 		onFiltersChange({ search: '', status: 'all' });
 		onClear?.();
+
+		// Reset clearing flag after a microtask
+		Promise.resolve().then(() => {
+			isClearing = false;
+		});
 	}
 
 	let searchTimeout: ReturnType<typeof setTimeout>;
@@ -52,9 +70,21 @@
 	);
 
 	// Sync internal state with props when filters change externally
+	// Only update if the external filters have changed and we're not clearing
+	let lastFilters = $state({ search: filters.search || '', status: filters.status || 'all' });
 	$effect(() => {
-		searchValue = filters.search || '';
-		statusValue = filters.status || 'all';
+		// Don't sync during clearing operations
+		if (isClearing) return;
+
+		// Only sync if external filters actually changed
+		const currentSearch = filters.search || '';
+		const currentStatus = filters.status || 'all';
+
+		if (currentSearch !== lastFilters.search || currentStatus !== lastFilters.status) {
+			searchValue = currentSearch;
+			statusValue = currentStatus;
+			lastFilters = { search: currentSearch, status: currentStatus };
+		}
 	});
 </script>
 
@@ -67,7 +97,7 @@
 			<Input
 				id="search-projects"
 				type="text"
-				value={searchValue}
+				bind:value={searchValue}
 				oninput={handleSearchChange}
 				placeholder="Search by project name..."
 				class="w-full"
