@@ -38,7 +38,7 @@ def cli(host: str, port: int, reload: bool, log_level: str):
         port=port,
         interface=Interfaces.ASGI,
         reload=reload,
-        log_level=log_level,
+        log_level=log_level,  # type: ignore[arg-type]
     )
     server.serve()
 
