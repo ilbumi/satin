@@ -6,16 +6,7 @@ import {
 	UPDATE_IMAGE,
 	DELETE_IMAGE
 } from '$lib/core/api/queries';
-import type {
-	Image,
-	ImagePage,
-	GetImageQuery,
-	GetImagesQuery,
-	CreateImageMutation,
-	UpdateImageMutation,
-	DeleteImageMutation,
-	QueryInput
-} from '$lib/graphql/generated/graphql';
+import type { Image, ImagePage, QueryInput } from '$lib/graphql/generated/graphql';
 import type { ImageDetail, ImageSummary, ImageFilters, UpdateImageInput } from './types';
 
 export class ImageService {
@@ -24,14 +15,15 @@ export class ImageService {
 	 */
 	async getImage(id: string): Promise<ImageDetail | null> {
 		try {
-			const result = await graphqlClient.query<GetImageQuery>(GET_IMAGE, { id }).toPromise();
+			const result = await graphqlClient.query(GET_IMAGE, { id }).toPromise();
 
 			if (result.error) {
 				console.error('Failed to fetch image:', result.error);
 				throw new Error(result.error.message);
 			}
 
-			const image = result.data?.image;
+			const data = result.data as { image?: Image };
+			const image = data?.image;
 			if (!image) return null;
 
 			return this.mapImageToDetail(image);
@@ -66,20 +58,19 @@ export class ImageService {
 					}
 				: undefined;
 
-			const result = await graphqlClient
-				.query<GetImagesQuery>(GET_IMAGES, { limit, offset, query })
-				.toPromise();
+			const result = await graphqlClient.query(GET_IMAGES, { limit, offset, query }).toPromise();
 
 			if (result.error) {
 				console.error('Failed to fetch images:', result.error);
 				throw new Error(result.error.message);
 			}
 
-			if (!result.data?.images) {
+			const data = result.data as { images?: ImagePage };
+			if (!data?.images) {
 				throw new Error('No images data received');
 			}
 
-			return result.data.images;
+			return data.images;
 		} catch (error) {
 			console.error('ImageService.getImages error:', error);
 			throw error;
@@ -98,20 +89,19 @@ export class ImageService {
 			}
 
 			// Create image record in GraphQL
-			const result = await graphqlClient
-				.mutation<CreateImageMutation>(CREATE_IMAGE, { url })
-				.toPromise();
+			const result = await graphqlClient.mutation(CREATE_IMAGE, { url }).toPromise();
 
 			if (result.error) {
 				console.error('Failed to create image record:', result.error);
 				throw new Error(result.error.message);
 			}
 
-			if (!result.data?.createImage) {
+			const data = result.data as { createImage?: Image };
+			if (!data?.createImage) {
 				throw new Error('Failed to create image: No data returned');
 			}
 
-			return this.mapImageToDetail(result.data.createImage);
+			return this.mapImageToDetail(data.createImage);
 		} catch (error) {
 			console.error('ImageService.addImageByUrl error:', error);
 			throw error;
@@ -146,22 +136,21 @@ export class ImageService {
 	/**
 	 * Update image metadata
 	 */
-	async updateImage(data: UpdateImageInput): Promise<ImageDetail | null> {
+	async updateImage(_data: UpdateImageInput): Promise<ImageDetail | null> {
 		try {
-			const result = await graphqlClient
-				.mutation<UpdateImageMutation>(UPDATE_IMAGE, data)
-				.toPromise();
+			const result = await graphqlClient.mutation(UPDATE_IMAGE, _data).toPromise();
 
 			if (result.error) {
 				console.error('Failed to update image:', result.error);
 				throw new Error(result.error.message);
 			}
 
-			if (!result.data?.updateImage) {
+			const data = result.data as { updateImage?: Image };
+			if (!data?.updateImage) {
 				return null;
 			}
 
-			return this.mapImageToDetail(result.data.updateImage);
+			return this.mapImageToDetail(data.updateImage);
 		} catch (error) {
 			console.error('ImageService.updateImage error:', error);
 			throw error;
@@ -173,16 +162,15 @@ export class ImageService {
 	 */
 	async deleteImage(id: string): Promise<boolean> {
 		try {
-			const result = await graphqlClient
-				.mutation<DeleteImageMutation>(DELETE_IMAGE, { id })
-				.toPromise();
+			const result = await graphqlClient.mutation(DELETE_IMAGE, { id }).toPromise();
 
 			if (result.error) {
 				console.error('Failed to delete image:', result.error);
 				throw new Error(result.error.message);
 			}
 
-			return result.data?.deleteImage || false;
+			const data = result.data as { deleteImage?: boolean };
+			return data?.deleteImage || false;
 		} catch (error) {
 			console.error('ImageService.deleteImage error:', error);
 			throw error;
@@ -247,6 +235,7 @@ export class ImageService {
 	mapImageToSummary(image: ImageDetail): ImageSummary {
 		return {
 			id: image.id,
+			url: image.url,
 			filename: image.filename,
 			thumbnailUrl: image.thumbnailUrl,
 			status: image.metadata?.status || 'ready',
@@ -257,52 +246,6 @@ export class ImageService {
 				: undefined,
 			projectName: image.metadata?.projectName
 		};
-	}
-
-	/**
-	 * Validate image file for upload
-	 */
-	validateImageFile(file: File): { valid: boolean; error?: string } {
-		const maxSize = 10 * 1024 * 1024; // 10MB
-		const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-
-		if (!allowedTypes.includes(file.type)) {
-			return {
-				valid: false,
-				error: 'File type not supported. Please use JPEG, PNG, GIF, or WebP.'
-			};
-		}
-
-		if (file.size > maxSize) {
-			return { valid: false, error: 'File size too large. Maximum size is 10MB.' };
-		}
-
-		return { valid: true };
-	}
-
-	/**
-	 * Upload image file
-	 */
-	async uploadImage(file: File): Promise<ImageDetail> {
-		const validation = this.validateImageFile(file);
-		if (!validation.valid) {
-			throw new Error(validation.error);
-		}
-
-		const formData = new FormData();
-		formData.append('file', file);
-
-		const response = await fetch('/api/images/upload', {
-			method: 'POST',
-			body: formData
-		});
-
-		if (!response.ok) {
-			throw new Error(response.statusText || 'Upload failed');
-		}
-
-		const imageData = await response.json();
-		return this.mapImageToDetail(imageData);
 	}
 
 	/**

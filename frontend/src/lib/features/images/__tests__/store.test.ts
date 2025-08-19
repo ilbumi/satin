@@ -4,10 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // Mock the image service using vi.hoisted
 const mockImageService = vi.hoisted(() => ({
 	getImages: vi.fn(),
-	uploadImage: vi.fn(),
-	uploadImages: vi.fn(),
 	deleteImage: vi.fn(),
-	validateImageFile: vi.fn(),
 	mapImageToSummary: vi.fn(),
 	mapImageToDetail: vi.fn()
 }));
@@ -85,38 +82,11 @@ describe('Image Store', () => {
 		});
 	});
 
-	describe('Upload State', () => {
-		it('should track uploading state', () => {
-			expect(typeof store.uploading).toBe('boolean');
-		});
-
-		it('should have uploads array', () => {
-			expect(Array.isArray(store.uploads)).toBe(true);
-		});
-	});
-
 	describe('Operations', () => {
 		it('should have required operation methods', () => {
 			expect(typeof store.fetchImages).toBe('function');
-			expect(typeof store.uploadImages).toBe('function');
 			expect(typeof store.deleteImage).toBe('function');
 			expect(typeof store.refetch).toBe('function');
-		});
-
-		it('should handle file validation during upload', async () => {
-			const file = new File(['dummy'], 'test.jpg', { type: 'image/jpeg' });
-
-			// Mock validation failure
-			mockImageService.validateImageFile.mockReturnValue({
-				valid: false,
-				error: 'Invalid file type'
-			});
-
-			const results = await store.uploadImages([file]);
-
-			expect(mockImageService.validateImageFile).toHaveBeenCalledWith(file);
-			expect(results).toHaveLength(0);
-			expect(store.error).toContain('Invalid file type');
 		});
 	});
 

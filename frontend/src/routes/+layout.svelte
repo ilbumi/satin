@@ -9,7 +9,7 @@
 	let { children } = $props();
 
 	// Set up the GraphQL client for all child components
-	setContextClient(graphqlClient);
+	setContextClient(graphqlClient.client);
 
 	// Sidebar state
 	let sidebarOpen = $state(false);

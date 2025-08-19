@@ -19,13 +19,11 @@
 		selectable?: boolean;
 		showSearch?: boolean;
 		showFilters?: boolean;
-		showUpload?: boolean;
 		onImageClick?: (image: ImageSummary) => void;
 		onImageView?: (image: ImageSummary) => void;
 		onImageDelete?: (image: ImageSummary) => void;
 		onImageAnnotate?: (image: ImageSummary) => void;
 		onFiltersChange?: (filters: Partial<ImageFilters>) => void;
-		onUploadClick?: () => void;
 		onLoadMore?: () => void;
 		onSelectionChange?: (selectedImages: ImageSummary[]) => void;
 	}
@@ -39,13 +37,11 @@
 		selectable = false,
 		showSearch = true,
 		showFilters = true,
-		showUpload = true,
 		onImageClick,
 		onImageView,
 		onImageDelete,
 		onImageAnnotate,
 		onFiltersChange,
-		onUploadClick,
 		onLoadMore,
 		onSelectionChange
 	}: ImageGalleryProps = $props();
@@ -190,13 +186,6 @@
 			{:else if selectable}
 				<Button variant="ghost" size="sm" onclick={selectAll}>Select All</Button>
 			{/if}
-
-			{#if showUpload}
-				<Button variant="primary" onclick={onUploadClick}>
-					<span class="mr-2">📤</span>
-					Upload Images
-				</Button>
-			{/if}
 		</div>
 	</div>
 
@@ -246,14 +235,8 @@
 				<p class="mb-6 text-gray-600">
 					{filters?.search
 						? `No images match "${filters.search}"`
-						: 'Upload your first images to get started'}
+						: 'Add your first images to get started'}
 				</p>
-				{#if showUpload}
-					<Button variant="primary" onclick={onUploadClick}>
-						<span class="mr-2">📤</span>
-						Upload Images
-					</Button>
-				{/if}
 			</div>
 		</Card>
 	{:else}

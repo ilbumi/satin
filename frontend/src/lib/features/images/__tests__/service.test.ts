@@ -7,40 +7,6 @@ describe('ImageService', () => {
 	beforeEach(() => {
 		imageService = new ImageService();
 		vi.clearAllMocks();
-
-		// Mock global fetch for upload tests
-		global.fetch = vi.fn();
-	});
-
-	describe('validateImageFile', () => {
-		it('should validate valid image file', () => {
-			const file = new File(['dummy'], 'test.jpg', { type: 'image/jpeg' });
-			Object.defineProperty(file, 'size', { value: 1024 * 1024 }); // 1MB
-
-			const result = imageService.validateImageFile(file);
-
-			expect(result.valid).toBe(true);
-			expect(result.error).toBeUndefined();
-		});
-
-		it('should reject invalid file type', () => {
-			const file = new File(['dummy'], 'test.txt', { type: 'text/plain' });
-
-			const result = imageService.validateImageFile(file);
-
-			expect(result.valid).toBe(false);
-			expect(result.error).toContain('File type not supported');
-		});
-
-		it('should reject oversized file', () => {
-			const file = new File(['dummy'], 'test.jpg', { type: 'image/jpeg' });
-			Object.defineProperty(file, 'size', { value: 20 * 1024 * 1024 }); // 20MB
-
-			const result = imageService.validateImageFile(file);
-
-			expect(result.valid).toBe(false);
-			expect(result.error).toContain('File size too large');
-		});
 	});
 
 	describe('formatFileSize', () => {
@@ -141,22 +107,6 @@ describe('ImageService', () => {
 			expect(result.status).toBe('ready');
 			expect(result.dimensions).toBe('800x600');
 			expect(result.projectName).toBe('Test Project');
-		});
-	});
-
-	describe('uploadImage error handling', () => {
-		it('should handle upload failure from fetch', async () => {
-			// Mock failed fetch
-			const uploadResponse = new Response(null, {
-				status: 400,
-				statusText: 'Upload failed'
-			});
-
-			vi.mocked(global.fetch).mockResolvedValue(uploadResponse);
-
-			const file = new File(['dummy'], 'test.jpg', { type: 'image/jpeg' });
-
-			await expect(imageService.uploadImage(file)).rejects.toThrow('Upload failed');
 		});
 	});
 });

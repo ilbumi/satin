@@ -1,223 +1,287 @@
 <script lang="ts">
-	import { Button, Card } from '$lib/components/ui';
+	import { onMount } from 'svelte';
+	import { Button, Card, Toast } from '$lib/components/ui';
+	import { ImageAnnotator } from '$lib/components/annotations';
+	import { taskStore } from '$lib/features/tasks/store.svelte';
+	import { imageStore } from '$lib/features/images/store.svelte';
+	import type { TaskSummary } from '$lib/features/tasks/types';
+	import type { ImageSummary } from '$lib/features/images/types';
+	import type { ClientAnnotation } from '$lib/features/annotations/types';
 
-	// Placeholder data - will be replaced with real functionality in Block 7
-	const workspaces = [
-		{
-			id: '1',
-			name: 'Medical Scan Analysis',
-			projectName: 'Medical Images Dataset',
-			imageCount: 45,
-			annotationType: 'Bounding Box',
-			lastModified: '2024-01-22',
-			progress: 75
-		},
-		{
-			id: '2',
-			name: 'Vehicle Detection Task',
-			projectName: 'Vehicle Detection',
-			imageCount: 120,
-			annotationType: 'Classification',
-			lastModified: '2024-01-21',
-			progress: 30
-		}
-	];
+	// URL parameters
+	let taskIdParam = $state<string | null>(null);
+	let imageIdParam = $state<string | null>(null);
+	let readonlyParam = $state(false);
 
-	const recentAnnotations = [
-		{
-			id: '1',
-			imageName: 'chest_xray_001.jpg',
-			annotationType: 'Bounding Box',
-			timestamp: '2024-01-22 14:30',
-			status: 'completed'
-		},
-		{
-			id: '2',
-			imageName: 'traffic_cam_045.jpg',
-			annotationType: 'Classification',
-			timestamp: '2024-01-22 13:15',
-			status: 'in_progress'
+	// State
+	let showAnnotator = $state(false);
+	let selectedTask = $state<TaskSummary | null>(null);
+	let selectedImage = $state<ImageSummary | null>(null);
+	let showToast = $state(false);
+	let toastMessage = $state('');
+	let toastType = $state<'success' | 'error'>('success');
+
+	function showSuccessToast(message: string) {
+		toastMessage = message;
+		toastType = 'success';
+		showToast = true;
+	}
+
+	function showErrorToast(message: string) {
+		toastMessage = message;
+		toastType = 'error';
+		showToast = true;
+	}
+
+	onMount(async () => {
+		// Ensure we're in browser environment
+		if (typeof window !== 'undefined') {
+			// Read URL parameters client-side
+			const urlParams = new URLSearchParams(window.location.search);
+			taskIdParam = urlParams.get('taskId');
+			imageIdParam = urlParams.get('imageId');
+			readonlyParam = urlParams.get('readonly') === 'true';
 		}
-	];
+
+		// Load tasks and images with error handling
+		try {
+			await Promise.all([taskStore.loadTasks(), imageStore.fetchImages()]);
+		} catch (error) {
+			console.warn('Failed to load some data:', error);
+			showErrorToast('Some data failed to load, but you can still use the annotator');
+		}
+
+		// If URL has taskId and imageId, open annotator automatically
+		if (taskIdParam && imageIdParam) {
+			const task = taskStore.state.list.tasks.find((t) => t.id === taskIdParam);
+			let image = imageStore.images().find((i) => i.id === imageIdParam);
+
+			// If image not found in store but we have an ID, create a minimal image object
+			if (!image && imageIdParam) {
+				image = {
+					id: imageIdParam,
+					filename: 'test-image.jpg',
+					url: 'https://picsum.photos/800/600',
+					thumbnailUrl: 'https://picsum.photos/400/300',
+					status: 'ready' as const,
+					uploadedAt: new Date().toISOString(),
+					fileSize: 0
+				};
+			}
+
+			if (task && image) {
+				openAnnotator(task, image);
+			} else {
+				showErrorToast('Task or image not found');
+			}
+		}
+	});
+
+	function openAnnotator(task: TaskSummary, image: ImageSummary) {
+		selectedTask = task;
+		selectedImage = image;
+		showAnnotator = true;
+
+		// Update URL without page reload (browser only)
+		if (typeof window !== 'undefined') {
+			const url = new URL(window.location.href);
+			url.searchParams.set('taskId', task.id);
+			url.searchParams.set('imageId', image.id);
+			window.history.replaceState({}, '', url);
+		}
+	}
+
+	function closeAnnotator() {
+		showAnnotator = false;
+		selectedTask = null;
+		selectedImage = null;
+
+		// Clear URL parameters (browser only)
+		if (typeof window !== 'undefined') {
+			const url = new URL(window.location.href);
+			url.searchParams.delete('taskId');
+			url.searchParams.delete('imageId');
+			window.history.replaceState({}, '', url);
+		}
+	}
+
+	function handleAnnotationSave(annotations: ClientAnnotation[]) {
+		const count = annotations.length;
+		showSuccessToast(`${count} annotation${count !== 1 ? 's' : ''} saved successfully`);
+
+		// Refresh task data to reflect changes
+		taskStore.refreshTasks();
+	}
+
+	// Computed values
+	let tasks = $derived(taskStore.state.list.tasks.filter((task) => task.status !== 'REVIEWED'));
+	let images = $derived(imageStore.images());
+	let tasksLoading = $derived(taskStore.state.list.loading);
+	let imagesLoading = $derived(imageStore.loading);
+	let loading = $derived(tasksLoading || imagesLoading);
 </script>
 
 <svelte:head>
-	<title>Annotations - Satin</title>
+	<title>Annotation Workspace - Satin</title>
 </svelte:head>
 
-<div class="p-6">
-	<div class="mb-8 flex items-center justify-between">
-		<div>
-			<h1 class="text-3xl font-bold text-gray-900">Annotation Workspace</h1>
-			<p class="mt-2 text-gray-600">Create and manage image annotations</p>
-		</div>
-		<Button variant="primary">
-			<span class="mr-2">✏️</span>
-			New Annotation Session
-		</Button>
-	</div>
-
-	<!-- Active Workspaces -->
-	<div class="mb-8">
-		<h2 class="mb-4 text-xl font-semibold text-gray-900">Active Workspaces</h2>
-		<div class="grid gap-6 md:grid-cols-2">
-			{#each workspaces as workspace (workspace.id)}
-				<Card>
-					{#snippet header()}
-						<div class="flex items-start justify-between">
-							<h3 class="text-lg font-semibold text-gray-900">{workspace.name}</h3>
-							<span class="rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800">
-								{workspace.annotationType}
-							</span>
-						</div>
-					{/snippet}
-
-					<div class="space-y-3">
-						<p class="text-sm text-gray-600">📁 {workspace.projectName}</p>
-						<p class="text-sm text-gray-600">🖼️ {workspace.imageCount} images</p>
-						<p class="text-sm text-gray-600">📅 Last modified: {workspace.lastModified}</p>
-
-						<div>
-							<div class="mb-1 flex items-center justify-between">
-								<span class="text-sm font-medium text-gray-700">Progress</span>
-								<span class="text-sm text-gray-600">{workspace.progress}%</span>
-							</div>
-							<div class="h-2 w-full rounded-full bg-gray-200">
-								<div
-									class="h-2 rounded-full bg-green-600 transition-all duration-300"
-									style="width: {workspace.progress}%"
-								></div>
-							</div>
-						</div>
-
-						<div class="flex space-x-2 pt-2">
-							<Button variant="primary" size="sm" class="flex-1">Continue</Button>
-							<Button variant="ghost" size="sm" class="flex-1">Settings</Button>
-						</div>
-					</div>
-				</Card>
-			{/each}
-		</div>
-	</div>
-
-	<!-- Annotation Tools -->
-	<div class="mb-8">
-		<h2 class="mb-4 text-xl font-semibold text-gray-900">Annotation Tools</h2>
-		<div class="grid gap-4 md:grid-cols-4">
-			<Card>
-				<div class="p-4 text-center">
-					<div class="mb-2 text-3xl">📦</div>
-					<h3 class="mb-1 font-medium text-gray-900">Bounding Box</h3>
-					<p class="text-sm text-gray-600">Draw rectangular regions</p>
-					<Button variant="ghost" size="sm" class="mt-3">Select</Button>
-				</div>
-			</Card>
-			<Card>
-				<div class="p-4 text-center">
-					<div class="mb-2 text-3xl">🔺</div>
-					<h3 class="mb-1 font-medium text-gray-900">Polygon</h3>
-					<p class="text-sm text-gray-600">Define complex shapes</p>
-					<Button variant="ghost" size="sm" class="mt-3" disabled>Coming Soon</Button>
-				</div>
-			</Card>
-			<Card>
-				<div class="p-4 text-center">
-					<div class="mb-2 text-3xl">🏷️</div>
-					<h3 class="mb-1 font-medium text-gray-900">Classification</h3>
-					<p class="text-sm text-gray-600">Assign categories</p>
-					<Button variant="ghost" size="sm" class="mt-3">Select</Button>
-				</div>
-			</Card>
-			<Card>
-				<div class="p-4 text-center">
-					<div class="mb-2 text-3xl">🎯</div>
-					<h3 class="mb-1 font-medium text-gray-900">Segmentation</h3>
-					<p class="text-sm text-gray-600">Pixel-level masks</p>
-					<Button variant="ghost" size="sm" class="mt-3" disabled>Coming Soon</Button>
-				</div>
-			</Card>
-		</div>
-	</div>
-
-	<!-- Recent Annotations -->
-	<div>
-		<h2 class="mb-4 text-xl font-semibold text-gray-900">Recent Annotations</h2>
-		<Card>
-			<div class="overflow-x-auto">
-				<table class="min-w-full divide-y divide-gray-200">
-					<thead class="bg-gray-50">
-						<tr>
-							<th
-								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
-							>
-								Image
-							</th>
-							<th
-								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
-							>
-								Type
-							</th>
-							<th
-								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
-							>
-								Timestamp
-							</th>
-							<th
-								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
-							>
-								Status
-							</th>
-							<th class="relative px-6 py-3">
-								<span class="sr-only">Actions</span>
-							</th>
-						</tr>
-					</thead>
-					<tbody class="divide-y divide-gray-200 bg-white">
-						{#each recentAnnotations as annotation (annotation.id)}
-							<tr>
-								<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-900">
-									{annotation.imageName}
-								</td>
-								<td class="px-6 py-4 whitespace-nowrap">
-									<span
-										class="inline-flex rounded-full bg-blue-100 px-2 text-xs leading-5 font-semibold text-blue-800"
-									>
-										{annotation.annotationType}
-									</span>
-								</td>
-								<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-500">
-									{annotation.timestamp}
-								</td>
-								<td class="px-6 py-4 whitespace-nowrap">
-									<span
-										class="inline-flex rounded-full px-2 text-xs leading-5 font-semibold {annotation.status ===
-										'completed'
-											? 'bg-green-100 text-green-800'
-											: 'bg-yellow-100 text-yellow-800'}"
-									>
-										{annotation.status}
-									</span>
-								</td>
-								<td class="px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
-									<a href="/annotations/{annotation.id}" class="text-blue-600 hover:text-blue-900">
-										View
-									</a>
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
+<div class="annotation-page">
+	{#if !showAnnotator}
+		<div class="p-6">
+			<!-- Header -->
+			<div class="mb-8">
+				<h1 class="text-3xl font-bold text-gray-900">Annotation Workspace</h1>
+				<p class="mt-2 text-gray-600">Create and edit annotations for your tasks</p>
 			</div>
-		</Card>
-	</div>
 
-	<!-- Empty state for workspaces -->
-	{#if workspaces.length === 0}
-		<div class="py-12 text-center">
-			<div class="mb-4 text-6xl">✏️</div>
-			<h3 class="mb-2 text-lg font-medium text-gray-900">No annotation workspaces yet</h3>
-			<p class="mb-6 text-gray-600">Create your first annotation session to get started</p>
-			<Button variant="primary">Start Annotating</Button>
+			{#if loading}
+				<div class="flex items-center justify-center py-12">
+					<div class="text-center">
+						<div
+							class="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"
+						></div>
+						<p class="mt-4 text-gray-600">Loading tasks and images...</p>
+					</div>
+				</div>
+			{:else}
+				<!-- Task Selection -->
+				<div class="mb-8">
+					<h2 class="mb-4 text-xl font-semibold text-gray-900">Available Tasks</h2>
+
+					{#if tasks.length === 0}
+						<Card>
+							<div class="py-8 text-center">
+								<div class="mb-4 text-4xl">📋</div>
+								<h3 class="mb-2 text-lg font-medium text-gray-900">No Tasks Available</h3>
+								<p class="mb-4 text-gray-600">There are no tasks ready for annotation.</p>
+								<Button variant="primary" onclick={() => (window.location.href = '/tasks')}>
+									Create Tasks
+								</Button>
+							</div>
+						</Card>
+					{:else}
+						<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+							{#each tasks as task (task.id)}
+								<Card class="transition-shadow hover:shadow-md">
+									<div class="p-4">
+										<div class="mb-3 flex items-start justify-between">
+											<h3 class="line-clamp-2 font-semibold text-gray-900">
+												{task.title || `Task in ${task.projectName}`}
+											</h3>
+											<span
+												class="ml-2 inline-flex items-center rounded-full px-2 py-1 text-xs font-medium
+												{task.status === 'DRAFT' ? 'bg-gray-100 text-gray-800' : ''}
+												{task.status === 'FINISHED' ? 'bg-green-100 text-green-800' : ''}
+											"
+											>
+												{task.status}
+											</span>
+										</div>
+
+										<div class="mb-4 space-y-2 text-sm text-gray-600">
+											<div class="flex justify-between">
+												<span>Project:</span>
+												<span class="font-medium">{task.projectName}</span>
+											</div>
+											<div class="flex justify-between">
+												<span>Annotations:</span>
+												<span class="font-medium">{task.bboxCount}</span>
+											</div>
+											<div class="flex justify-between">
+												<span>Created:</span>
+												<span>{new Date(task.createdAt).toLocaleDateString()}</span>
+											</div>
+										</div>
+
+										<!-- Find corresponding image -->
+										{#if true}
+											{@const taskImage = images.find((img) => img.id === task.imageId)}
+											{#if taskImage}
+												<div class="mb-4">
+													<img
+														src={taskImage.thumbnailUrl || 'https://picsum.photos/400/300'}
+														alt={taskImage.filename}
+														class="h-32 w-full rounded-md object-cover"
+													/>
+												</div>
+
+												<Button
+													variant="primary"
+													class="w-full"
+													onclick={() => openAnnotator(task, taskImage)}
+												>
+													✏️ Open Annotator
+												</Button>
+											{:else}
+												<div class="py-4 text-center text-gray-500">
+													<p>Image not found</p>
+												</div>
+											{/if}
+										{/if}
+									</div>
+								</Card>
+							{/each}
+						</div>
+					{/if}
+				</div>
+
+				<!-- Recent Annotations Section -->
+				<div class="mb-8">
+					<h2 class="mb-4 text-xl font-semibold text-gray-900">Recent Activity</h2>
+					<Card>
+						<div class="p-6 text-center text-gray-500">
+							<div class="mb-4 text-4xl">📊</div>
+							<p>Annotation statistics and recent activity will appear here</p>
+						</div>
+					</Card>
+				</div>
+			{/if}
 		</div>
 	{/if}
+
+	<!-- Annotation Editor Modal -->
+	{#if selectedTask && selectedImage}
+		<ImageAnnotator
+			bind:open={showAnnotator}
+			task={{
+				id: selectedTask.id,
+				status: selectedTask.status,
+				bboxes: [], // Will be loaded by the annotator
+				createdAt: new Date().toISOString(),
+				image: {
+					id: selectedImage.id,
+					url: selectedImage.thumbnailUrl || 'https://picsum.photos/400/300'
+				},
+				project: {
+					id: selectedTask.projectId || 'unknown',
+					name: 'Test Project',
+					description: 'Test project for annotations'
+				}
+			}}
+			image={{
+				id: selectedImage.id,
+				url: selectedImage.thumbnailUrl || 'https://picsum.photos/400/300'
+			}}
+			readonly={readonlyParam}
+			onClose={closeAnnotator}
+			onSaveComplete={handleAnnotationSave}
+		/>
+	{/if}
+
+	<!-- Toast Notifications -->
+	{#if showToast}
+		<Toast
+			type={toastType}
+			title={toastType === 'success' ? 'Success' : 'Error'}
+			message={toastMessage}
+			onClose={() => (showToast = false)}
+			duration={4000}
+		/>
+	{/if}
 </div>
+
+<style>
+	.annotation-page {
+		min-height: 100vh;
+	}
+</style>

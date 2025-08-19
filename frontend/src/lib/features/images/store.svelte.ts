@@ -25,15 +25,6 @@ function createImageStore() {
 		adding: false
 	});
 
-	// Upload state
-	const uploadState = $state<{
-		uploading: boolean;
-		uploads: Array<{ id: string; progress: number; status: string }>;
-	}>({
-		uploading: false,
-		uploads: []
-	});
-
 	async function fetchImages(): Promise<void> {
 		try {
 			state.loading = true;
@@ -110,52 +101,6 @@ function createImageStore() {
 			return [];
 		} finally {
 			addingState.adding = false;
-		}
-	}
-
-	async function uploadImages(files: File[]): Promise<ImageDetail[]> {
-		try {
-			uploadState.uploading = true;
-			state.error = null;
-
-			const results: ImageDetail[] = [];
-			const errors: string[] = [];
-
-			for (const file of files) {
-				try {
-					// Validate file first
-					const validation = imageService.validateImageFile(file);
-					if (!validation.valid) {
-						errors.push(`${file.name}: ${validation.error}`);
-						continue;
-					}
-
-					// Upload the file
-					const result = await imageService.uploadImage(file);
-
-					// Add to images list optimistically
-					const summary = imageService.mapImageToSummary(result);
-					state.images.unshift(summary);
-					state.pagination.totalCount += 1;
-
-					results.push(result);
-				} catch (error) {
-					const errorMsg = error instanceof Error ? error.message : 'Upload failed';
-					errors.push(`${file.name}: ${errorMsg}`);
-				}
-			}
-
-			if (errors.length > 0) {
-				state.error = errors.join('\n');
-			}
-
-			return results;
-		} catch (error) {
-			state.error = error instanceof Error ? error.message : 'Failed to upload images';
-			console.error('Store.uploadImages error:', error);
-			return [];
-		} finally {
-			uploadState.uploading = false;
 		}
 	}
 
@@ -262,7 +207,6 @@ function createImageStore() {
 	const operations: ImageOperations = {
 		fetchImages,
 		addImagesByUrl,
-		uploadImages,
 		deleteImage,
 		setFilters,
 		setPage,
@@ -296,14 +240,6 @@ function createImageStore() {
 		// Adding state
 		get adding() {
 			return addingState.adding;
-		},
-
-		// Upload state
-		get uploading() {
-			return uploadState.uploading;
-		},
-		get uploads() {
-			return uploadState.uploads;
 		},
 
 		// Operations

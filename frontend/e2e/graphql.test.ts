@@ -1,4 +1,4 @@
-import { test, expect } from './test';
+import { test, expect } from '@playwright/test';
 
 test.describe('GraphQL Integration', () => {
 	test('should display GraphQL connection status', async ({ page }) => {

@@ -26,14 +26,14 @@ export class TaskService {
 	 */
 	async getTask(id: string): Promise<Task | null> {
 		try {
-			const result = await graphqlClient.query<GetTaskQuery>(GET_TASK, { id }).toPromise();
+			const result = await graphqlClient.query(GET_TASK, { id }).toPromise();
 
 			if (result.error) {
 				console.error('Failed to fetch task:', result.error);
 				throw new Error(result.error.message);
 			}
 
-			return result.data?.task || null;
+			return (result.data as GetTaskQuery)?.task || null;
 		} catch (error) {
 			console.error('TaskService.getTask error:', error);
 			throw error;
@@ -83,7 +83,7 @@ export class TaskService {
 			}
 
 			const result = await graphqlClient
-				.query<GetTasksQuery>(GET_TASKS, {
+				.query(GET_TASKS, {
 					limit,
 					offset,
 					query
@@ -96,7 +96,7 @@ export class TaskService {
 			}
 
 			return (
-				result.data?.tasks || {
+				(result.data as GetTasksQuery)?.tasks || {
 					objects: [],
 					totalCount: 0,
 					count: 0,
@@ -117,7 +117,7 @@ export class TaskService {
 	async getTaskByImageAndProject(imageId: string, projectId: string): Promise<Task | null> {
 		try {
 			const result = await graphqlClient
-				.query<GetTaskByImageAndProjectQuery>(GET_TASK_BY_IMAGE_AND_PROJECT, {
+				.query(GET_TASK_BY_IMAGE_AND_PROJECT, {
 					imageId,
 					projectId
 				})
@@ -128,7 +128,7 @@ export class TaskService {
 				throw new Error(result.error.message);
 			}
 
-			return result.data?.taskByImageAndProject || null;
+			return (result.data as GetTaskByImageAndProjectQuery)?.taskByImageAndProject || null;
 		} catch (error) {
 			console.error('TaskService.getTaskByImageAndProject error:', error);
 			throw error;
@@ -140,20 +140,18 @@ export class TaskService {
 	 */
 	async createTask(data: CreateTaskForm): Promise<Task> {
 		try {
-			const result = await graphqlClient
-				.mutation<CreateTaskMutation>(CREATE_TASK, data)
-				.toPromise();
+			const result = await graphqlClient.mutation(CREATE_TASK, data).toPromise();
 
 			if (result.error) {
 				console.error('Failed to create task:', result.error);
 				throw new Error(result.error.message);
 			}
 
-			if (!result.data?.createTask) {
+			if (!(result.data as CreateTaskMutation)?.createTask) {
 				throw new Error('Failed to create task: No data returned');
 			}
 
-			return result.data.createTask;
+			return (result.data as CreateTaskMutation).createTask;
 		} catch (error) {
 			console.error('TaskService.createTask error:', error);
 			throw error;
@@ -165,16 +163,14 @@ export class TaskService {
 	 */
 	async updateTask(data: UpdateTaskForm): Promise<Task | null> {
 		try {
-			const result = await graphqlClient
-				.mutation<UpdateTaskMutation>(UPDATE_TASK, data)
-				.toPromise();
+			const result = await graphqlClient.mutation(UPDATE_TASK, data).toPromise();
 
 			if (result.error) {
 				console.error('Failed to update task:', result.error);
 				throw new Error(result.error.message);
 			}
 
-			return result.data?.updateTask || null;
+			return (result.data as UpdateTaskMutation)?.updateTask || null;
 		} catch (error) {
 			console.error('TaskService.updateTask error:', error);
 			throw error;
@@ -186,16 +182,14 @@ export class TaskService {
 	 */
 	async deleteTask(id: string): Promise<boolean> {
 		try {
-			const result = await graphqlClient
-				.mutation<DeleteTaskMutation>(DELETE_TASK, { id })
-				.toPromise();
+			const result = await graphqlClient.mutation(DELETE_TASK, { id }).toPromise();
 
 			if (result.error) {
 				console.error('Failed to delete task:', result.error);
 				throw new Error(result.error.message);
 			}
 
-			return result.data?.deleteTask || false;
+			return (result.data as DeleteTaskMutation)?.deleteTask || false;
 		} catch (error) {
 			console.error('TaskService.deleteTask error:', error);
 			throw error;

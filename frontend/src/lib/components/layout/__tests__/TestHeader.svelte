@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui';
-
 	let { onToggleSidebar = () => {} }: { onToggleSidebar?: () => void } = $props();
 
 	const navItems = [
@@ -50,7 +48,7 @@
 				{/each}
 			</nav>
 
-			<!-- User Menu / Settings -->
+			<!-- User Menu -->
 			<div class="flex items-center space-x-4">
 				<!-- Mobile menu button -->
 				<button
@@ -59,12 +57,6 @@
 					<span class="sr-only">Open main menu</span>
 					☰
 				</button>
-
-				<!-- Settings button -->
-				<Button variant="ghost" size="sm">
-					<span class="mr-2">⚙️</span>
-					Settings
-				</Button>
 			</div>
 		</div>
 	</div>

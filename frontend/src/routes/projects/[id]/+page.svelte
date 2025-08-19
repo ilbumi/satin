@@ -1,11 +1,18 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-	import { Button, Card, Spinner, Toast } from '$lib/components/ui';
+	import { Button, Card, Spinner, Toast, Modal } from '$lib/components/ui';
 	import { EditProjectModal } from '$lib/components/projects';
+	import { AddImageByUrl } from '$lib/components/images';
 	import { projectService } from '$lib/features/projects/service';
+	import { imageService } from '$lib/features/images/service';
+	import { TaskService } from '$lib/features/tasks/service';
+
+	// Create service instances
+	const taskService = new TaskService();
 	import type { Project } from '$lib/graphql/generated/graphql';
 	import type { UpdateProjectForm, ProjectSummary } from '$lib/features/projects/types';
+	import type { ImageDetail } from '$lib/features/images/types';
 
 	// Get project ID from the route parameters
 	const projectId = page.params.id;
@@ -14,9 +21,12 @@
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let showEditModal = $state(false);
+	let showAddImageModal = $state(false);
 	let showToast = $state(false);
 	let toastMessage = $state('');
 	let toastType = $state<'success' | 'error'>('success');
+	let projectImages = $state<ImageDetail[]>([]);
+	let loadingImages = $state(false);
 
 	function showSuccessToast(message: string) {
 		toastMessage = message;
@@ -76,6 +86,56 @@
 		showEditModal = false;
 	}
 
+	function handleAddImages() {
+		showAddImageModal = true;
+	}
+
+	async function handleAddImageSuccess(images: ImageDetail[]) {
+		if (!project) return;
+
+		try {
+			// Create tasks for each image to link them to the project
+			const taskPromises = images.map((image) =>
+				taskService.createTask({
+					imageId: image.id,
+					projectId: project!.id,
+					status: 'DRAFT'
+				})
+			);
+
+			await Promise.all(taskPromises);
+			showAddImageModal = false;
+			showSuccessToast(`${images.length} image${images.length > 1 ? 's' : ''} added to project`);
+
+			// Refresh images display
+			loadProjectImages();
+		} catch (error) {
+			showErrorToast('Failed to add images to project');
+			console.error('Failed to create tasks for images:', error);
+		}
+	}
+
+	function handleAddImageError(error: string) {
+		showErrorToast(error);
+	}
+
+	async function loadProjectImages() {
+		if (!projectId) return;
+
+		try {
+			loadingImages = true;
+			// Get tasks for this project and extract images
+			const result = await taskService.getTasks(100, 0, { projectId });
+			const imagePromises = result.objects.map((task) => imageService.getImage(task.image.id));
+			const images = await Promise.all(imagePromises);
+			projectImages = images.filter((img) => img !== null) as ImageDetail[];
+		} catch (error) {
+			console.error('Failed to load project images:', error);
+		} finally {
+			loadingImages = false;
+		}
+	}
+
 	async function handleDeleteProject() {
 		if (!project) return;
 
@@ -104,6 +164,7 @@
 	// Load project on mount
 	onMount(() => {
 		loadProject();
+		loadProjectImages();
 	});
 
 	// Reactive project summary for the edit modal
@@ -163,7 +224,7 @@
 			<div class="flex space-x-3">
 				<Button variant="secondary" onclick={handleEditProject}>Edit Project</Button>
 				<Button variant="danger" onclick={handleDeleteProject}>Delete Project</Button>
-				<Button variant="primary">
+				<Button variant="primary" onclick={handleAddImages}>
 					<span class="mr-2">📷</span>
 					Add Images
 				</Button>
@@ -174,7 +235,7 @@
 		<div class="mb-8 grid gap-6 md:grid-cols-4">
 			<Card>
 				<div class="text-center">
-					<div class="text-2xl font-bold text-gray-900">0</div>
+					<div class="text-2xl font-bold text-gray-900">{projectImages.length}</div>
 					<div class="text-sm text-gray-600">Total Images</div>
 				</div>
 			</Card>
@@ -209,15 +270,37 @@
 				</div>
 			{/snippet}
 
-			<div class="py-12 text-center">
-				<div class="mb-4 text-6xl">🖼️</div>
-				<h3 class="mb-2 text-lg font-medium text-gray-900">No images yet</h3>
-				<p class="mb-6 text-gray-600">Upload images to start annotating</p>
-				<Button variant="primary">
-					<span class="mr-2">📷</span>
-					Upload Images
-				</Button>
-			</div>
+			{#if loadingImages}
+				<div class="flex items-center justify-center py-12">
+					<Spinner size="md" />
+					<span class="ml-3 text-gray-600">Loading images...</span>
+				</div>
+			{:else if projectImages.length === 0}
+				<div class="py-12 text-center">
+					<div class="mb-4 text-6xl">🖼️</div>
+					<h3 class="mb-2 text-lg font-medium text-gray-900">No images yet</h3>
+					<p class="mb-6 text-gray-600">Add images by URL to start annotating</p>
+					<Button variant="primary" onclick={handleAddImages}>
+						<span class="mr-2">📷</span>
+						Add Images
+					</Button>
+				</div>
+			{:else}
+				<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+					{#each projectImages as image (image.id)}
+						<div class="rounded-lg border bg-white p-4">
+							<div class="mb-3 aspect-video overflow-hidden rounded bg-gray-100">
+								<img
+									src={image.thumbnailUrl || image.url}
+									alt={image.filename}
+									class="h-full w-full object-cover"
+								/>
+							</div>
+							<p class="truncate text-sm font-medium text-gray-900">{image.filename}</p>
+						</div>
+					{/each}
+				</div>
+			{/if}
 		</Card>
 
 		<!-- Project Details -->
@@ -261,6 +344,16 @@
 	onClose={handleCloseEditModal}
 	onSubmit={handleEditSubmit}
 />
+
+<!-- Add Images Modal -->
+<Modal
+	bind:open={showAddImageModal}
+	title="Add Images by URL"
+	size="lg"
+	closeOnBackdropClick={true}
+>
+	<AddImageByUrl multiple={true} onAdd={handleAddImageSuccess} onError={handleAddImageError} />
+</Modal>
 
 <!-- Toast Notifications -->
 {#if showToast}

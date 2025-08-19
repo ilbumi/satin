@@ -25,10 +25,4 @@ describe('Header', () => {
 		// Look for the screen reader text
 		await expect.element(screen.getByText('Open sidebar')).toBeVisible();
 	});
-
-	it('has settings button', async () => {
-		const screen = render(TestHeader);
-
-		await expect.element(screen.getByText('Settings')).toBeVisible();
-	});
 });

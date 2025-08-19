@@ -69,15 +69,38 @@ export function createGraphQLClient(): Client {
 /**
  * Default GraphQL client instance
  * Use this for most operations
+ * Lazy-initialized to avoid SSR issues
  */
-export const graphqlClient = createGraphQLClient();
+let _graphqlClient: Client | null = null;
+
+export const graphqlClient = {
+	get client(): Client {
+		if (!_graphqlClient) {
+			_graphqlClient = createGraphQLClient();
+		}
+		return _graphqlClient;
+	},
+
+	// Proxy the most common client methods for convenience
+	query: (...args: Parameters<Client['query']>) => {
+		return graphqlClient.client.query(...args);
+	},
+
+	mutation: (...args: Parameters<Client['mutation']>) => {
+		return graphqlClient.client.mutation(...args);
+	},
+
+	subscription: (...args: Parameters<Client['subscription']>) => {
+		return graphqlClient.client.subscription(...args);
+	}
+};
 
 /**
  * Helper to check if the GraphQL client can connect to the backend
  */
 export async function testConnection(): Promise<boolean> {
 	try {
-		const result = await graphqlClient.query('{ __typename }', {}).toPromise();
+		const result = await graphqlClient.client.query('{ __typename }', {}).toPromise();
 
 		return !result.error && result.data?.__typename === 'Query';
 	} catch (error) {

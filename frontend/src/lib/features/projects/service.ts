@@ -21,14 +21,14 @@ import type { CreateProjectForm, UpdateProjectForm, ProjectFilters, ProjectSumma
 export class ProjectService {
 	async getProject(id: string): Promise<Project | null> {
 		try {
-			const result = await graphqlClient.query<GetProjectQuery>(GET_PROJECT, { id }).toPromise();
+			const result = await graphqlClient.query(GET_PROJECT, { id }).toPromise();
 
 			if (result.error) {
 				console.error('Failed to fetch project:', result.error);
 				throw new Error(result.error.message);
 			}
 
-			return result.data?.project || null;
+			return (result.data as GetProjectQuery)?.project || null;
 		} catch (error) {
 			console.error('ProjectService.getProject error:', error);
 			throw error;
@@ -52,7 +52,7 @@ export class ProjectService {
 			}
 
 			const result = await graphqlClient
-				.query<GetProjectsQuery>(GET_PROJECTS, {
+				.query(GET_PROJECTS, {
 					limit,
 					offset,
 					query
@@ -65,7 +65,7 @@ export class ProjectService {
 			}
 
 			return (
-				result.data?.projects || {
+				(result.data as GetProjectsQuery)?.projects || {
 					objects: [],
 					totalCount: 0,
 					count: 0,
@@ -82,20 +82,18 @@ export class ProjectService {
 
 	async createProject(data: CreateProjectForm): Promise<Project> {
 		try {
-			const result = await graphqlClient
-				.mutation<CreateProjectMutation>(CREATE_PROJECT, data)
-				.toPromise();
+			const result = await graphqlClient.mutation(CREATE_PROJECT, data).toPromise();
 
 			if (result.error) {
 				console.error('Failed to create project:', result.error);
 				throw new Error(result.error.message);
 			}
 
-			if (!result.data?.createProject) {
+			if (!(result.data as CreateProjectMutation)?.createProject) {
 				throw new Error('Failed to create project: No data returned');
 			}
 
-			return result.data.createProject;
+			return (result.data as CreateProjectMutation).createProject;
 		} catch (error) {
 			console.error('ProjectService.createProject error:', error);
 			throw error;
@@ -104,16 +102,14 @@ export class ProjectService {
 
 	async updateProject(data: UpdateProjectForm): Promise<Project | null> {
 		try {
-			const result = await graphqlClient
-				.mutation<UpdateProjectMutation>(UPDATE_PROJECT, data)
-				.toPromise();
+			const result = await graphqlClient.mutation(UPDATE_PROJECT, data).toPromise();
 
 			if (result.error) {
 				console.error('Failed to update project:', result.error);
 				throw new Error(result.error.message);
 			}
 
-			return result.data?.updateProject || null;
+			return (result.data as UpdateProjectMutation)?.updateProject || null;
 		} catch (error) {
 			console.error('ProjectService.updateProject error:', error);
 			throw error;
@@ -122,16 +118,14 @@ export class ProjectService {
 
 	async deleteProject(id: string): Promise<boolean> {
 		try {
-			const result = await graphqlClient
-				.mutation<DeleteProjectMutation>(DELETE_PROJECT, { id })
-				.toPromise();
+			const result = await graphqlClient.mutation(DELETE_PROJECT, { id }).toPromise();
 
 			if (result.error) {
 				console.error('Failed to delete project:', result.error);
 				throw new Error(result.error.message);
 			}
 
-			return result.data?.deleteProject || false;
+			return (result.data as DeleteProjectMutation)?.deleteProject || false;
 		} catch (error) {
 			console.error('ProjectService.deleteProject error:', error);
 			throw error;

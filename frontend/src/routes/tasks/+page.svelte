@@ -18,22 +18,25 @@
 	let showEditModal = $state(false);
 	let taskToEdit: TaskSummary | null = $state(null);
 
-	// Mock data for projects and images (in real app, these would come from separate stores)
-	let projects = $state([
-		{ id: '1', name: 'Medical Images Dataset' },
-		{ id: '2', name: 'Vehicle Detection' },
-		{ id: '3', name: 'Plant Disease Classification' }
-	]);
+	// Import stores for projects and images data
+	import { projectStore } from '$lib/features/projects/store.svelte';
+	import { imageStore } from '$lib/features/images/store.svelte';
 
-	let images = $state([
-		{ id: '1', url: '/images/chest-xray-001.jpg', name: 'chest-xray-001.jpg' },
-		{ id: '2', url: '/images/vehicle-001.jpg', name: 'vehicle-001.jpg' },
-		{ id: '3', url: '/images/plant-leaf-001.jpg', name: 'plant-leaf-001.jpg' }
-	]);
+	// Get data from actual stores instead of hardcoded arrays
+	let projects = $derived(projectStore.projects.map((p) => ({ id: p.id, name: p.name })));
+	let images = $derived(
+		imageStore.allImages.map((img) => ({
+			id: img.id,
+			url: img.url,
+			name: img.filename
+		}))
+	);
 
-	// Load tasks when component mounts
+	// Load data when component mounts
 	onMount(() => {
 		taskStore.loadTasks();
+		projectStore.fetchProjects();
+		imageStore.fetchImages();
 	});
 
 	// Event handlers

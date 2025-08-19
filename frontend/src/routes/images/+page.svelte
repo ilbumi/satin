@@ -1,14 +1,20 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Button, Card, Modal, Toast } from '$lib/components/ui';
-	import { ImageGallery, AddImageByUrl, ImageViewer, ImageUpload } from '$lib/components/images';
+	import { ImageGallery, AddImageByUrl, ImageViewer } from '$lib/components/images';
+	import { ImageAnnotator } from '$lib/components/annotations';
 	import { imageStore } from '$lib/features/images/store.svelte';
+	import { taskStore } from '$lib/features/tasks/store.svelte';
 	import type { ImageSummary, ImageDetail, ImageFilters } from '$lib/features/images/types';
+	import type { ClientAnnotation } from '$lib/features/annotations/types';
+	import type { Task } from '$lib/graphql/generated/graphql';
 
 	let showAddModal = $state(false);
-	let showUploadModal = $state(false);
 	let showViewer = $state(false);
+	let showAnnotator = $state(false);
 	let selectedImage = $state<ImageSummary | null>(null);
+	let selectedImageForAnnotation = $state<ImageSummary | null>(null);
+	let selectedTaskForAnnotation = $state<Task | null>(null);
 	let showToast = $state(false);
 	let toastMessage = $state('');
 	let toastType = $state<'success' | 'error'>('success');
@@ -40,9 +46,64 @@
 		});
 	}
 
-	function handleImageAnnotate(image: ImageSummary | ImageDetail) {
-		// Navigate to annotation page
-		window.location.href = `/annotations?imageId=${image.id}`;
+	async function handleImageAnnotate(image: ImageSummary | ImageDetail) {
+		// Find or create a task for this image
+		await taskStore.loadTasks();
+
+		let task = taskStore.state.list.tasks.find((t) => t.imageId === image.id);
+
+		if (!task) {
+			// Create a new task for this image
+			try {
+				// You might want to show a modal to let user select project first
+				// For now, we'll create a simple task
+				const createForm = {
+					imageId: image.id,
+					projectId: 'default', // You'd need to handle project selection
+					status: 'DRAFT' as const
+				};
+
+				await taskStore.createTask(createForm);
+				await taskStore.loadTasks(); // Refresh to get the new task
+				task = taskStore.state.list.tasks.find((t) => t.imageId === image.id);
+			} catch {
+				showErrorToast('Failed to create annotation task');
+				return;
+			}
+		}
+
+		if (!task) {
+			showErrorToast('Could not create or find annotation task');
+			return;
+		}
+
+		// Get the actual Task object from the service
+		const taskService = new (await import('$lib/features/tasks/service')).TaskService();
+		const fullTask = await taskService.getTask(task.id);
+
+		if (!fullTask) {
+			showErrorToast('Could not load task details');
+			return;
+		}
+
+		// Open the annotation editor
+		selectedImageForAnnotation = image as ImageSummary;
+		selectedTaskForAnnotation = fullTask;
+		showAnnotator = true;
+	}
+
+	function handleAnnotationSave(annotations: ClientAnnotation[]) {
+		const count = annotations.length;
+		showSuccessToast(`${count} annotation${count !== 1 ? 's' : ''} saved successfully`);
+
+		// Refresh task data
+		taskStore.refreshTasks();
+	}
+
+	function handleAnnotatorClose() {
+		showAnnotator = false;
+		selectedImageForAnnotation = null;
+		selectedTaskForAnnotation = null;
 	}
 
 	function handleAddSuccess(images: ImageDetail[]) {
@@ -55,22 +116,6 @@
 		showErrorToast(error);
 	}
 
-	async function handleUploadSuccess(files: File[]) {
-		try {
-			const results = await imageStore.uploadImages(files);
-			showUploadModal = false;
-			showSuccessToast(
-				`${results.length} image${results.length > 1 ? 's' : ''} uploaded successfully`
-			);
-		} catch (error) {
-			showErrorToast(error instanceof Error ? error.message : 'Upload failed');
-		}
-	}
-
-	function handleUploadError(error: string) {
-		showErrorToast(error);
-	}
-
 	function handleFiltersChange(filters: Partial<ImageFilters>) {
 		imageStore.setFilters(filters);
 	}
@@ -79,9 +124,10 @@
 		imageStore.nextPage();
 	}
 
-	// Load images on mount
+	// Load images and tasks on mount
 	onMount(() => {
 		imageStore.fetchImages();
+		taskStore.loadTasks();
 	});
 </script>
 
@@ -96,11 +142,7 @@
 			<p class="mt-2 text-gray-600">Browse and manage your image collection</p>
 		</div>
 		<div class="flex gap-3">
-			<Button variant="primary" onclick={() => (showUploadModal = true)}>
-				<span class="mr-2">📤</span>
-				Upload Images
-			</Button>
-			<Button variant="secondary" onclick={() => (showAddModal = true)}>
+			<Button variant="primary" onclick={() => (showAddModal = true)}>
 				<span class="mr-2">🌐</span>
 				Add by URL
 			</Button>
@@ -146,15 +188,9 @@
 		onImageDelete={handleImageDelete}
 		onImageAnnotate={handleImageAnnotate}
 		onFiltersChange={handleFiltersChange}
-		onUploadClick={() => (showUploadModal = true)}
 		onLoadMore={handleLoadMore}
 	/>
 </div>
-
-<!-- Upload Images Modal -->
-<Modal bind:open={showUploadModal} title="Upload Images" size="lg" closeOnBackdropClick={true}>
-	<ImageUpload onUpload={handleUploadSuccess} onError={handleUploadError} multiple={true} />
-</Modal>
 
 <!-- Add Images Modal -->
 <Modal bind:open={showAddModal} title="Add Images by URL" size="lg" closeOnBackdropClick={true}>
@@ -173,6 +209,20 @@
 		selectedImage = null;
 	}}
 />
+
+<!-- Image Annotator -->
+{#if selectedImageForAnnotation && selectedTaskForAnnotation}
+	<ImageAnnotator
+		bind:open={showAnnotator}
+		task={selectedTaskForAnnotation}
+		image={{
+			id: selectedImageForAnnotation.id,
+			url: selectedImageForAnnotation.url
+		}}
+		onClose={handleAnnotatorClose}
+		onSaveComplete={handleAnnotationSave}
+	/>
+{/if}
 
 <!-- Toast Notifications -->
 {#if showToast}

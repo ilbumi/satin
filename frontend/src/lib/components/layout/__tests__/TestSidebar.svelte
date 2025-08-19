@@ -25,10 +25,7 @@
 		},
 		{
 			section: 'Tools',
-			items: [
-				{ href: '/exports', label: 'Exports', icon: '📤' },
-				{ href: '/settings', label: 'Settings', icon: '⚙️' }
-			]
+			items: [{ href: '/exports', label: 'Exports', icon: '📤' }]
 		}
 	];
 

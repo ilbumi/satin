@@ -5,6 +5,11 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit(), devtoolsJson()],
+	server: {
+		hmr: {
+			overlay: false
+		}
+	},
 	test: {
 		expect: { requireAssertions: true },
 		projects: [

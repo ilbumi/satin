@@ -7,6 +7,31 @@ import { cleanup } from '@testing-library/svelte';
 // Make vi globally available
 (globalThis as unknown as { vi: typeof vi }).vi = vi;
 
+// Mock Image constructor for browser tests that need it
+if (typeof globalThis.Image === 'undefined') {
+	globalThis.Image = vi.fn(() => {
+		const img = {
+			crossOrigin: '',
+			src: '',
+			naturalWidth: 800,
+			naturalHeight: 600,
+			onload: null as (() => void) | null,
+			onerror: null as (() => void) | null,
+			addEventListener: vi.fn(),
+			removeEventListener: vi.fn()
+		};
+
+		// Simulate successful image load after a short delay
+		setTimeout(() => {
+			if (img.onload) {
+				img.onload();
+			}
+		}, 0);
+
+		return img;
+	}) as unknown as () => HTMLImageElement;
+}
+
 // Mock console methods to suppress warnings and logs in tests
 beforeAll(() => {
 	// Keep console.error for actual test failures, but suppress service logs

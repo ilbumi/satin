@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from strawberry.fastapi import GraphQLRouter
 
+from satin.config import config
 from satin.middleware.logging import RequestLoggingMiddleware
 from satin.schema.mutation import Mutation
 from satin.schema.query import Query
@@ -17,13 +18,14 @@ def create_app() -> FastAPI:
     # Add request logging middleware
     app.add_middleware(RequestLoggingMiddleware)
 
-    # Configure CORS
+    # Configure CORS with specific origins from config
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=config.cors_origins,  # Use specific origins from config
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["*"],
+        expose_headers=["*"],
     )
 
     graphql_app = GraphQLRouter(schema)

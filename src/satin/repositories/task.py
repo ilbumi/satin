@@ -297,3 +297,23 @@ class TaskRepository(BaseRepository[Task]):
     async def count_all_tasks(self, query_input=None) -> int:  # QueryModel | None
         """Count total number of tasks."""
         return await self.count_all(query_input=query_input)
+
+    async def has_tasks_for_project(self, project_id: strawberry.ID) -> bool:
+        """Check if any tasks exist for a given project."""
+        try:
+            validated_project_id = validate_and_convert_object_id(project_id)
+        except ValidationError:
+            return False
+
+        count = await self.collection.count_documents({"project_id": validated_project_id}, limit=1)
+        return count > 0
+
+    async def has_tasks_for_image(self, image_id: strawberry.ID) -> bool:
+        """Check if any tasks exist for a given image."""
+        try:
+            validated_image_id = validate_and_convert_object_id(image_id)
+        except ValidationError:
+            return False
+
+        count = await self.collection.count_documents({"image_id": validated_image_id}, limit=1)
+        return count > 0

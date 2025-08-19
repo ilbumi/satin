@@ -23,11 +23,5 @@ export {
 	type APIErrorType
 } from './errors';
 
-// Mock utilities for testing
-export {
-	mockData,
-	createMockGraphQLClient,
-	mockGraphQLClient,
-	MockResponseStore,
-	mockResponseStore
-} from './mock';
+// Mock utilities - only export for testing environments
+export * from './mock';

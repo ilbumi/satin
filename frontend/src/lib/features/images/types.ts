@@ -27,6 +27,7 @@ export type ImageStatus = 'pending' | 'processing' | 'ready' | 'annotated' | 'er
 export interface ImageSummary {
 	id: string;
 	filename: string;
+	url: string; // Add url property to match GraphQL Image type
 	thumbnailUrl?: string;
 	status: ImageStatus;
 	uploadedAt: string;
@@ -60,7 +61,6 @@ export interface ImageListState {
 export interface ImageOperations {
 	fetchImages: () => Promise<void>;
 	addImagesByUrl: (urls: string[]) => Promise<ImageDetail[]>;
-	uploadImages: (files: File[]) => Promise<ImageDetail[]>;
 	deleteImage: (id: string) => Promise<boolean>;
 	setFilters: (filters: Partial<ImageFilters>) => void;
 	setPage: (offset: number) => void;

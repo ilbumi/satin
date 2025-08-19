@@ -1,7 +1,9 @@
 """Input sanitization and validation utilities for security."""
 
 import html
+import ipaddress
 import re
+import socket
 from urllib.parse import urlparse
 
 import bleach
@@ -11,7 +13,6 @@ from bson.errors import InvalidId
 
 from satin.constants import (
     ALLOWED_URL_SCHEMES,
-    BIND_ALL_INTERFACES,
     FORBIDDEN_URL_HOSTS,
     MAX_CHAR_EXCLUDE,
     MAX_DESCRIPTION_LENGTH,
@@ -33,6 +34,103 @@ from satin.exceptions import (
     TagValidationError,
     UrlValidationError,
 )
+
+# Error message constants
+URL_SHORTENERS_ERROR = "URL shorteners are not allowed for security reasons"
+
+
+def _check_url_shorteners(parsed) -> None:
+    """Check for URL shorteners and raise error if found."""
+    suspicious_domains = ["bit.ly", "tinyurl.com", "goo.gl", "ow.ly", "is.gd", "buff.ly"]
+    if parsed.hostname and any(domain in parsed.hostname.lower() for domain in suspicious_domains):
+        raise UrlValidationError(URL_SHORTENERS_ERROR)
+
+
+def _check_dangerous_patterns(url: str) -> None:
+    """Check for dangerous SSRF bypass patterns."""
+    dangerous_patterns = [
+        "@",  # Credential bypass
+        "%40",  # URL encoded @
+        "0x",  # Hex IP notation
+        "0177",  # Octal IP notation
+        "0o177",  # Python octal notation
+        "[::]",  # IPv6 any address
+        "%2e%2e",  # URL encoded ../
+        "..%2f",  # Mixed encoding
+        "%252e",  # Double encoding
+        "\\",  # Backslash bypass
+        "%5c",  # URL encoded backslash
+        "0.0.0.0",  # Bind all interfaces  # noqa: S104
+    ]
+
+    url_lower = url.lower()
+    for pattern in dangerous_patterns:
+        if pattern in url_lower:
+            raise UrlValidationError.dangerous_patterns()
+
+
+def _is_private_ip(hostname: str) -> bool:
+    """Check if a hostname resolves to a private IP address.
+
+    Args:
+        hostname: The hostname to check
+
+    Returns:
+        True if the hostname resolves to a private IP, False otherwise
+
+    """
+    try:
+        # Try to parse as IP address first
+        ip = ipaddress.ip_address(hostname)
+        return (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_multicast
+            or ip.is_reserved
+            or (hasattr(ip, "is_unspecified") and ip.is_unspecified)
+        )
+    except ValueError:
+        # Not an IP address, try to resolve hostname
+        try:
+            # Resolve hostname to IP addresses
+            # Use getaddrinfo to handle both IPv4 and IPv6
+            addr_info = socket.getaddrinfo(hostname, None)
+            for info in addr_info:
+                # info[4][0] contains the IP address
+                ip_str = info[4][0]
+                try:
+                    ip = ipaddress.ip_address(ip_str)
+                    if (
+                        ip.is_private
+                        or ip.is_loopback
+                        or ip.is_link_local
+                        or ip.is_multicast
+                        or ip.is_reserved
+                        or (hasattr(ip, "is_unspecified") and ip.is_unspecified)
+                    ):
+                        return True
+                except ValueError:
+                    continue
+        except (OSError, socket.gaierror):
+            # Cannot resolve hostname, treat as potentially dangerous
+            return True
+        else:
+            return False
+
+
+def _validate_hostname(parsed) -> None:
+    """Validate hostname for security issues."""
+    hostname = parsed.hostname
+    if hostname:
+        # Check for localhost and local IPs using proper validation
+        if hostname.lower() in FORBIDDEN_URL_HOSTS:
+            raise UrlValidationError.local_url_not_allowed()
+
+        # Use proper IP validation to check for private IPs
+        if _is_private_ip(hostname):
+            raise UrlValidationError.private_url_not_allowed()
+
 
 # Regex patterns for validation
 SAFE_STRING_PATTERN = re.compile(r"^[\w\s\-.,!?@#$%^&*()\[\]{}/\\:;'\"+=~`|]+$")
@@ -232,24 +330,17 @@ def validate_url(url: str, allow_local: bool = False) -> str:
 
     # Check for local URLs if not allowed
     if not allow_local:
-        hostname = parsed.hostname
-        if hostname:
-            # Check for localhost and local IPs
-            if hostname.lower() in FORBIDDEN_URL_HOSTS:
-                raise UrlValidationError.local_url_not_allowed()
+        _validate_hostname(parsed)
 
-            # Check for private IP ranges and bind all interfaces
-            if hostname.startswith(("10.", "192.168.", "172.")) or hostname == BIND_ALL_INTERFACES:
-                raise UrlValidationError.private_url_not_allowed()
+        # Check for file:// protocol disguised as http
+        if "file:" in url.lower():
+            raise UrlValidationError.file_protocol_not_allowed()
 
-            # Check for file:// protocol disguised as http
-            if "file:" in url.lower():
-                raise UrlValidationError.file_protocol_not_allowed()
+    # Check for common SSRF bypass patterns
+    _check_dangerous_patterns(url)
 
-    # Check for common SSRF patterns
-    dangerous_patterns = ["@", "%40", "0x", "0177", "::1", "[::]"]
-    if any(pattern in url.lower() for pattern in dangerous_patterns):
-        raise UrlValidationError.dangerous_patterns()
+    # Additional check for URL shorteners and redirectors which could bypass validation
+    _check_url_shorteners(parsed)
 
     return url
 

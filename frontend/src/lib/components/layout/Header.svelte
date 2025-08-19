@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { Button } from '$lib/components/ui';
 
 	let { onToggleSidebar = () => {} }: { onToggleSidebar?: () => void } = $props();
 
@@ -70,7 +69,7 @@
 				{/each}
 			</nav>
 
-			<!-- User Menu / Settings -->
+			<!-- User Menu -->
 			<div class="flex items-center space-x-4">
 				<!-- Mobile menu button -->
 				<button
@@ -92,12 +91,6 @@
 						/>
 					</svg>
 				</button>
-
-				<!-- Settings button -->
-				<Button variant="ghost" size="sm">
-					<span class="mr-2">⚙️</span>
-					Settings
-				</Button>
 			</div>
 		</div>
 	</div>

@@ -1,4 +1,4 @@
-import { test, expect } from './test';
+import { test, expect } from '@playwright/test';
 
 test.describe('Task Management', () => {
 	test.beforeEach(async ({ page }) => {

@@ -1,6 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { TaskService } from '../service';
-import { taskStore } from '../store.svelte';
 import {
 	mockTask,
 	mockTaskSummary,
@@ -11,12 +9,27 @@ import {
 } from './mocks';
 import type { Task, TaskPage } from '$lib/graphql/generated/graphql';
 
-// Mock the TaskService
-vi.mock('../service');
-const MockedTaskService = vi.mocked(TaskService);
+// Mock the TaskService class using vi.hoisted
+const MockTaskService = vi.hoisted(() => {
+	return vi.fn().mockImplementation(() => ({
+		getTasks: vi.fn(),
+		getTask: vi.fn(),
+		getTaskByImageAndProject: vi.fn(),
+		createTask: vi.fn(),
+		updateTask: vi.fn(),
+		deleteTask: vi.fn(),
+		mapTaskToSummary: vi.fn()
+	}));
+});
+
+vi.mock('../service', () => ({
+	TaskService: MockTaskService
+}));
+
+import { taskStore } from '../store.svelte';
 
 describe('TaskStore', () => {
-	let mockTaskService: ReturnType<typeof vi.mocked<TaskService>>;
+	let mockTaskService: ReturnType<typeof MockTaskService>;
 
 	beforeEach(() => {
 		// Reset mock counter
@@ -26,7 +39,7 @@ describe('TaskStore', () => {
 		vi.clearAllMocks();
 
 		// Create a fresh mock service instance
-		mockTaskService = new MockedTaskService() as ReturnType<typeof vi.mocked<TaskService>>;
+		mockTaskService = new MockTaskService();
 
 		// Replace the service instance in the store
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any

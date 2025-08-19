@@ -10,6 +10,7 @@
 		type?: 'button' | 'submit' | 'reset';
 		onclick?: (event: MouseEvent) => void;
 		class?: string;
+		title?: string;
 		'aria-label'?: string;
 		'data-testid'?: string;
 		children?: import('svelte').Snippet;
@@ -23,6 +24,7 @@
 		type = 'button',
 		onclick,
 		class: className = '',
+		title,
 		'aria-label': ariaLabel,
 		'data-testid': dataTestId,
 		children
@@ -61,6 +63,7 @@
 	class={computedClasses}
 	disabled={isDisabled}
 	{onclick}
+	{title}
 	aria-busy={loading}
 	aria-label={ariaLabel}
 	data-testid={dataTestId}
