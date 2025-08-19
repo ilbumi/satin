@@ -29,6 +29,7 @@ services:
       target: production
     restart: unless-stopped
     environment:
+      - MONGO_HOST=mongodb
       - MONGO_DSN=mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongodb:27017/${MONGO_DATABASE}?authSource=admin
       - CORS_ORIGINS=${CORS_ORIGINS}
     ports:
