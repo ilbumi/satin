@@ -185,10 +185,20 @@ export class ImageService {
 			return { valid: false, error: 'URL is required' };
 		}
 
+		// Check for data URLs (base64 images)
+		if (url.toLowerCase().startsWith('data:image/')) {
+			// Basic validation for data URLs
+			if (url.includes(';base64,')) {
+				return { valid: true };
+			}
+			return { valid: false, error: 'Data URL must be base64 encoded' };
+		}
+
+		// Validate HTTP/HTTPS URLs
 		try {
 			const urlObj = new URL(url);
 			if (!['http:', 'https:'].includes(urlObj.protocol)) {
-				return { valid: false, error: 'URL must use HTTP or HTTPS protocol' };
+				return { valid: false, error: 'URL must use HTTP, HTTPS, or data protocol' };
 			}
 			return { valid: true };
 		} catch {
@@ -200,7 +210,13 @@ export class ImageService {
 	 * Generate thumbnail URL
 	 */
 	generateThumbnailUrl(imageUrl: string, width = 200, height = 200): string {
-		// This would integrate with your image processing service
+		// For data URLs, return as-is (they're already self-contained)
+		if (imageUrl.toLowerCase().startsWith('data:image/')) {
+			return imageUrl;
+		}
+
+		// For HTTP/HTTPS URLs, add query parameters for resizing
+		// This assumes your image processing service supports these parameters
 		return `${imageUrl}?w=${width}&h=${height}&fit=crop`;
 	}
 
@@ -208,6 +224,12 @@ export class ImageService {
 	 * Generate preview URL
 	 */
 	generatePreviewUrl(imageUrl: string, width = 800): string {
+		// For data URLs, return as-is
+		if (imageUrl.toLowerCase().startsWith('data:image/')) {
+			return imageUrl;
+		}
+
+		// For HTTP/HTTPS URLs, add query parameters for resizing
 		return `${imageUrl}?w=${width}&fit=scale`;
 	}
 

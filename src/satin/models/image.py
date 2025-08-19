@@ -1,13 +1,21 @@
 """Pydantic model for Image."""
 
-from pydantic import AnyUrl, BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from satin.validators import validate_url
 
 
 class Image(BaseModel):
     """Image model for annotation images."""
 
     id: str = Field(..., description="Unique identifier for the image")
-    url: AnyUrl = Field(..., description="URL of the image (HTTP/HTTPS/data URLs)")
+    url: str = Field(..., description="URL of the image (HTTP/HTTPS/data URLs)")
+
+    @field_validator("url")
+    @classmethod
+    def validate_url_field(cls, v: str) -> str:
+        """Validate URL using custom validator that allows HTTP/HTTPS/data URLs."""
+        return validate_url(v, allow_local=False)
 
     def __str__(self) -> str:
         """Get string representation of the Image."""

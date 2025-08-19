@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.scripts]
-satin = "satin.__main__:main"
+satin = "satin.__main__:cli"
 
 [build-system]
 requires = ["hatchling"]

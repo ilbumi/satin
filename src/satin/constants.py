@@ -29,7 +29,7 @@ MAX_BBOXES_PER_TASK = 1000
 MAX_REGEX_PATTERN_LENGTH = 1000
 
 # URL validation
-ALLOWED_URL_SCHEMES = {"http", "https"}
+ALLOWED_URL_SCHEMES = {"http", "https", "data"}
 FORBIDDEN_URL_HOSTS = {"localhost", "127.0.0.1", "::1"}
 BIND_ALL_INTERFACES = "0.0.0.0"  # nosec  # noqa: S104
 

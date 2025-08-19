@@ -328,6 +328,14 @@ def validate_url(url: str, allow_local: bool = False) -> str:
         schemes = ", ".join(ALLOWED_URL_SCHEMES)
         raise UrlValidationError.invalid_scheme(schemes)
 
+    # Skip validation for data URLs (base64 encoded images)
+    if parsed.scheme == "data":
+        # Basic data URL validation: check if it's an image
+        if not url.lower().startswith("data:image/"):
+            msg = "Data URLs must be image type"
+            raise UrlValidationError.invalid_format(msg)
+        return url
+
     # Check for local URLs if not allowed
     if not allow_local:
         _validate_hostname(parsed)

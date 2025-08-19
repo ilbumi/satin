@@ -102,7 +102,7 @@ dev:
 .PHONY: backend-dev
 backend-dev: mongo-start
 	@echo "Starting backend server..."
-	uv run granian --interface asgi satin.main:app --host 0.0.0.0 --port 8000 --reload
+	uv run satin --reload --host 0.0.0.0 --port 8000
 
 .PHONY: dev-stop
 dev-stop:

@@ -33,6 +33,8 @@
 	let imageElement = $state<HTMLImageElement>();
 	let imageLoading = $state(true);
 	let imageError = $state(false);
+	let retryCount = $state(0);
+	const MAX_RETRIES = 2;
 
 	const sizeClasses = {
 		sm: 'w-32 h-24',
@@ -43,11 +45,36 @@
 	function handleImageLoad() {
 		imageLoading = false;
 		imageError = false;
+		retryCount = 0;
 	}
 
 	function handleImageError() {
 		imageLoading = false;
-		imageError = true;
+
+		// Try to retry loading the image up to MAX_RETRIES times
+		if (retryCount < MAX_RETRIES && imageElement) {
+			retryCount++;
+
+			// Add a small delay before retrying
+			setTimeout(() => {
+				imageLoading = true;
+				imageElement!.src =
+					imageElement!.src + (imageElement!.src.includes('?') ? '&' : '?') + `retry=${retryCount}`;
+			}, 1000 * retryCount); // Progressive delay
+		} else {
+			imageError = true;
+		}
+	}
+
+	function retryImageLoad() {
+		if (imageElement) {
+			imageError = false;
+			imageLoading = true;
+			retryCount = 0;
+			// Force reload by changing src
+			const originalSrc = image.thumbnailUrl || image.url;
+			imageElement.src = originalSrc + (originalSrc.includes('?') ? '&' : '?') + `t=${Date.now()}`;
+		}
 	}
 
 	function handleClick() {
@@ -128,9 +155,17 @@
 		{/if}
 
 		{#if imageError}
-			<div class="flex h-full flex-col items-center justify-center text-gray-400">
-				<div class="mb-2 text-2xl">❌</div>
-				<span class="text-xs">Failed to load</span>
+			<div class="flex h-full flex-col items-center justify-center p-2 text-gray-400">
+				<div class="mb-2 text-xl">⚠️</div>
+				<span class="mb-2 text-center text-xs">Failed to load</span>
+				<Button
+					variant="ghost"
+					size="sm"
+					onclick={retryImageLoad}
+					class="h-auto min-h-0 px-2 py-1 text-xs"
+				>
+					🔄 Retry
+				</Button>
 			</div>
 		{:else if image.thumbnailUrl}
 			<img

@@ -142,17 +142,34 @@ export class TestDataFactory {
 	 */
 	async createImage(filename: string): Promise<TestImage> {
 		// Generate a unique URL for each image to avoid duplicate key errors
-		// Use a real image URL with query parameters to make it unique
 		const timestamp = Date.now();
 		const randomId = Math.random().toString(36).substring(7);
-		// Use picsum.photos which provides random placeholder images
-		const testImageUrl = `https://picsum.photos/400/300?random=${timestamp}_${randomId}`;
 
-		const result = await testGraphQLClient
+		// Try picsum.photos first, fall back to data URL if needed
+		let testImageUrl = `https://picsum.photos/400/300?random=${timestamp}_${randomId}`;
+
+		// Fallback: small base64 test image (1x1 pixel transparent PNG)
+		const fallbackDataUrl =
+			'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
+
+		// You could add logic here to test if picsum is accessible and use fallback if not
+
+		let result = await testGraphQLClient
 			.mutation(CREATE_IMAGE_MUTATION, {
 				url: testImageUrl
 			})
 			.toPromise();
+
+		// If picsum URL fails, try with fallback data URL
+		if (result.error && result.error.message.toLowerCase().includes('url')) {
+			console.warn(`Picsum URL failed, using fallback data URL: ${result.error.message}`);
+			testImageUrl = fallbackDataUrl;
+			result = await testGraphQLClient
+				.mutation(CREATE_IMAGE_MUTATION, {
+					url: testImageUrl
+				})
+				.toPromise();
+		}
 
 		if (result.error) {
 			throw new Error(`Failed to create image: ${result.error.message}`);
@@ -163,8 +180,8 @@ export class TestDataFactory {
 		return {
 			id: image.id,
 			filename,
-			url: image.url,
-			thumbnailUrl: image.url
+			url: testImageUrl, // Use the URL that was successfully created
+			thumbnailUrl: testImageUrl
 		};
 	}
 
