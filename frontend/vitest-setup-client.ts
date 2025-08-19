@@ -56,7 +56,7 @@ beforeAll(() => {
 
 	vi.spyOn(console, 'warn').mockImplementation((...args) => {
 		const message = args[0]?.toString() || '';
-		if (message.includes('MSW:') || message.includes('Some image additions failed')) {
+		if (message.includes('Some image additions failed')) {
 			return; // Suppress
 		}
 		originalWarn(...args); // Allow through
@@ -65,7 +65,6 @@ beforeAll(() => {
 	vi.spyOn(console, 'log').mockImplementation((...args) => {
 		const message = args[0]?.toString() || '';
 		if (
-			message.includes('🔶 MSW:') ||
 			message.includes('Environment validated') ||
 			message.includes('🧪 Running GraphQL') ||
 			message.includes('Navigate to')
