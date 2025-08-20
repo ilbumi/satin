@@ -6,12 +6,13 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "bleach==6.2.0",
-    "fastapi[granian]>=0.116.1",
+    "fastapi",
     "granian>=2.4.2",
     "pydantic>=2.10.0",
     "pydantic-settings>=2.10.1",
     "pymongo>=4.13.2",
-    "strawberry-graphql[fastapi]>=0.278.0",
+    "slowapi",
+    "strawberry-graphql[fastapi]",
 ]
 
 [project.scripts]

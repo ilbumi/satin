@@ -10,11 +10,10 @@ ENV PATH="$PNPM_HOME:$PATH" \
 RUN corepack enable
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apk add --no-cache \
     python3 \
     make \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
+    g++
 
 # Set working directory
 WORKDIR /app
@@ -43,13 +42,12 @@ ENV NODE_ENV=production \
 RUN corepack enable
 
 # Install only runtime dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache \
+    curl
 
 # Create non-root user
-RUN groupadd --gid 1001 appuser && \
-    useradd --uid 1001 --gid appuser --shell /bin/bash --create-home appuser
+RUN addgroup -g 1001 appuser && \
+    adduser -u 1001 -G appuser -s /bin/sh -D appuser
 
 # Set working directory
 WORKDIR /app

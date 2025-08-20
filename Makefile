@@ -65,7 +65,7 @@ test: test-backend test-frontend
 
 .PHONY: test-backend
 test-backend:
-	uv run pytest -n 5 --cov .
+	DISABLE_RATE_LIMITING=true uv run pytest -n 5 --cov .
 
 .PHONY: test-frontend
 test-frontend:
