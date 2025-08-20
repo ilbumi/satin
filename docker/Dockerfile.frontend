@@ -1,10 +1,10 @@
 # Multi-stage build for optimized production image
-FROM node:24-slim AS builder
+FROM node:24-alpine AS builder
 
 # Set environment variables
-ENV NODE_ENV=production \
-    PNPM_HOME="/pnpm" \
-    PATH="$PNPM_HOME:$PATH"
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH" \
+    NODE_ENV=production
 
 # Install pnpm
 RUN corepack enable
@@ -32,11 +32,11 @@ COPY frontend/ ./
 RUN pnpm build
 
 # Production stage
-FROM node:24-slim AS production
+FROM node:24-alpine AS production
 
 # Set environment variables
+ENV PNPM_HOME="/pnpm"
 ENV NODE_ENV=production \
-    PNPM_HOME="/pnpm" \
     PATH="$PNPM_HOME:$PATH"
 
 # Enable pnpm
