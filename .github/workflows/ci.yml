@@ -163,7 +163,12 @@ jobs:
         working-directory: ./frontend
         run: pnpm check
 
-      - name: Test with vitest (unit tests only)
+      - name: Install Playwright deps
+        working-directory: ./frontend
+        run: |
+          pnpm exec playwright install
+
+      - name: Run unit tests
         working-directory: ./frontend
         run: pnpm run test:unit
 
