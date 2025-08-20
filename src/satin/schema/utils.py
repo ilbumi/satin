@@ -12,6 +12,9 @@ from satin.validators import _validate_regex_pattern, validate_and_convert_objec
 # Type conversion utilities
 T = TypeVar("T")
 
+# Error message constants
+FROM_PYDANTIC_NOT_FOUND_ERROR = "%s does not have a from_pydantic method"
+
 
 def get_model_fields(model_class: type) -> dict[str, type]:
     """Get all fields and their types for a Strawberry model."""
@@ -152,3 +155,28 @@ def build_mongodb_sort_condition(field: str, direction: str) -> tuple[str, int]:
     """Build MongoDB sort condition from sort input."""
     sort_direction = 1 if direction.lower() == "asc" else -1
     return (field, sort_direction)
+
+
+def convert_pydantic_to_strawberry[T](pydantic_model: Any, strawberry_class: type[T]) -> T:
+    """Convert a Pydantic model to a Strawberry type.
+
+    This is a helper function to work around type checking issues with
+    strawberry.experimental.pydantic.type decorator's from_pydantic method.
+
+    Args:
+        pydantic_model: The Pydantic model instance to convert
+        strawberry_class: The Strawberry class to convert to
+
+    Returns:
+        An instance of the Strawberry class
+
+    """
+    # The from_pydantic method is added by the @strawberry.experimental.pydantic.type decorator
+    # We use getattr to access it at runtime
+    if hasattr(strawberry_class, "from_pydantic"):
+        return strawberry_class.from_pydantic(pydantic_model)  # type: ignore[attr-defined, no-any-return]
+
+    # Fallback: manual conversion if from_pydantic is not available
+    # This should not happen with properly decorated classes
+    msg = FROM_PYDANTIC_NOT_FOUND_ERROR % strawberry_class.__name__
+    raise AttributeError(msg)

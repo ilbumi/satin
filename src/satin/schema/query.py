@@ -10,6 +10,7 @@ from satin.schema.filters import QueryInput  # noqa: TC001
 from satin.schema.image import Image
 from satin.schema.project import Project
 from satin.schema.task import Task
+from satin.schema.utils import convert_pydantic_to_strawberry
 
 # Global repository factory instance
 repo_factory = RepositoryFactory(db)
@@ -39,7 +40,7 @@ class Query:
         pydantic_project = await repo_factory.project_repo.get_project(id)
         if pydantic_project is None:
             return None
-        return Project.from_pydantic(pydantic_project)  # type: ignore[no-any-return,attr-defined]
+        return convert_pydantic_to_strawberry(pydantic_project, Project)
 
     @strawberry.field
     async def projects(self, limit: int = 10, offset: int = 0, query: QueryInput | None = None) -> Page[Project]:
@@ -54,7 +55,7 @@ class Query:
         pydantic_projects = await repo_factory.project_repo.get_all_projects(
             limit=actual_limit, offset=actual_offset, query_input=query_model
         )
-        projects = [Project.from_pydantic(p) for p in pydantic_projects]  # type: ignore[no-any-return,attr-defined]
+        projects = [convert_pydantic_to_strawberry(p, Project) for p in pydantic_projects]
         total_count = await repo_factory.project_repo.count_all_projects(query_input=query_model)
         has_more = actual_offset + len(projects) < total_count
         return Page(
@@ -72,7 +73,7 @@ class Query:
         pydantic_image = await repo_factory.image_repo.get_image(id)
         if pydantic_image is None:
             return None
-        return Image.from_pydantic(pydantic_image)  # type: ignore[no-any-return,attr-defined]
+        return convert_pydantic_to_strawberry(pydantic_image, Image)
 
     @strawberry.field
     async def images(self, limit: int = 10, offset: int = 0, query: QueryInput | None = None) -> Page[Image]:
@@ -86,7 +87,7 @@ class Query:
         pydantic_images = await repo_factory.image_repo.get_all_images(
             limit=actual_limit, offset=actual_offset, query_input=query_model
         )
-        images = [Image.from_pydantic(img) for img in pydantic_images]  # type: ignore[no-any-return,attr-defined]
+        images = [convert_pydantic_to_strawberry(img, Image) for img in pydantic_images]
         total_count = await repo_factory.image_repo.count_all_images(query_input=query_model)
         has_more = actual_offset + len(images) < total_count
         return Page(
@@ -104,7 +105,7 @@ class Query:
         pydantic_task = await repo_factory.task_repo.get_task(id)
         if pydantic_task is None:
             return None
-        return Task.from_pydantic(pydantic_task)  # type: ignore[no-any-return,attr-defined]
+        return convert_pydantic_to_strawberry(pydantic_task, Task)
 
     @strawberry.field
     async def tasks(self, limit: int = 10, offset: int = 0, query: QueryInput | None = None) -> Page[Task]:
@@ -118,7 +119,7 @@ class Query:
         pydantic_tasks = await repo_factory.task_repo.get_all_tasks(
             limit=actual_limit, offset=actual_offset, query_input=query_model
         )
-        tasks = [Task.from_pydantic(task) for task in pydantic_tasks]  # type: ignore[no-any-return,attr-defined]
+        tasks = [convert_pydantic_to_strawberry(task, Task) for task in pydantic_tasks]
         total_count = await repo_factory.task_repo.count_all_tasks(query_input=query_model)
         has_more = actual_offset + len(tasks) < total_count
         return Page(
@@ -136,4 +137,4 @@ class Query:
         pydantic_task = await repo_factory.task_repo.get_task_by_image_and_project(image_id, project_id)
         if pydantic_task is None:
             return None
-        return Task.from_pydantic(pydantic_task)  # type: ignore[no-any-return,attr-defined]
+        return convert_pydantic_to_strawberry(pydantic_task, Task)

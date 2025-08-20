@@ -6,15 +6,7 @@ const config = {
 	// Consult https://svelte.dev/docs/kit/integrations
 	// for more information about preprocessors
 	preprocess: vitePreprocess(),
-
-	kit: {
-		// Use Node.js adapter for standalone server deployment
-		adapter: adapter({
-			out: 'build',
-			precompress: false,
-			envPrefix: ''
-		})
-	}
+	kit: { adapter: adapter() }
 };
 
 export default config;

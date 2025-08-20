@@ -15,7 +15,7 @@ services:
     environment:
       - ENVIRONMENT=development
       - MONGO_DSN=mongodb://admin:password@mongodb:27017/satin?authSource=admin
-      - VITE_API_URL=http://localhost:8000
+      - VITE_BACKEND_URL=http://localhost:8000
       - NODE_ENV=development
     depends_on:
       - mongodb

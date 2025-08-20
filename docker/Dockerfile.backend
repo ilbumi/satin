@@ -16,11 +16,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set the working directory
 WORKDIR /app
 
-# Copy dependency files
-COPY src README.md pyproject.toml uv.lock ./
+# Copy dependency files and source code with proper structure
+COPY pyproject.toml uv.lock README.md ./
+COPY src ./src
 
-# Install dependencies into virtual environment
-RUN uv sync --no-dev --locked --no-install-project --no-editable
+# Install dependencies and project into virtual environment
+RUN uv sync --no-dev --locked
 
 # Production stage
 FROM python:3.13.6-slim AS production
@@ -45,8 +46,8 @@ WORKDIR /app
 # Copy virtual environment from builder stage
 COPY --from=builder /app/.venv /app/.venv
 
-# Copy application code
-COPY --chown=appuser:appuser src/satin ./satin
+# Copy source code for .pth file to work (package installed in editable mode)
+COPY --chown=appuser:appuser --from=builder /app/src ./src
 
 # Change to non-root user
 USER appuser
@@ -59,4 +60,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # Command to run the application
-CMD ["granian", "--interface", "asgi", "--host", "0.0.0.0", "--port", "8000", "satin:app"]
+CMD ["satin", "--host", "0.0.0.0", "--port", "8000", "--no-reload"]

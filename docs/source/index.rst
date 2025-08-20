@@ -1,69 +1,105 @@
-SATIn Documentation
-===================
+=====================================
+SATIn - Simple Annotation Tool for Images
+=====================================
 
-**SATIn** (Semi-Automated Tool for Image Annotation) is a comprehensive image annotation tool designed for creating datasets for computer vision tasks. It features a Python FastAPI backend with GraphQL API and a SvelteKit frontend.
+SATIn is an image annotation platform for creating datasets for computer vision tasks.
 
-.. image:: https://img.shields.io/badge/python-3.13+-blue.svg
-   :target: https://www.python.org/downloads/
-   :alt: Python 3.13+
+Quick Links
+===========
 
-.. image:: https://img.shields.io/badge/fastapi-0.116+-green.svg
-   :target: https://fastapi.tiangolo.com/
-   :alt: FastAPI
-
-.. image:: https://img.shields.io/badge/svelte-5+-orange.svg
-   :target: https://svelte.dev/
-   :alt: Svelte 5
-
-Quick Start
------------
-
-SATIn provides a full-stack solution for image annotation workflows:
-
-- **Backend**: Python FastAPI application with GraphQL API using Strawberry GraphQL
-- **Frontend**: SvelteKit application with TypeScript and URQL GraphQL client
-- **Database**: MongoDB for persistent storage
-- **Architecture**: Repository pattern with factory for data access layer
+- :doc:`user_guide/installation` - Installation instructions
+- :doc:`api/index` - API documentation
+- :doc:`developer/architecture` - System architecture
+- :doc:`developer/index` - Developer guide
 
 Features
---------
+========
 
-* 🖼️ **Image Management**: Upload, organize, and manage images for annotation projects
-* 🏷️ **Annotation Tools**: Bounding box annotation with labeling capabilities
-* 📊 **Project Management**: Organize annotation work into projects and tasks
-* 🔄 **GraphQL API**: Flexible and efficient, while simple, data access with GraphQL
+- Bounding box annotation with zoom and pan
+- Flexible labeling system
+- MongoDB storage with export to COCO, YOLO, Pascal VOC formats
+- GraphQL API built with FastAPI and Strawberry
+- SvelteKit frontend with responsive design
+- Project and task management
 
 Documentation Contents
-----------------------
+======================
 
 .. toctree::
    :maxdepth: 2
-   :caption: User Guide:
+   :caption: User Guide
 
-   installation
-   quickstart
    user_guide/index
-   api_reference/index
+   user_guide/installation
+   user_guide/quickstart
+   user_guide/projects
+   user_guide/annotations
+   user_guide/tasks
+   user_guide/export
 
 .. toctree::
    :maxdepth: 2
-   :caption: Developer Guide:
+   :caption: API Reference
 
-   development/setup
-   development/architecture
-   development/contributing
-   development/testing
+   api/index
+   api/graphql
+   api/backend
+   api/models
+   api/repositories
+   api/frontend
 
 .. toctree::
-   :maxdepth: 1
-   :caption: API Reference:
+   :maxdepth: 2
+   :caption: Developer Guide
 
-   api/backend
-   api/frontend
-   api/graphql
+   developer/index
+   developer/setup
+   developer/architecture
+   developer/backend
+   developer/frontend
+   developer/testing
+   developer/contributing
+   developer/deployment
 
-Indices and tables
-==================
+Project Status
+==============
+
+SATIn is in active development with core functionality implemented:
+
+**Implemented:**
+- Project and task management
+- Image upload and management
+- Bounding box annotation tools
+- GraphQL API with full CRUD operations
+- SvelteKit frontend
+- Test suite
+
+**In Development:**
+- Annotation tools (polygons, points)
+- Export system integration
+- ML prediction integration
+
+Architecture Overview
+====================
+
+**Backend:** FastAPI with Strawberry GraphQL, MongoDB with Motor, Pydantic models
+
+**Frontend:** SvelteKit with TypeScript, URQL GraphQL client, Konva.js canvas, TailwindCSS
+
+**Development:** uv (Python), pnpm (Node.js), Vitest, Playwright, Docker
+
+Contributing
+============
+
+See the :doc:`developer/contributing` guide for development setup, code standards, and pull request process.
+
+License
+=======
+
+MIT License - see the LICENSE file for details.
+
+Search
+======
 
 * :ref:`genindex`
 * :ref:`modindex`

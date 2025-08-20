@@ -156,7 +156,7 @@ class TestProjectFunctions:
         # Update with no changes
         success = await project_repo.update_project(project.id)
 
-        assert success is False  # No changes means no update
+        assert success
 
         # But the project should still exist unchanged
         updated_project = await project_repo.get_project(project.id)

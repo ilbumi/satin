@@ -53,6 +53,10 @@ class ProjectRepository(BaseRepository[Project]):
         if description is not None:
             update_data["description"] = description
 
+        # If no fields to update, consider it successful (idempotent operation)
+        if not update_data:
+            return True
+
         return await self.update_by_id(project_id, update_data)
 
     async def delete_project(self, project_id: strawberry.ID) -> bool:

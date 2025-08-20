@@ -164,8 +164,13 @@ class TestProjectMutations:
         }
         """
 
-        result = gql.mutate(delete_mutation, {"id": "507f1f77bcf86cd799439011"})
-        assert result["deleteProject"] is False
+        # Should return an error when trying to delete non-existent project
+        data, errors = gql.query_with_errors(delete_mutation, {"id": "507f1f77bcf86cd799439011"})
+
+        assert data is None
+        assert errors is not None
+        assert len(errors) > 0
+        assert "not found" in errors[0]["message"].lower()
 
 
 class TestImageMutations:

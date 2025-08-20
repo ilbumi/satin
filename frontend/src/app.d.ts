@@ -3,11 +3,19 @@
 declare global {
 	namespace App {
 		// interface Error {}
-		// interface Locals {}
+		interface Locals {
+			nonce?: string;
+		}
 		// interface PageData {}
 		// interface PageState {}
 		// interface Platform {}
 	}
+}
+
+// Environment variable types for Vite
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+interface ImportMetaEnv {
+	readonly VITE_BACKEND_URL: string;
 }
 
 export {};

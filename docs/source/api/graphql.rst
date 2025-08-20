@@ -1,47 +1,118 @@
-GraphQL API Reference
-=====================
+================
+GraphQL Schema
+================
 
-SATIn provides a complete GraphQL API for all data operations. This reference covers the schema, queries, mutations, and usage examples.
+Complete GraphQL schema documentation for the SATIn API.
 
-## GraphQL Endpoint
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
-**URL**: ``/graphql``
-**Methods**: ``POST`` (for operations), ``GET`` (for GraphQL Playground in development)
-**Content-Type**: ``application/json``
+Queries
+=======
 
-**GraphQL Playground**: Available at ``http://localhost:8000/graphql`` in development mode
-
-## Schema Overview
-
-The SATIn GraphQL schema is built with Strawberry GraphQL and provides type-safe operations for:
-
-- **Projects**: Managing annotation projects
-- **Images**: Image metadata and references
-- **Tasks**: Annotation assignments linking images to projects
-- **Annotations**: Bounding box annotations with labels and tags
-
-## Root Operations
-
-### Query
-
-The root Query type provides read-only operations:
+Projects
+--------
 
 .. code-block:: graphql
 
    type Query {
-     projects(limit: Int, offset: Int, queryInput: QueryInput): [Project!]!
+     projects(
+       filter: String
+       limit: Int = 20
+       offset: Int = 0
+     ): ProjectPage!
+
      project(id: ID!): Project
+   }
 
-     images(limit: Int, offset: Int, queryInput: QueryInput): [Image!]!
+**projects**
+   Retrieves a paginated list of projects with optional filtering.
+
+   - ``filter`` (String, optional): Filter projects by name or description
+   - ``limit`` (Int, optional): Maximum number of projects to return (default: 20)
+   - ``offset`` (Int, optional): Number of projects to skip (default: 0)
+
+   Returns: ``ProjectPage!``
+
+**project**
+   Retrieves a single project by ID.
+
+   - ``id`` (ID, required): The unique identifier of the project
+
+   Returns: ``Project`` (nullable)
+
+Images
+------
+
+.. code-block:: graphql
+
+   type Query {
+     images(
+       projectId: ID
+       filter: String
+       limit: Int = 20
+       offset: Int = 0
+     ): ImagePage!
+
      image(id: ID!): Image
+   }
 
-     tasks(limit: Int, offset: Int, queryInput: QueryInput): [Task!]!
+**images**
+   Retrieves a paginated list of images, optionally filtered by project.
+
+   - ``projectId`` (ID, optional): Filter images by project
+   - ``filter`` (String, optional): Filter images by filename or metadata
+   - ``limit`` (Int, optional): Maximum number of images to return (default: 20)
+   - ``offset`` (Int, optional): Number of images to skip (default: 0)
+
+   Returns: ``ImagePage!``
+
+**image**
+   Retrieves a single image by ID.
+
+   - ``id`` (ID, required): The unique identifier of the image
+
+   Returns: ``Image`` (nullable)
+
+Tasks
+-----
+
+.. code-block:: graphql
+
+   type Query {
+     tasks(
+       projectId: ID
+       status: TaskStatus
+       limit: Int = 20
+       offset: Int = 0
+     ): TaskPage!
+
      task(id: ID!): Task
    }
 
-### Mutation
+**tasks**
+   Retrieves a paginated list of tasks with optional filtering.
 
-The root Mutation type provides write operations:
+   - ``projectId`` (ID, optional): Filter tasks by project
+   - ``status`` (TaskStatus, optional): Filter tasks by status
+   - ``limit`` (Int, optional): Maximum number of tasks to return (default: 20)
+   - ``offset`` (Int, optional): Number of tasks to skip (default: 0)
+
+   Returns: ``TaskPage!``
+
+**task**
+   Retrieves a single task by ID.
+
+   - ``id`` (ID, required): The unique identifier of the task
+
+   Returns: ``Task`` (nullable)
+
+Mutations
+=========
+
+Project Mutations
+------------------
 
 .. code-block:: graphql
 
@@ -49,815 +120,382 @@ The root Mutation type provides write operations:
      createProject(input: ProjectInput!): Project!
      updateProject(id: ID!, input: ProjectInput!): Project!
      deleteProject(id: ID!): Boolean!
+   }
 
-     createImage(input: ImageInput!): Image!
-     updateImage(id: ID!, input: ImageInput!): Image!
+**createProject**
+   Creates a new project.
+
+   - ``input`` (ProjectInput, required): Project creation data
+
+   Returns: ``Project!``
+
+**updateProject**
+   Updates an existing project.
+
+   - ``id`` (ID, required): The project ID to update
+   - ``input`` (ProjectInput, required): Updated project data
+
+   Returns: ``Project!``
+
+**deleteProject**
+   Deletes a project and all associated tasks and annotations.
+
+   - ``id`` (ID, required): The project ID to delete
+
+   Returns: ``Boolean!`` (true if successful)
+
+Image Mutations
+---------------
+
+.. code-block:: graphql
+
+   type Mutation {
+     uploadImage(file: Upload!, projectId: ID!): Image!
+     addImageByUrl(url: String!, projectId: ID!): Image!
      deleteImage(id: ID!): Boolean!
+   }
 
+**uploadImage**
+   Uploads a new image file to a project.
+
+   - ``file`` (Upload, required): The image file to upload
+   - ``projectId`` (ID, required): The project to add the image to
+
+   Returns: ``Image!``
+
+**addImageByUrl**
+   Adds an image by URL to a project.
+
+   - ``url`` (String, required): The URL of the image
+   - ``projectId`` (ID, required): The project to add the image to
+
+   Returns: ``Image!``
+
+**deleteImage**
+   Deletes an image and all associated tasks.
+
+   - ``id`` (ID, required): The image ID to delete
+
+   Returns: ``Boolean!`` (true if successful)
+
+Task Mutations
+--------------
+
+.. code-block:: graphql
+
+   type Mutation {
      createTask(input: TaskInput!): Task!
      updateTask(id: ID!, input: TaskInput!): Task!
+     updateTaskAnnotations(taskId: ID!, annotations: [BoundingBoxInput!]!): Task!
      deleteTask(id: ID!): Boolean!
    }
 
-## Core Types
+**createTask**
+   Creates a new annotation task.
 
-### Project
+   - ``input`` (TaskInput, required): Task creation data
 
-Represents an annotation project container:
+   Returns: ``Task!``
+
+**updateTask**
+   Updates task metadata (name, description, status).
+
+   - ``id`` (ID, required): The task ID to update
+   - ``input`` (TaskInput, required): Updated task data
+
+   Returns: ``Task!``
+
+**updateTaskAnnotations**
+   Updates all annotations for a task (replaces existing annotations).
+
+   - ``taskId`` (ID, required): The task ID to update
+   - ``annotations`` (BoundingBoxInput[], required): New annotations data
+
+   Returns: ``Task!``
+
+**deleteTask**
+   Deletes a task and all its annotations.
+
+   - ``id`` (ID, required): The task ID to delete
+
+   Returns: ``Boolean!`` (true if successful)
+
+Types
+=====
+
+Project
+-------
 
 .. code-block:: graphql
 
    type Project {
      id: ID!
      name: String!
-     description: String!
+     description: String
+     createdAt: DateTime!
+     updatedAt: DateTime!
+     imageCount: Int!
+     taskCount: Int!
+     completedTaskCount: Int!
+     images: [Image!]!
+     tasks: [Task!]!
    }
 
-   input ProjectInput {
-     name: String!
-     description: String!
-   }
+**Fields:**
 
-**Example Usage**:
+- ``id``: Unique identifier for the project
+- ``name``: Project name (required)
+- ``description``: Optional project description
+- ``createdAt``: Project creation timestamp
+- ``updatedAt``: Last modification timestamp
+- ``imageCount``: Total number of images in the project
+- ``taskCount``: Total number of tasks in the project
+- ``completedTaskCount``: Number of completed tasks
+- ``images``: List of images in the project
+- ``tasks``: List of tasks in the project
 
-.. code-block:: graphql
-
-   # Create a new project
-   mutation CreateProject {
-     createProject(input: {
-       name: "Traffic Sign Detection"
-       description: "Annotating traffic signs for autonomous driving"
-     }) {
-       id
-       name
-       description
-     }
-   }
-
-### Image
-
-Represents image metadata and file information:
+Image
+-----
 
 .. code-block:: graphql
 
    type Image {
      id: ID!
      filename: String!
-     width: Int!
-     height: Int!
-     filePath: String!
+     url: String!
+     width: Int
+     height: Int
+     fileSize: Int
+     projectId: ID!
+     project: Project!
+     createdAt: DateTime!
+     tasks: [Task!]!
    }
 
-   input ImageInput {
-     filename: String!
-     width: Int!
-     height: Int!
-     filePath: String!
-   }
+**Fields:**
 
-**Example Usage**:
+- ``id``: Unique identifier for the image
+- ``filename``: Original filename of the image
+- ``url``: URL where the image can be accessed
+- ``width``: Image width in pixels (if available)
+- ``height``: Image height in pixels (if available)
+- ``fileSize``: File size in bytes (if available)
+- ``projectId``: ID of the parent project
+- ``project``: The parent project object
+- ``createdAt``: Upload timestamp
+- ``tasks``: List of annotation tasks for this image
 
-.. code-block:: graphql
-
-   # Get image details
-   query GetImage($id: ID!) {
-     image(id: $id) {
-       id
-       filename
-       width
-       height
-       filePath
-     }
-   }
-
-### Task
-
-Represents an annotation assignment with status tracking:
+Task
+----
 
 .. code-block:: graphql
 
    type Task {
      id: ID!
-     image: Image!
-     project: Project!
-     bboxes: [BBox!]!
+     name: String!
+     description: String
      status: TaskStatus!
+     imageId: ID!
+     image: Image!
+     projectId: ID!
+     project: Project!
+     annotations: [BoundingBox!]!
+     annotationCount: Int!
      createdAt: DateTime!
+     updatedAt: DateTime!
    }
 
+**Fields:**
+
+- ``id``: Unique identifier for the task
+- ``name``: Task name (required)
+- ``description``: Optional task description
+- ``status``: Current task status (enum)
+- ``imageId``: ID of the associated image
+- ``image``: The associated image object
+- ``projectId``: ID of the parent project
+- ``project``: The parent project object
+- ``annotations``: List of bounding box annotations
+- ``annotationCount``: Total number of annotations
+- ``createdAt``: Task creation timestamp
+- ``updatedAt``: Last modification timestamp
+
+BoundingBox
+-----------
+
+.. code-block:: graphql
+
+   type BoundingBox {
+     id: ID!
+     x: Float!
+     y: Float!
+     width: Float!
+     height: Float!
+     label: String
+     description: String
+     confidence: Float
+     metadata: JSON
+   }
+
+**Fields:**
+
+- ``id``: Unique identifier for the annotation
+- ``x``: X coordinate of the top-left corner (0.0-1.0, relative to image)
+- ``y``: Y coordinate of the top-left corner (0.0-1.0, relative to image)
+- ``width``: Width of the bounding box (0.0-1.0, relative to image)
+- ``height``: Height of the bounding box (0.0-1.0, relative to image)
+- ``label``: Optional text label for the annotation
+- ``description``: Optional description or notes
+- ``confidence``: Optional confidence score (0.0-1.0)
+- ``metadata``: Optional JSON metadata
+
+Input Types
+===========
+
+ProjectInput
+------------
+
+.. code-block:: graphql
+
+   input ProjectInput {
+     name: String!
+     description: String
+   }
+
+**Fields:**
+
+- ``name`` (required): Project name
+- ``description`` (optional): Project description
+
+TaskInput
+---------
+
+.. code-block:: graphql
+
+   input TaskInput {
+     name: String!
+     description: String
+     status: TaskStatus
+     imageId: ID!
+     projectId: ID!
+   }
+
+**Fields:**
+
+- ``name`` (required): Task name
+- ``description`` (optional): Task description
+- ``status`` (optional): Task status (defaults to PENDING)
+- ``imageId`` (required): Associated image ID
+- ``projectId`` (required): Parent project ID
+
+BoundingBoxInput
+----------------
+
+.. code-block:: graphql
+
+   input BoundingBoxInput {
+     id: ID
+     x: Float!
+     y: Float!
+     width: Float!
+     height: Float!
+     label: String
+     description: String
+     confidence: Float
+     metadata: JSON
+   }
+
+**Fields:**
+
+- ``id`` (optional): Existing annotation ID (for updates)
+- ``x`` (required): X coordinate (0.0-1.0, relative to image)
+- ``y`` (required): Y coordinate (0.0-1.0, relative to image)
+- ``width`` (required): Width (0.0-1.0, relative to image)
+- ``height`` (required): Height (0.0-1.0, relative to image)
+- ``label`` (optional): Text label
+- ``description`` (optional): Description or notes
+- ``confidence`` (optional): Confidence score (0.0-1.0)
+- ``metadata`` (optional): JSON metadata
+
+Enums
+=====
+
+TaskStatus
+----------
+
+.. code-block:: graphql
+
    enum TaskStatus {
-     DRAFT
-     FINISHED
+     PENDING
+     IN_PROGRESS
+     COMPLETED
      REVIEWED
    }
 
-   input TaskInput {
-     imageId: ID!
-     projectId: ID!
-     bboxes: [BBoxInput!]!
-     status: TaskStatus
-   }
+**Values:**
 
-**Example Usage**:
+- ``PENDING``: Task has been created but work has not started
+- ``IN_PROGRESS``: Task is currently being worked on
+- ``COMPLETED``: Task has been finished but may need review
+- ``REVIEWED``: Task has been completed and reviewed/approved
 
-.. code-block:: graphql
+Pagination Types
+================
 
-   # Get tasks for a project
-   query GetProjectTasks($projectId: ID!) {
-     tasks(queryInput: {
-       stringFilters: [{
-         field: "project_id"
-         operator: EQ
-         value: $projectId
-       }]
-     }) {
-       id
-       status
-       createdAt
-       image {
-         filename
-         width
-         height
-       }
-       bboxes {
-         x
-         y
-         width
-         height
-         annotation {
-           text
-           tags
-         }
-       }
-     }
-   }
+All list queries return paginated results with the following structure:
 
-### Annotations
-
-Bounding box annotations with labels and tags:
+ProjectPage
+-----------
 
 .. code-block:: graphql
 
-   type BBox {
-     x: Float!
-     y: Float!
-     width: Float!
-     height: Float!
-     annotation: Annotation!
+   type ProjectPage {
+     objects: [Project!]!
+     totalCount: Int!
+     hasMore: Boolean!
    }
 
-   type Annotation {
-     text: String
-     tags: [String!]
-   }
-
-   input BBoxInput {
-     x: Float!
-     y: Float!
-     width: Float!
-     height: Float!
-     annotation: AnnotationInput!
-   }
-
-   input AnnotationInput {
-     text: String
-     tags: [String!]
-   }
-
-**Example Usage**:
+ImagePage
+---------
 
 .. code-block:: graphql
 
-   # Update task with new annotations
-   mutation UpdateTaskAnnotations($taskId: ID!, $bboxes: [BBoxInput!]!) {
-     updateTask(id: $taskId, input: {
-       bboxes: $bboxes
-     }) {
-       id
-       bboxes {
-         x
-         y
-         width
-         height
-         annotation {
-           text
-           tags
-         }
-       }
-     }
+   type ImagePage {
+     objects: [Image!]!
+     totalCount: Int!
+     hasMore: Boolean!
    }
 
-## Filtering and Pagination
-
-### QueryInput
-
-All list queries support filtering, sorting, and pagination:
+TaskPage
+--------
 
 .. code-block:: graphql
 
-   input QueryInput {
-     limit: Int
-     offset: Int
-     stringFilters: [StringFilterInput!]
-     numberFilters: [NumberFilterInput!]
-     listFilters: [ListFilterInput!]
-     sorts: [SortInput!]
+   type TaskPage {
+     objects: [Task!]!
+     totalCount: Int!
+     hasMore: Boolean!
    }
 
-### Filter Types
+**Common Fields:**
 
-**String Filters**:
+- ``objects``: Array of objects for the current page
+- ``totalCount``: Total number of objects available
+- ``hasMore``: Whether more results are available
 
-.. code-block:: graphql
+Scalar Types
+============
 
-   input StringFilterInput {
-     field: String!
-     operator: StringOperator!
-     value: String!
-   }
+Custom scalar types used in the schema:
 
-   enum StringOperator {
-     EQ          # Equal
-     NE          # Not Equal
-     CONTAINS    # Contains substring
-     STARTS_WITH # Starts with
-     ENDS_WITH   # Ends with
-     IN          # In list
-     NOT_IN      # Not in list
-   }
+DateTime
+--------
+ISO 8601 formatted datetime string (e.g., "2023-12-01T10:30:00Z")
 
-**Number Filters**:
+Upload
+------
+File upload scalar for handling multipart form data
 
-.. code-block:: graphql
-
-   input NumberFilterInput {
-     field: String!
-     operator: NumberOperator!
-     value: Float!
-   }
-
-   enum NumberOperator {
-     EQ    # Equal
-     NE    # Not Equal
-     GT    # Greater than
-     GTE   # Greater than or equal
-     LT    # Less than
-     LTE   # Less than or equal
-     IN    # In list
-     NOT_IN # Not in list
-   }
-
-**Sorting**:
-
-.. code-block:: graphql
-
-   input SortInput {
-     field: String!
-     direction: SortDirection!
-   }
-
-   enum SortDirection {
-     ASC   # Ascending
-     DESC  # Descending
-   }
-
-### Filter Examples
-
-**Filter projects by name**:
-
-.. code-block:: graphql
-
-   query FilterProjectsByName {
-     projects(queryInput: {
-       stringFilters: [{
-         field: "name"
-         operator: CONTAINS
-         value: "traffic"
-       }]
-     }) {
-       id
-       name
-       description
-     }
-   }
-
-**Get recent tasks with pagination**:
-
-.. code-block:: graphql
-
-   query GetRecentTasks {
-     tasks(queryInput: {
-       sorts: [{
-         field: "created_at"
-         direction: DESC
-       }]
-       limit: 10
-       offset: 0
-     }) {
-       id
-       createdAt
-       status
-       project {
-         name
-       }
-       image {
-         filename
-       }
-     }
-   }
-
-**Filter tasks by status**:
-
-.. code-block:: graphql
-
-   query GetFinishedTasks {
-     tasks(queryInput: {
-       stringFilters: [{
-         field: "status"
-         operator: EQ
-         value: "FINISHED"
-       }]
-     }) {
-       id
-       status
-       project {
-         name
-       }
-       image {
-         filename
-       }
-     }
-   }
-
-## Common Operations
-
-### Project Management
-
-**List all projects**:
-
-.. code-block:: graphql
-
-   query GetAllProjects {
-     projects {
-       id
-       name
-       description
-     }
-   }
-
-**Create project**:
-
-.. code-block:: graphql
-
-   mutation CreateProject($input: ProjectInput!) {
-     createProject(input: $input) {
-       id
-       name
-       description
-     }
-   }
-
-   # Variables:
-   {
-     "input": {
-       "name": "New Annotation Project",
-       "description": "Description of the project goals"
-     }
-   }
-
-**Update project**:
-
-.. code-block:: graphql
-
-   mutation UpdateProject($id: ID!, $input: ProjectInput!) {
-     updateProject(id: $id, input: $input) {
-       id
-       name
-       description
-     }
-   }
-
-**Delete project**:
-
-.. code-block:: graphql
-
-   mutation DeleteProject($id: ID!) {
-     deleteProject(id: $id)
-   }
-
-### Image Operations
-
-**Add image to system**:
-
-.. code-block:: graphql
-
-   mutation CreateImage($input: ImageInput!) {
-     createImage(input: $input) {
-       id
-       filename
-       width
-       height
-       filePath
-     }
-   }
-
-   # Variables:
-   {
-     "input": {
-       "filename": "image001.jpg",
-       "width": 1920,
-       "height": 1080,
-       "filePath": "/uploads/images/image001.jpg"
-     }
-   }
-
-**Get images with metadata**:
-
-.. code-block:: graphql
-
-   query GetImages($limit: Int, $offset: Int) {
-     images(limit: $limit, offset: $offset) {
-       id
-       filename
-       width
-       height
-       filePath
-     }
-   }
-
-### Task Workflows
-
-**Create annotation task**:
-
-.. code-block:: graphql
-
-   mutation CreateTask($input: TaskInput!) {
-     createTask(input: $input) {
-       id
-       status
-       createdAt
-       image {
-         filename
-       }
-       project {
-         name
-       }
-       bboxes {
-         x
-         y
-         width
-         height
-         annotation {
-           text
-           tags
-         }
-       }
-     }
-   }
-
-   # Variables:
-   {
-     "input": {
-       "imageId": "image_123",
-       "projectId": "project_456",
-       "status": "DRAFT",
-       "bboxes": [
-         {
-           "x": 100,
-           "y": 200,
-           "width": 150,
-           "height": 100,
-           "annotation": {
-             "text": "car",
-             "tags": ["vehicle", "sedan"]
-           }
-         }
-       ]
-     }
-   }
-
-**Update task status**:
-
-.. code-block:: graphql
-
-   mutation FinishTask($id: ID!) {
-     updateTask(id: $id, input: {
-       status: FINISHED
-     }) {
-       id
-       status
-     }
-   }
-
-**Add annotations to task**:
-
-.. code-block:: graphql
-
-   mutation AddAnnotations($taskId: ID!, $bboxes: [BBoxInput!]!) {
-     updateTask(id: $taskId, input: {
-       bboxes: $bboxes
-     }) {
-       id
-       bboxes {
-         x
-         y
-         width
-         height
-         annotation {
-           text
-           tags
-         }
-       }
-     }
-   }
-
-### Complex Queries
-
-**Get project with task summary**:
-
-.. code-block:: graphql
-
-   query GetProjectDetails($projectId: ID!) {
-     project(id: $projectId) {
-       id
-       name
-       description
-     }
-
-     tasks(queryInput: {
-       stringFilters: [{
-         field: "project_id"
-         operator: EQ
-         value: $projectId
-       }]
-     }) {
-       id
-       status
-       createdAt
-       image {
-         filename
-         width
-         height
-       }
-       bboxes {
-         annotation {
-           text
-         }
-       }
-     }
-   }
-
-**Search annotations by label**:
-
-.. code-block:: graphql
-
-   query SearchAnnotations($searchTerm: String!) {
-     tasks(queryInput: {
-       # Note: This would require custom filtering implementation
-       # for searching within nested annotation text
-     }) {
-       id
-       image {
-         filename
-       }
-       bboxes {
-         x
-         y
-         width
-         height
-         annotation {
-           text
-           tags
-         }
-       }
-     }
-   }
-
-## Error Handling
-
-### GraphQL Error Format
-
-Errors follow the GraphQL specification:
-
-.. code-block:: json
-
-   {
-     "errors": [
-       {
-         "message": "Project not found",
-         "locations": [
-           {
-             "line": 3,
-             "column": 5
-           }
-         ],
-         "path": ["project"],
-         "extensions": {
-           "code": "NOT_FOUND",
-           "exception": {
-             "stacktrace": ["..."]
-           }
-         }
-       }
-     ],
-     "data": null
-   }
-
-### Common Error Codes
-
-- **NOT_FOUND**: Requested resource doesn't exist
-- **VALIDATION_ERROR**: Input validation failed
-- **PERMISSION_DENIED**: Insufficient permissions
-- **INTERNAL_ERROR**: Server-side error
-
-### Error Examples
-
-**Resource not found**:
-
-.. code-block:: graphql
-
-   query GetNonexistentProject {
-     project(id: "nonexistent_id") {
-       id
-       name
-     }
-   }
-
-   # Response:
-   {
-     "errors": [
-       {
-         "message": "Project with id 'nonexistent_id' not found",
-         "path": ["project"]
-       }
-     ],
-     "data": {
-       "project": null
-     }
-   }
-
-**Validation error**:
-
-.. code-block:: graphql
-
-   mutation CreateInvalidProject {
-     createProject(input: {
-       name: ""
-       description: "Valid description"
-     }) {
-       id
-       name
-     }
-   }
-
-   # Response:
-   {
-     "errors": [
-       {
-         "message": "Project name cannot be empty",
-         "path": ["createProject"]
-       }
-     ]
-   }
-
-## Performance Considerations
-
-### Query Optimization
-
-**Use field selection wisely**:
-
-.. code-block:: graphql
-
-   # Good: Only request needed fields
-   query GetProjectNames {
-     projects {
-       id
-       name
-     }
-   }
-
-   # Avoid: Requesting unnecessary nested data
-   query GetProjectsWithAllData {
-     projects {
-       id
-       name
-       description
-       # Avoid requesting related data if not needed
-     }
-   }
-
-**Use pagination for large datasets**:
-
-.. code-block:: graphql
-
-   query GetTasksPaginated($limit: Int!, $offset: Int!) {
-     tasks(queryInput: {
-       limit: $limit
-       offset: $offset
-     }) {
-       id
-       status
-       createdAt
-     }
-   }
-
-**Filter at the database level**:
-
-.. code-block:: graphql
-
-   # Good: Filter using queryInput
-   query GetDraftTasks {
-     tasks(queryInput: {
-       stringFilters: [{
-         field: "status"
-         operator: EQ
-         value: "DRAFT"
-       }]
-     }) {
-       id
-       status
-     }
-   }
-
-### Caching
-
-The GraphQL API supports caching through:
-
-- **HTTP Caching**: Standard HTTP cache headers
-- **Query-level Caching**: Intelligent query result caching
-- **Field-level Caching**: Individual field result caching
-
-## Rate Limiting
-
-API endpoints have rate limiting to ensure fair usage:
-
-- **GraphQL Queries**: 1000 requests/hour per client
-- **GraphQL Mutations**: 500 requests/hour per client
-- **Complex Queries**: Lower limits for resource-intensive operations
-
-## Schema Evolution
-
-### Versioning Strategy
-
-SATIn uses **additive schema evolution**:
-
-- **Adding Fields**: New optional fields can be added
-- **Adding Types**: New types don't break existing queries
-- **Deprecation**: Old fields marked as deprecated before removal
-- **Breaking Changes**: Require major version updates
-
-### Deprecation Example
-
-.. code-block:: graphql
-
-   type Project {
-     id: ID!
-     name: String!
-     description: String!
-
-     # Deprecated field
-     oldField: String @deprecated(reason: "Use newField instead")
-     newField: String
-   }
-
-## Development Tools
-
-### GraphQL Playground
-
-Access the interactive GraphQL Playground at:
-``http://localhost:8000/graphql``
-
-Features:
-- **Query Explorer**: Browse schema and build queries
-- **Auto-completion**: IntelliSense for GraphQL operations
-- **Documentation**: Built-in schema documentation
-- **History**: Query execution history
-
-### Schema Introspection
-
-Get the complete schema definition:
-
-.. code-block:: graphql
-
-   query IntrospectionQuery {
-     __schema {
-       types {
-         name
-         kind
-         description
-         fields {
-           name
-           type {
-             name
-           }
-         }
-       }
-     }
-   }
-
-## Related Documentation
-
-- :doc:`backend` - Backend implementation details
-- :doc:`frontend` - Frontend GraphQL client usage
-- :doc:`../user_guide/index` - User guide for application features
-- :doc:`../development/architecture` - System architecture overview
+JSON
+----
+Arbitrary JSON data for flexible metadata storage
