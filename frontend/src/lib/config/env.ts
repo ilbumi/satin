@@ -64,7 +64,7 @@ export function validateEnv(): void {
 				? import.meta.env.NODE_ENV === 'test'
 				: false;
 
-		if (!isVitest && !isTestEnv && typeof window !== 'undefined') {
+		if (env.isDevelopment && !isVitest && !isTestEnv && typeof window !== 'undefined') {
 			console.log(`Environment validated. Backend URL: ${url}`);
 		}
 	} catch (error) {

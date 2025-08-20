@@ -12,6 +12,7 @@
 		CoordinateTransform,
 		AnnotationTool
 	} from '$lib/features/annotations/types';
+	import { debugLog } from '$lib/core/utils/logger';
 
 	interface AnnotationWorkspaceProps {
 		taskId: string;
@@ -44,7 +45,7 @@
 	let currentTool = $derived(() => {
 		const activeTool = annotationStore.canvas.activeTool;
 		const tool = tools.get(activeTool) || null;
-		console.log(
+		debugLog(
 			'currentTool derived - activeTool:',
 			activeTool,
 			'tool:',
@@ -91,52 +92,52 @@
 	});
 
 	function setupTools() {
-		console.log('AnnotationWorkspace setupTools called');
+		debugLog('AnnotationWorkspace setupTools called');
 		const canvasState = annotationStore.canvas;
 
 		// Get the actual transform from the canvas
 		if (!canvasRef) {
-			console.error('Cannot setup tools: canvas not ready');
+			debugLog('Cannot setup tools: canvas not ready');
 			return;
 		}
 
 		transform = canvasRef.getTransform();
-		console.log('Got transform from canvas:', transform);
+		debugLog('Got transform from canvas:', transform);
 
 		// Common tool callbacks
 		const toolCallbacks = {
 			onAnnotationCreate: (annotation: ClientAnnotation) => {
-				console.log('Tool callback: onAnnotationCreate called with:', annotation);
+				debugLog('Tool callback: onAnnotationCreate called with:', annotation);
 				annotationStore.addAnnotation(annotation);
 			},
 			onAnnotationUpdate: (id: string, updates: Partial<ClientAnnotation>) => {
-				console.log('Tool callback: onAnnotationUpdate called with:', id, updates);
+				debugLog('Tool callback: onAnnotationUpdate called with:', id, updates);
 				annotationStore.updateAnnotation(id, updates);
 			},
 			onAnnotationDelete: (id: string) => {
-				console.log('Tool callback: onAnnotationDelete called with:', id);
+				debugLog('Tool callback: onAnnotationDelete called with:', id);
 				annotationStore.deleteAnnotation(id);
 			},
 			onAnnotationSelect: (annotation: ClientAnnotation | null) => {
-				console.log('Tool callback: onAnnotationSelect called with:', annotation);
+				debugLog('Tool callback: onAnnotationSelect called with:', annotation);
 				annotationStore.selectAnnotation(annotation?.id || null);
 			}
 		};
 
 		// Create all tools
-		console.log('Creating tools with callbacks:', toolCallbacks);
+		debugLog('Creating tools with callbacks:', toolCallbacks);
 		tools.set('select', new SelectTool(canvasState, transform, toolCallbacks));
 		tools.set('bbox', new BoundingBoxTool(canvasState, transform, toolCallbacks));
-		console.log('Tools created, tools size:', tools.size);
+		debugLog('Tools created, tools size:', tools.size);
 
 		// Activate the current tool
 		const activeTool = tools.get(annotationStore.canvas.activeTool);
 		if (activeTool) {
-			console.log('Activating current tool:', annotationStore.canvas.activeTool);
+			debugLog('Activating current tool:', annotationStore.canvas.activeTool);
 			activeTool.onActivate();
 		}
 
-		console.log('Tools setup completed, tools are now ready');
+		debugLog('Tools setup completed, tools are now ready');
 	}
 
 	// Reactive effect to handle tool changes
@@ -161,12 +162,12 @@
 	});
 
 	function handleCanvasStateChange(state: Partial<CanvasState>) {
-		console.log('AnnotationWorkspace handleCanvasStateChange called with:', state);
+		debugLog('AnnotationWorkspace handleCanvasStateChange called with:', state);
 		annotationStore.updateCanvasState(state);
 
 		// Setup tools if not already done and canvas is ready
 		if (canvasRef && tools.size === 0) {
-			console.log('Canvas is ready, setting up tools for the first time');
+			debugLog('Canvas is ready, setting up tools for the first time');
 			// Setup tools immediately when canvas state changes
 			setupTools();
 		}
@@ -176,7 +177,7 @@
 			const newTransform = canvasRef.getTransform();
 			transform = newTransform;
 
-			console.log('Updating tools with new transform');
+			debugLog('Updating tools with new transform');
 			tools.forEach((tool: BaseAnnotator) => {
 				tool.updateTransform(newTransform);
 				tool.updateCanvasState(annotationStore.canvas);
@@ -185,8 +186,8 @@
 	}
 
 	function handlePointerDown(event: AnnotationPointerEvent) {
-		console.log('AnnotationWorkspace handlePointerDown called with:', event);
-		console.log('readonly:', readonly, 'currentTool():', currentTool());
+		debugLog('AnnotationWorkspace handlePointerDown called with:', event);
+		debugLog('readonly:', readonly, 'currentTool():', currentTool());
 		if (readonly) return;
 
 		const tool = currentTool();

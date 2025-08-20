@@ -1,10 +1,16 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { testConnection, api } from '$lib/core/api';
+	import { testConnectionDetailed, api } from '$lib/core/api';
+	import { Toast } from '$lib/components/ui';
 
 	let connectionStatus = 'Testing...';
 	let projectCount = 0;
 	let testResults: string[] = [];
+	let connectionError: string | null = null;
+	let isRetrying = false;
+	let showToast = false;
+	let toastMessage = '';
+	let toastType: 'success' | 'error' | 'warning' | 'info' = 'info';
 
 	onMount(async () => {
 		// Skip API calls during testing
@@ -15,9 +21,17 @@
 		}
 
 		try {
-			// Test basic connection
-			const connected = await testConnection();
-			connectionStatus = connected ? 'Connected ✅' : 'Disconnected ❌';
+			// Test basic connection with detailed error information
+			const connectionResult = await testConnectionDetailed();
+
+			if (connectionResult.success) {
+				connectionStatus = 'Connected ✅';
+				connectionError = null;
+			} else {
+				connectionStatus = 'Disconnected ❌';
+				connectionError = connectionResult.details || 'Unknown connection error';
+				testResults.push(`❌ Connection failed: ${connectionError}`);
+			}
 
 			// Test a simple query
 			const result = await api.projects.getProjects(10, 0);
@@ -28,11 +42,50 @@
 				testResults.push(`❌ Projects query failed: ${result.error.message}`);
 			}
 
-			// Connectivity tests completed above
+			// Only proceed with other tests if connection succeeded
+			if (connectionResult.success) {
+				// Continue with other tests...
+			}
 		} catch (error) {
-			testResults.push(`❌ Error during testing: ${error}`);
+			connectionStatus = 'Error ❌';
+			connectionError = 'Unexpected error during connection test';
+			testResults.push(`❌ Unexpected error: ${error}`);
 		}
 	});
+
+	async function retryConnection() {
+		if (isRetrying) return;
+
+		isRetrying = true;
+		connectionStatus = 'Retrying...';
+		connectionError = null;
+
+		try {
+			const result = await testConnectionDetailed();
+
+			if (result.success) {
+				connectionStatus = 'Connected ✅';
+				connectionError = null;
+				toastType = 'success';
+				toastMessage = 'Successfully connected to backend!';
+				showToast = true;
+			} else {
+				connectionStatus = 'Disconnected ❌';
+				connectionError = result.details || 'Connection failed';
+				toastType = 'error';
+				toastMessage = `Connection failed: ${result.error?.message || 'Unknown error'}`;
+				showToast = true;
+			}
+		} catch (err) {
+			connectionStatus = 'Error ❌';
+			connectionError = `Unexpected error during retry: ${err instanceof Error ? err.message : 'Unknown error'}`;
+			toastType = 'error';
+			toastMessage = 'Failed to retry connection';
+			showToast = true;
+		} finally {
+			isRetrying = false;
+		}
+	}
 </script>
 
 <div class="p-6">
@@ -45,9 +98,24 @@
 		<!-- Connection Status Card -->
 		<div class="rounded-lg border bg-white p-6 shadow-sm">
 			<h2 class="mb-3 text-lg font-semibold text-gray-900">System Status</h2>
-			<p class="mb-2 text-sm text-gray-600">
-				Backend Connection: <span class="font-mono text-sm">{connectionStatus}</span>
-			</p>
+			<div class="mb-3">
+				<p class="mb-2 text-sm text-gray-600">
+					Backend Connection: <span class="font-mono text-sm">{connectionStatus}</span>
+				</p>
+
+				{#if connectionError}
+					<div class="mb-2 rounded bg-red-50 p-2">
+						<p class="text-xs text-red-600">{connectionError}</p>
+					</div>
+					<button
+						class="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-700 disabled:opacity-50"
+						onclick={retryConnection}
+						disabled={isRetrying}
+					>
+						{isRetrying ? 'Retrying...' : 'Retry Connection'}
+					</button>
+				{/if}
+			</div>
 			<p class="text-sm text-gray-600">
 				Total Projects: <span class="font-mono text-sm">{projectCount}</span>
 			</p>
@@ -108,3 +176,7 @@
 		</div>
 	</div>
 </div>
+
+{#if showToast}
+	<Toast type={toastType} message={toastMessage} onClose={() => (showToast = false)} />
+{/if}

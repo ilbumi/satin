@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { waitForDebouncedSearch } from './utils/wait-helpers.js';
 
 test.describe('Task Management', () => {
 	test.beforeEach(async ({ page }) => {
@@ -193,7 +194,7 @@ test.describe('Task Management', () => {
 		const searchInput = page.getByTestId('search-input');
 		await searchInput.fill('test search');
 		await expect(searchInput).toHaveValue('test search');
-		await page.waitForTimeout(500); // Wait for debounce
+		await waitForDebouncedSearch(page);
 
 		// Click Draft filter
 		const draftTab = page.getByRole('button', { name: /Draft/ });
@@ -207,7 +208,7 @@ test.describe('Task Management', () => {
 		// Click clear filters
 		await clearButton.click();
 		// Wait for the clear action to take effect
-		await page.waitForTimeout(500);
+		await page.waitForLoadState('networkidle');
 
 		// Search input should be empty
 		await expect(searchInput).toHaveValue('', { timeout: 3000 });
@@ -399,8 +400,8 @@ test.describe('Task Management', () => {
 			// Click edit button
 			await editButton.click();
 
-			// Wait for any async operations to complete
-			await page.waitForTimeout(100);
+			// Allow UI to update after click
+			await page.waitForLoadState('domcontentloaded');
 
 			// Wait for modal to appear with multiple strategies
 			const modal = page.getByTestId('modal');

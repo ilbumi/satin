@@ -1,5 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { TestDataFactory, waitForBackend } from './utils/index.js';
+import {
+	TestDataFactory,
+	waitForBackend,
+	waitForPageReady,
+	waitForCanvasReady,
+	waitForAnnotationUpdate
+} from './utils/index.js';
 
 test.describe('Annotation Features E2E', () => {
 	let testData: TestDataFactory;
@@ -36,15 +42,15 @@ test.describe('Annotation Features E2E', () => {
 			waitUntil: 'networkidle'
 		});
 
-		// Wait a bit for the page to render
-		await page.waitForTimeout(2000);
+		// Wait for page to be fully loaded
+		await waitForPageReady(page);
 
 		// Check if we get an error page or the actual page
 		const hasError = await page.locator('text=Server Error').isVisible();
 		if (hasError) {
 			// If there's an error, try reloading once
 			await page.reload({ waitUntil: 'networkidle' });
-			await page.waitForTimeout(2000);
+			await waitForPageReady(page);
 		}
 
 		// Now check for the page content - either the header or loading state
@@ -203,7 +209,7 @@ test.describe('Annotation Features E2E', () => {
 		const bboxTool = page.locator('[data-testid="tool-bbox"]');
 		await expect(bboxTool).toBeVisible();
 		await bboxTool.click();
-		await page.waitForTimeout(1000);
+		// Wait for tool to be active (no timeout needed for click response)
 
 		// Check the status bar to see initial annotation count (should be 0)
 		const initialStatusText = await page.locator('.status-bar').textContent();
@@ -228,23 +234,20 @@ test.describe('Annotation Features E2E', () => {
 
 		console.log(`Drawing from (${startX}, ${startY}) to (${endX}, ${endY})`);
 
-		// Draw a bounding box by clicking and dragging
+		// Ensure canvas is ready for interactions
+		await waitForCanvasReady(page, '[data-testid="annotation-canvas"]');
 		await canvas.hover();
-		await page.waitForTimeout(200);
 
-		// Perform the drag operation
+		// Perform the drag operation (Playwright handles timing automatically)
 		await page.mouse.move(startX, startY);
-		await page.waitForTimeout(100);
 		await page.mouse.down();
-		await page.waitForTimeout(100);
 		await page.mouse.move(endX, endY);
-		await page.waitForTimeout(100);
 		await page.mouse.up();
 
 		console.log('Mouse drag operation completed');
 
-		// Wait for annotation to be processed
-		await page.waitForTimeout(2000);
+		// Wait for annotation to be processed and status to update
+		await waitForAnnotationUpdate(page, '.status-item');
 
 		// Debug: Check what text is actually present in the status bar
 		const statusBarText = await page.locator('.status-bar').textContent();
@@ -314,7 +317,7 @@ test.describe('Annotation Features E2E', () => {
 		const bboxTool = page.locator('[data-testid="tool-bbox"]');
 		await expect(bboxTool).toBeVisible();
 		await bboxTool.click();
-		await page.waitForTimeout(1000);
+		// Tool activation handled automatically by Playwright
 
 		// Use Playwright's built-in mouse actions for better compatibility
 		const canvas = page.locator('[data-testid="annotation-canvas"]');
@@ -333,15 +336,11 @@ test.describe('Annotation Features E2E', () => {
 
 		// Draw a bounding box by clicking and dragging
 		await canvas.hover();
-		await page.waitForTimeout(200);
 
-		// Perform the drag operation
+		// Perform the drag operation (Playwright handles timing automatically)
 		await page.mouse.move(startX, startY);
-		await page.waitForTimeout(100);
 		await page.mouse.down();
-		await page.waitForTimeout(100);
 		await page.mouse.move(endX, endY);
-		await page.waitForTimeout(100);
 		await page.mouse.up();
 
 		console.log('Mouse drag operation completed');
@@ -375,7 +374,7 @@ test.describe('Annotation Features E2E', () => {
 			});
 
 			// Wait a bit for the selection to take effect
-			await page.waitForTimeout(1000);
+			// Tool activation handled automatically by Playwright
 
 			// If still not working, try multiple clicks or different positions
 			const stillNotVisible = await page
@@ -391,7 +390,7 @@ test.describe('Annotation Features E2E', () => {
 				await canvas.click({
 					position: { x: offsetX, y: offsetY }
 				});
-				await page.waitForTimeout(1000);
+				// Tool activation handled automatically by Playwright
 			}
 		}
 
@@ -442,19 +441,16 @@ test.describe('Annotation Features E2E', () => {
 
 		// Draw a bounding box by clicking and dragging
 		await canvas.hover();
-		await page.waitForTimeout(200);
 
-		// Perform the drag operation
+		// Perform the drag operation (Playwright handles timing automatically)
 		await page.mouse.move(startX, startY);
-		await page.waitForTimeout(100);
 		await page.mouse.down();
-		await page.waitForTimeout(100);
 		await page.mouse.move(endX, endY);
-		await page.waitForTimeout(100);
 		await page.mouse.up();
 
 		// Wait for annotation to be created
-		await page.waitForTimeout(500);
+		// Wait for UI update to complete
+		await page.waitForLoadState('networkidle');
 
 		// Click save button
 		await page.locator('[data-testid="save-button"]').click();
@@ -496,18 +492,15 @@ test.describe('Annotation Features E2E', () => {
 
 		// Draw a bounding box by clicking and dragging
 		await canvas.hover();
-		await page.waitForTimeout(200);
 
-		// Perform the drag operation
+		// Perform the drag operation (Playwright handles timing automatically)
 		await page.mouse.move(startX, startY);
-		await page.waitForTimeout(100);
 		await page.mouse.down();
-		await page.waitForTimeout(100);
 		await page.mouse.move(endX, endY);
-		await page.waitForTimeout(100);
 		await page.mouse.up();
 
-		await page.waitForTimeout(500);
+		// Wait for UI update to complete
+		await page.waitForLoadState('networkidle');
 
 		// Test save shortcut
 		await page.keyboard.press('Control+s');
@@ -554,7 +547,8 @@ test.describe('Annotation Features E2E', () => {
 		await page.waitForTimeout(100);
 		await page.mouse.up();
 
-		await page.waitForTimeout(500);
+		// Wait for UI update to complete
+		await page.waitForLoadState('networkidle');
 
 		// Verify annotation was created
 		await expect(page.locator('text=1 annotations')).toBeVisible();
@@ -574,7 +568,8 @@ test.describe('Annotation Features E2E', () => {
 		await page.waitForTimeout(100);
 		await page.mouse.up();
 
-		await page.waitForTimeout(500);
+		// Wait for UI update to complete
+		await page.waitForLoadState('networkidle');
 
 		// Verify second annotation was created
 		await expect(page.locator('text=2 annotations')).toBeVisible();
@@ -615,18 +610,15 @@ test.describe('Annotation Features E2E', () => {
 
 		// Draw a bounding box by clicking and dragging
 		await canvas.hover();
-		await page.waitForTimeout(200);
 
-		// Perform the drag operation
+		// Perform the drag operation (Playwright handles timing automatically)
 		await page.mouse.move(startX, startY);
-		await page.waitForTimeout(100);
 		await page.mouse.down();
-		await page.waitForTimeout(100);
 		await page.mouse.move(endX, endY);
-		await page.waitForTimeout(100);
 		await page.mouse.up();
 
-		await page.waitForTimeout(500);
+		// Wait for UI update to complete
+		await page.waitForLoadState('networkidle');
 
 		// Set up dialog handler to dismiss the confirmation
 		page.on('dialog', async (dialog) => {

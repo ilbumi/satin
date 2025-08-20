@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { waitForModalTransition, waitForDebouncedSearch } from './utils/wait-helpers.js';
 
 test.describe('Project Management', () => {
 	test.beforeEach(async ({ page }) => {
@@ -133,7 +134,7 @@ test.describe('Project Management', () => {
 		const existingModals = await page.locator('dialog[open]').count();
 		if (existingModals > 0) {
 			await page.keyboard.press('Escape');
-			await page.waitForTimeout(500); // Give time for modal to close
+			await waitForModalTransition(page, 'dialog[open]', 'hidden');
 		}
 
 		// Wait for page to be fully loaded
@@ -217,7 +218,7 @@ test.describe('Project Management', () => {
 
 		// Wait for filter to apply - give more time for debounce
 		await expect(searchInput).toHaveValue('Medical');
-		await page.waitForTimeout(500); // Wait for debounce + network request
+		await waitForDebouncedSearch(page);
 
 		// Should filter the results - Medical project should still be visible
 		await expect(page.getByRole('heading', { name: 'Medical Images Dataset' })).toBeVisible();
@@ -237,7 +238,7 @@ test.describe('Project Management', () => {
 		const searchInput = page.getByLabel(/search projects/i);
 		await searchInput.fill('Medical');
 		await expect(searchInput).toHaveValue('Medical');
-		await page.waitForTimeout(500); // Wait for debounce
+		await waitForDebouncedSearch(page);
 
 		// Wait for clear button to appear
 		const clearButton = page.getByRole('button', { name: /clear filters/i });
@@ -247,7 +248,7 @@ test.describe('Project Management', () => {
 		await clearButton.click();
 
 		// Wait for the clear action to take effect
-		await page.waitForTimeout(500);
+		await page.waitForLoadState('networkidle');
 
 		// Search input should be cleared
 		await expect(searchInput).toHaveValue('', { timeout: 3000 });

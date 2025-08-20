@@ -4,7 +4,14 @@
  */
 
 // Client and configuration
-export { createGraphQLClient, graphqlClient, testConnection, getConnectionInfo } from './client';
+export {
+	createGraphQLClient,
+	graphqlClient,
+	testConnection,
+	testConnectionDetailed,
+	getConnectionInfo,
+	type ConnectionResult
+} from './client';
 
 // GraphQL queries and mutations
 export * from './queries';
@@ -22,6 +29,3 @@ export {
 	isAPIError,
 	type APIErrorType
 } from './errors';
-
-// Mock utilities - only export for testing environments
-export * from './mock';
