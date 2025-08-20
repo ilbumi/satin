@@ -163,10 +163,6 @@ jobs:
         working-directory: ./frontend
         run: pnpm check
 
-      - name: Install Playwright deps
-        working-directory: ./frontend
-        run: |
-          pnpm exec playwright install
 
       - name: Run unit tests
         working-directory: ./frontend
@@ -189,6 +185,20 @@ jobs:
     if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Install backend dependencies
+        run: uv sync --group dev
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -213,15 +223,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
 
-      - name: Install dependencies
+      - name: Install frontend dependencies
         working-directory: ./frontend
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
         working-directory: ./frontend
-        run: |
-          npx playwright install chromium
-          npx playwright install-deps chromium
+        run: npx playwright install chromium --with-deps
 
       - name: Run E2E tests
         working-directory: ./frontend
