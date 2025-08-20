@@ -1,9 +1,9 @@
+import { defineConfig } from 'vitest/config';
 import tailwindcss from '@tailwindcss/vite';
 import devtoolsJson from 'vite-plugin-devtools-json';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vite';
 
-export default defineConfig({
+const baseConfig = {
 	plugins: [tailwindcss(), sveltekit(), devtoolsJson()],
 	server: {
 		hmr: {
@@ -15,22 +15,14 @@ export default defineConfig({
 	},
 	define: {
 		global: 'globalThis'
-	},
+	}
+};
+
+export default defineConfig({
 	test: {
 		projects: [
 			{
-				plugins: [tailwindcss(), sveltekit(), devtoolsJson()],
-				server: {
-					hmr: {
-						overlay: false
-					}
-				},
-				ssr: {
-					external: ['konva', 'canvas']
-				},
-				define: {
-					global: 'globalThis'
-				},
+				...baseConfig,
 				test: {
 					name: 'server',
 					environment: 'node',
@@ -40,18 +32,7 @@ export default defineConfig({
 				}
 			},
 			{
-				plugins: [tailwindcss(), sveltekit(), devtoolsJson()],
-				server: {
-					hmr: {
-						overlay: false
-					}
-				},
-				ssr: {
-					external: ['konva', 'canvas']
-				},
-				define: {
-					global: 'globalThis'
-				},
+				...baseConfig,
 				test: {
 					name: 'client',
 					environment: 'browser',
@@ -63,7 +44,7 @@ export default defineConfig({
 						api: {
 							port: 0
 						},
-						isolate: false,
+						isolate: true,
 						ui: false
 					},
 					retry: 0,
