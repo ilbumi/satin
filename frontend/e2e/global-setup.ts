@@ -28,9 +28,9 @@ async function globalSetup() {
 		throw new Error('Backend did not become ready within 30 seconds');
 	}
 
-	console.log('Backend is ready, seeding test data...');
+	console.log('Backend is ready, testing database connectivity...');
 
-	// Create test projects that are expected by the tests
+	// Test database connectivity by trying to create a project
 	const CREATE_PROJECT_MUTATION = `
 		mutation CreateProject($name: String!, $description: String!) {
 			createProject(name: $name, description: $description) {
@@ -41,63 +41,78 @@ async function globalSetup() {
 		}
 	`;
 
-	// Create "Medical Images Dataset" project
+	// Test database connectivity with a simple project creation
 	try {
-		const medicalResult = await testGraphQLClient
+		const testResult = await testGraphQLClient
 			.mutation(CREATE_PROJECT_MUTATION, {
-				name: 'Medical Images Dataset',
-				description:
-					'A comprehensive dataset of medical imaging data for AI training and research purposes.'
+				name: `DB-Test-${Date.now()}`,
+				description: 'Database connectivity test'
 			})
 			.toPromise();
 
-		if (medicalResult.error) {
-			console.log('Medical project might already exist:', medicalResult.error.message);
-		} else {
-			console.log('Created Medical Images Dataset project');
+		if (testResult.error) {
+			throw new Error(`Database error: ${testResult.error.message}`);
 		}
+		console.log('Database connectivity verified');
 	} catch (error) {
-		console.log('Error creating Medical project:', error);
+		console.error('Fatal: Database is not accessible:', error);
+		throw new Error('Database setup failed - cannot run tests without database connection');
 	}
 
-	// Create "Vehicle Detection" project
-	try {
-		const vehicleResult = await testGraphQLClient
-			.mutation(CREATE_PROJECT_MUTATION, {
-				name: 'Vehicle Detection',
-				description:
-					'Dataset for training vehicle detection models with various types of vehicles and road conditions.'
-			})
-			.toPromise();
+	console.log('Seeding initial test data...');
 
-		if (vehicleResult.error) {
-			console.log('Vehicle project might already exist:', vehicleResult.error.message);
-		} else {
-			console.log('Created Vehicle Detection project');
-		}
-	} catch (error) {
-		console.log('Error creating Vehicle project:', error);
+	// Create "Medical Images Dataset" project with unique name
+	const medicalResult = await testGraphQLClient
+		.mutation(CREATE_PROJECT_MUTATION, {
+			name: `Medical Images Dataset-${Date.now()}`,
+			description:
+				'A comprehensive dataset of medical imaging data for AI training and research purposes.'
+		})
+		.toPromise();
+
+	if (medicalResult.error) {
+		throw new Error(`Failed to create Medical project: ${medicalResult.error.message}`);
 	}
+	console.log('Created Medical Images Dataset project');
 
-	// Create a few more test projects for variety
+	// Add small delay to avoid rate limiting
+	await new Promise((resolve) => setTimeout(resolve, 200));
+
+	// Create "Vehicle Detection" project with unique name
+	const vehicleResult = await testGraphQLClient
+		.mutation(CREATE_PROJECT_MUTATION, {
+			name: `Vehicle Detection-${Date.now()}`,
+			description:
+				'Dataset for training vehicle detection models with various types of vehicles and road conditions.'
+		})
+		.toPromise();
+
+	if (vehicleResult.error) {
+		throw new Error(`Failed to create Vehicle project: ${vehicleResult.error.message}`);
+	}
+	console.log('Created Vehicle Detection project');
+
+	// Create a few more test projects for variety with unique names
 	const additionalProjects = [
 		{
-			name: 'Wildlife Conservation',
+			name: `Wildlife Conservation-${Date.now()}`,
 			description: 'Tracking and identifying endangered species through camera trap images.'
 		},
 		{
-			name: 'Agricultural Monitoring',
+			name: `Agricultural Monitoring-${Date.now()}`,
 			description: 'Satellite and drone imagery for crop health assessment and yield prediction.'
 		}
 	];
 
 	for (const project of additionalProjects) {
-		try {
-			await testGraphQLClient.mutation(CREATE_PROJECT_MUTATION, project).toPromise();
-			console.log(`Created ${project.name} project`);
-		} catch (error) {
-			console.log(`Error creating ${project.name}:`, error);
+		// Add delay between project creations to avoid rate limiting
+		await new Promise((resolve) => setTimeout(resolve, 200));
+
+		const result = await testGraphQLClient.mutation(CREATE_PROJECT_MUTATION, project).toPromise();
+		if (result.error) {
+			throw new Error(`Failed to create ${project.name}: ${result.error.message}`);
 		}
+		console.log(`Created ${project.name} project`);
 	}
 
 	// Create test images
@@ -110,47 +125,35 @@ async function globalSetup() {
 		}
 	`;
 
-	// Create a few test images using data URLs
+	// Create a few test images using data URLs with unique timestamps
+	const timestamp = Date.now();
 	const testImages = [
 		'data:image/svg+xml;base64,' +
-			btoa(`
-			<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+			btoa(`<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
 				<rect width="800" height="600" fill="#ff6b6b" />
 				<text x="400" y="300" text-anchor="middle" dominant-baseline="middle"
 				      font-family="Arial" font-size="24" fill="white">
-					Sample Medical Image 1
+					Sample Medical Image 1 - ${timestamp}
 				</text>
-			</svg>
-		`),
+			</svg>`),
 		'data:image/svg+xml;base64,' +
-			btoa(`
-			<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+			btoa(`<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
 				<rect width="800" height="600" fill="#4ecdc4" />
 				<text x="400" y="300" text-anchor="middle" dominant-baseline="middle"
 				      font-family="Arial" font-size="24" fill="white">
-					Sample Vehicle Image 1
+					Sample Vehicle Image 1 - ${timestamp}
 				</text>
-			</svg>
-		`),
-		'data:image/svg+xml;base64,' +
-			btoa(`
-			<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
-				<rect width="800" height="600" fill="#45b7d1" />
-				<text x="400" y="300" text-anchor="middle" dominant-baseline="middle"
-				      font-family="Arial" font-size="24" fill="white">
-					Sample Wildlife Image 1
-				</text>
-			</svg>
-		`)
+			</svg>`)
 	];
 
 	for (let i = 0; i < testImages.length; i++) {
-		try {
-			await testGraphQLClient.mutation(CREATE_IMAGE_MUTATION, { url: testImages[i] }).toPromise();
-			console.log(`Created test image ${i + 1}`);
-		} catch (error) {
-			console.log(`Error creating test image ${i + 1}:`, error);
+		const result = await testGraphQLClient
+			.mutation(CREATE_IMAGE_MUTATION, { url: testImages[i] })
+			.toPromise();
+		if (result.error) {
+			throw new Error(`Failed to create test image ${i + 1}: ${result.error.message}`);
 		}
+		console.log(`Created test image ${i + 1}`);
 	}
 
 	console.log('Global setup completed');

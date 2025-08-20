@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Card, Button } from '$lib/components/ui';
+	import { cn, statusColors } from '$lib/core/styles';
 	import type { ProjectSummary } from '$lib/features/projects/types';
 
 	interface Props {
@@ -21,25 +22,33 @@
 	function getStatusColor(status?: string) {
 		switch (status) {
 			case 'active':
-				return 'bg-green-100 text-green-800';
+				return cn(statusColors.success.bg, statusColors.success.text);
 			case 'completed':
-				return 'bg-blue-100 text-blue-800';
+				return cn(statusColors.info.bg, statusColors.info.text);
 			case 'draft':
-				return 'bg-gray-100 text-gray-800';
+				return cn(statusColors.neutral.bg, statusColors.neutral.text);
 			default:
-				return 'bg-gray-100 text-gray-800';
+				return cn(statusColors.neutral.bg, statusColors.neutral.text);
 		}
 	}
+
+	// Computed classes for consistent styling
+	const badgeClasses = $derived(() =>
+		cn('rounded-full px-2 py-1 text-xs font-medium', getStatusColor(project.status))
+	);
+
+	const titleClasses = 'truncate text-lg font-semibold text-gray-900';
+	const descriptionClasses = 'line-clamp-3 text-sm text-gray-600';
 </script>
 
 <Card class="transition-shadow hover:shadow-md" data-testid="project-card">
 	{#snippet header()}
 		<div class="flex items-center justify-between">
-			<h3 class="truncate text-lg font-semibold text-gray-900" title={project.name}>
+			<h3 class={titleClasses} title={project.name}>
 				{project.name}
 			</h3>
 			{#if project.status}
-				<span class="rounded-full px-2 py-1 text-xs font-medium {getStatusColor(project.status)}">
+				<span class={badgeClasses}>
 					{project.status}
 				</span>
 			{/if}
@@ -47,7 +56,7 @@
 	{/snippet}
 
 	<div class="space-y-3">
-		<p class="line-clamp-3 text-sm text-gray-600" title={project.description}>
+		<p class={descriptionClasses} title={project.description}>
 			{project.description}
 		</p>
 

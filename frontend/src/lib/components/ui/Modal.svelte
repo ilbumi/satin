@@ -33,6 +33,8 @@
 
 	let dialogElement = $state<HTMLDialogElement>();
 	let previousActiveElement: Element | null = null;
+	let abortController: AbortController | null = null;
+	let isListenerAttached = false;
 
 	// Size classes for the modal
 	const sizeClasses = {
@@ -54,11 +56,15 @@
 		open = false;
 	}
 
-	// Handle escape key
+	// Combined keydown handler for escape key and focus trap
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape' && closeOnEscape) {
 			closeModal();
+			return;
 		}
+
+		// Handle focus trap
+		handleFocusTrap(event);
 	}
 
 	// Handle backdrop click
@@ -84,9 +90,11 @@
 	}
 
 	function handleFocusTrap(event: KeyboardEvent) {
-		if (event.key !== 'Tab' || !dialogElement) return;
+		if (event.key !== 'Tab' || !dialogElement || !open) return;
 
 		const focusableElements = getFocusableElements(dialogElement);
+		if (focusableElements.length === 0) return;
+
 		const firstElement = focusableElements[0];
 		const lastElement = focusableElements[focusableElements.length - 1];
 
@@ -103,6 +111,39 @@
 		}
 	}
 
+	// Function to safely attach event listeners
+	function attachEventListeners() {
+		if (isListenerAttached || !open) return;
+
+		// Clean up any existing controller
+		if (abortController) {
+			abortController.abort();
+		}
+
+		// Create new abort controller for this modal instance
+		abortController = new AbortController();
+
+		// Add single combined keydown listener
+		document.addEventListener('keydown', handleKeydown, {
+			signal: abortController.signal,
+			passive: false
+		});
+
+		isListenerAttached = true;
+	}
+
+	// Function to safely remove event listeners
+	function removeEventListeners() {
+		if (!isListenerAttached) return;
+
+		if (abortController) {
+			abortController.abort();
+			abortController = null;
+		}
+
+		isListenerAttached = false;
+	}
+
 	// Handle modal open/close effects
 	$effect(() => {
 		if (open && dialogElement) {
@@ -111,7 +152,7 @@
 
 			// Focus first focusable element or the dialog itself
 			requestAnimationFrame(() => {
-				if (!dialogElement) return;
+				if (!dialogElement || !open) return;
 
 				const focusableElements = getFocusableElements(dialogElement);
 				try {
@@ -126,16 +167,14 @@
 				}
 			});
 
-			// Add event listeners
-			document.addEventListener('keydown', handleKeydown);
-			document.addEventListener('keydown', handleFocusTrap);
+			// Add event listeners safely
+			attachEventListeners();
 
 			// Prevent body scroll
 			document.body.style.overflow = 'hidden';
 		} else if (!open) {
-			// Remove event listeners
-			document.removeEventListener('keydown', handleKeydown);
-			document.removeEventListener('keydown', handleFocusTrap);
+			// Remove event listeners safely
+			removeEventListeners();
 
 			// Restore body scroll
 			document.body.style.overflow = '';
@@ -153,8 +192,7 @@
 
 		// Cleanup function
 		return () => {
-			document.removeEventListener('keydown', handleKeydown);
-			document.removeEventListener('keydown', handleFocusTrap);
+			removeEventListeners();
 			document.body.style.overflow = '';
 		};
 	});

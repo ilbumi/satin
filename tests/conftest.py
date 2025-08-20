@@ -1,4 +1,5 @@
 import asyncio
+import os
 import uuid
 from contextlib import suppress
 from typing import Any
@@ -132,6 +133,9 @@ class DatabaseFactory:
         # Patch the global repo_factory instances in query and mutation modules
         monkeypatch.setattr("satin.schema.query.repo_factory", test_repo_factory)
         monkeypatch.setattr("satin.schema.mutation.repo_factory", test_repo_factory)
+
+        # Disable rate limiting for tests
+        os.environ["DISABLE_RATE_LIMITING"] = "true"
 
         app = create_app()
         return GraphQLTestClient(TestClient(app))

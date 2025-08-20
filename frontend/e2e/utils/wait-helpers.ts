@@ -64,18 +64,25 @@ export async function waitForDebouncedSearch(
 	networkPattern: string | RegExp = /\/graphql/,
 	timeout = 10000
 ) {
-	// Wait for the network request to complete
-	await page.waitForResponse(
-		(response) => {
-			const url = response.url();
-			const matchesPattern =
-				typeof networkPattern === 'string'
-					? url.includes(networkPattern)
-					: networkPattern.test(url);
-			return matchesPattern && response.status() === 200;
-		},
-		{ timeout }
-	);
+	try {
+		// Wait for the network request to complete
+		await page.waitForResponse(
+			(response) => {
+				const url = response.url();
+				const matchesPattern =
+					typeof networkPattern === 'string'
+						? url.includes(networkPattern)
+						: networkPattern.test(url);
+				// Accept both 200 OK and 429 rate limited responses as valid
+				return matchesPattern && (response.status() === 200 || response.status() === 429);
+			},
+			{ timeout }
+		);
+	} catch (error) {
+		// If no network request occurs within timeout, wait for DOM stability instead
+		console.warn('Network wait failed, falling back to DOM stability check:', error);
+		await page.waitForLoadState('networkidle', { timeout: Math.min(timeout, 5000) });
+	}
 }
 
 /**

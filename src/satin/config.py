@@ -35,5 +35,12 @@ class Config(BaseSettings):
         description="Disable dangerous pattern checks in URL validation (useful for testing)",
     )
 
+    # Rate limiting configuration
+    disable_rate_limiting: bool = Field(
+        validation_alias="DISABLE_RATE_LIMITING",
+        default=False,
+        description="Disable rate limiting (useful for testing)",
+    )
+
 
 config = Config()

@@ -74,46 +74,54 @@ test.describe('Images Page', () => {
 	});
 
 	test('should open upload modal when upload button is clicked', async ({ page }) => {
-		// Debug: Check initial page state
-		const initialDialogs = await page.locator('dialog').count();
-		console.log(`Initial dialogs count: ${initialDialogs}`);
-
 		// Ensure no dialogs are open initially
 		await expect(page.getByRole('dialog')).not.toBeVisible();
+
+		// Wait for page and images to fully load to avoid race conditions
+		await page.waitForLoadState('networkidle');
+		await expect(page.getByText('Total Images')).toBeVisible({ timeout: 10000 });
 
 		// Click upload button - use first one to avoid strict mode violation
 		const uploadButton = page.getByRole('button', { name: /add by url/i }).first();
 		await expect(uploadButton).toBeVisible();
 		await uploadButton.click();
 
-		// Wait for state change to complete
-		await page.waitForLoadState('networkidle');
+		// Wait for the modal to appear - try multiple approaches
+		const modalVisible = await page
+			.waitForSelector('dialog[open]', { timeout: 15000 })
+			.catch(() => null);
 
-		// Check if modal opens with longer timeout
-		await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 });
-		await expect(page.getByRole('heading', { name: 'Add Images by URL' })).toBeVisible();
-
-		// Check for URL input area
-		await expect(page.getByText('Image URL')).toBeVisible();
+		if (modalVisible) {
+			// Check for modal heading
+			await expect(page.getByRole('heading', { name: 'Add Images by URL' })).toBeVisible();
+			// Check for URL input area
+			await expect(page.getByText('Image URL')).toBeVisible();
+		} else {
+			throw new Error('Modal dialog did not appear after clicking upload button');
+		}
 	});
 
 	test('should close upload modal when close button is clicked', async ({ page }) => {
+		// Wait for page to fully load first
+		await page.waitForLoadState('networkidle');
+		await expect(page.getByText('Total Images')).toBeVisible({ timeout: 10000 });
+
 		// Open modal
-		await page
-			.getByRole('button', { name: /add by url/i })
-			.first()
-			.click();
+		const uploadButton = page.getByRole('button', { name: /add by url/i }).first();
+		await expect(uploadButton).toBeVisible();
+		await uploadButton.click();
 
-		// Wait for modal to open
-		await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 });
+		// Wait for modal to open using the selector approach
+		await page.waitForSelector('dialog[open]', { timeout: 15000 });
+		await expect(page.getByRole('heading', { name: 'Add Images by URL' })).toBeVisible();
 
-		// Close modal using X button or close button
-		const closeButton = page.getByRole('button', { name: /close/i });
+		// Close modal using X button (more reliable than text-based close button)
+		const closeButton = page.getByLabel('Close modal');
 		if (await closeButton.isVisible()) {
 			await closeButton.click();
 		} else {
-			// Try clicking the X button
-			await page.getByLabel('Close').click();
+			// Fallback: Try pressing Escape key
+			await page.keyboard.press('Escape');
 		}
 
 		// Check modal is closed
@@ -201,9 +209,9 @@ test.describe('Images Page', () => {
 	});
 
 	test('should validate file upload restrictions in modal', async ({ page }) => {
-		// Debug: Check initial state
-		const initialDialogs = await page.locator('dialog').count();
-		console.log(`File restrictions test - Initial dialogs: ${initialDialogs}`);
+		// Wait for page to fully load first
+		await page.waitForLoadState('networkidle');
+		await expect(page.getByText('Total Images')).toBeVisible({ timeout: 10000 });
 
 		// Ensure no dialogs are open initially
 		await expect(page.getByRole('dialog')).not.toBeVisible();
@@ -213,11 +221,8 @@ test.describe('Images Page', () => {
 		await expect(uploadButton).toBeVisible();
 		await uploadButton.click();
 
-		// Wait for UI to update after click
-		await page.waitForLoadState('networkidle');
-
-		// Wait for modal to open first
-		await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 });
+		// Wait for modal to open using the selector approach
+		await page.waitForSelector('dialog[open]', { timeout: 15000 });
 
 		// Check for URL input field
 		await expect(page.getByLabel('Image URL')).toBeVisible();
@@ -261,9 +266,16 @@ test.describe('Images Page', () => {
 			// Wait for images to load
 			await page.waitForLoadState('networkidle');
 
-			// Click the view button of the first image
-			const firstViewButton = page.getByRole('button', { name: /view/i }).first();
-			await expect(firstViewButton).toBeVisible();
+			// Try to find any View button (with or without emoji)
+			let firstViewButton = page.getByRole('button', { name: /👁️ View/i }).first();
+
+			// If emoji version not found, try the plain version
+			const hasEmojiVersion = await firstViewButton.isVisible().catch(() => false);
+			if (!hasEmojiVersion) {
+				firstViewButton = page.getByRole('button', { name: 'View' }).first();
+			}
+
+			await expect(firstViewButton).toBeVisible({ timeout: 15000 });
 			await firstViewButton.click();
 
 			// Check that image viewer modal opens

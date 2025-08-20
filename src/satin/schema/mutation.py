@@ -14,6 +14,7 @@ from satin.schema.image import Image
 from satin.schema.project import Project
 from satin.schema.task import Task
 from satin.schema.utils import convert_pydantic_to_strawberry
+from satin.validators.sanitization_decorator import sanitize_graphql_mutation
 
 logger = logging.getLogger(__name__)
 
@@ -198,6 +199,7 @@ class Mutation:
 
     # Task mutations
     @strawberry.mutation
+    @sanitize_graphql_mutation
     async def create_task(
         self,
         image_id: strawberry.ID,
@@ -233,6 +235,7 @@ class Mutation:
             raise ValueError(TASK_UNEXPECTED_ERROR) from e
 
     @strawberry.mutation
+    @sanitize_graphql_mutation
     async def update_task(
         self,
         id: strawberry.ID,  # noqa: A002
@@ -272,6 +275,7 @@ class Mutation:
             raise ValueError(TASK_UPDATE_UNEXPECTED_ERROR) from e
 
     @strawberry.mutation
+    @sanitize_graphql_mutation
     async def delete_task(self, id: strawberry.ID) -> bool:  # noqa: A002
         """Delete a task."""
         # Check if task exists
@@ -291,17 +295,10 @@ class Mutation:
 
     # Project mutations
     @strawberry.mutation
+    @sanitize_graphql_mutation
     async def create_project(self, name: str, description: str) -> Project:
         """Create a new project."""
         try:
-            # Validate input
-            if not name or not name.strip():
-                _raise_project_name_empty()
-            if len(name) > MAX_NAME_LENGTH:
-                _raise_project_name_too_long()
-            if len(description) > MAX_DESCRIPTION_LENGTH:
-                _raise_project_description_too_long()
-
             pydantic_project = await repo_factory.project_repo.create_project(name=name, description=description)
             return convert_pydantic_to_strawberry(pydantic_project, Project)
         except ValidationError as e:
@@ -315,6 +312,7 @@ class Mutation:
             raise ValueError(PROJECT_UNEXPECTED_ERROR) from e
 
     @strawberry.mutation
+    @sanitize_graphql_mutation
     async def update_project(
         self,
         id: strawberry.ID,  # noqa: A002
@@ -327,9 +325,6 @@ class Mutation:
             existing_project = await repo_factory.project_repo.get_project(id)
             if not existing_project:
                 _raise_project_not_found(str(id))
-
-            # Validate input
-            await _validate_project_update_input(name, description)
 
             success = await repo_factory.project_repo.update_project(project_id=id, name=name, description=description)
             if not success:
@@ -350,6 +345,7 @@ class Mutation:
             raise ValueError(PROJECT_UPDATE_UNEXPECTED_ERROR) from e
 
     @strawberry.mutation
+    @sanitize_graphql_mutation
     async def delete_project(self, id: strawberry.ID) -> bool:  # noqa: A002
         """Delete a project."""
         # Check if project exists
@@ -374,6 +370,7 @@ class Mutation:
 
     # Image mutations
     @strawberry.mutation
+    @sanitize_graphql_mutation
     async def create_image(self, url: str) -> Image:
         """Create a new image."""
         try:
@@ -395,6 +392,7 @@ class Mutation:
             raise ValueError(IMAGE_UNEXPECTED_ERROR) from e
 
     @strawberry.mutation
+    @sanitize_graphql_mutation
     async def update_image(
         self,
         id: strawberry.ID,  # noqa: A002
@@ -430,6 +428,7 @@ class Mutation:
             raise ValueError(IMAGE_UPDATE_UNEXPECTED_ERROR) from e
 
     @strawberry.mutation
+    @sanitize_graphql_mutation
     async def delete_image(self, id: strawberry.ID) -> bool:  # noqa: A002
         """Delete an image."""
         # Check if image exists

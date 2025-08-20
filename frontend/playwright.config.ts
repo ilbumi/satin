@@ -8,7 +8,8 @@ export default defineConfig({
 	webServer: [
 		// Start backend server
 		{
-			command: 'cd .. && make mongo-start && uv run satin --host 0.0.0.0 --port 8000 --no-reload',
+			command:
+				'cd .. && make mongo-start && DISABLE_RATE_LIMITING=true uv run satin --host 0.0.0.0 --port 8000 --no-reload',
 			port: 8000,
 			reuseExistingServer: !process.env.CI,
 			timeout: 20 * 1000, // 20 seconds for backend to start

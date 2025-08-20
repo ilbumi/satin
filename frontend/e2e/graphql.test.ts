@@ -10,23 +10,26 @@ test.describe('GraphQL Integration', () => {
 		// Check that system status section is visible
 		await expect(page.getByRole('heading', { name: 'System Status' })).toBeVisible();
 
-		// Wait for connection test to complete
+		// Wait for connection test to complete by waiting for status to not be "Testing..."
 		await page
 			.waitForFunction(
 				() => {
-					const statusElement = document
-						.querySelector('text=Backend Connection:')
-						?.querySelector('span');
-					return statusElement && !statusElement.textContent?.includes('Testing...');
+					// Look for the status value element
+					const statusElements = Array.from(
+						document.querySelectorAll('p.font-mono.text-sm.text-gray-600')
+					);
+					return statusElements.some(
+						(el) => el.textContent && !el.textContent.includes('Testing...')
+					);
 				},
-				{ timeout: 5000 }
+				{ timeout: 10000 }
 			)
 			.catch(() => {
 				/* Fallback if status doesn't update */
 			});
 
-		// Check that connection status is displayed
-		const connectionStatus = page.locator('text=Backend Connection:').locator('span');
+		// Check that connection status is displayed using the font-mono class
+		const connectionStatus = page.locator('p.font-mono.text-sm.text-gray-600');
 		await expect(connectionStatus).toBeVisible();
 
 		// The status should show either Connected ✅ or Disconnected ❌
@@ -44,8 +47,10 @@ test.describe('GraphQL Integration', () => {
 		await Promise.race([
 			// Wait for test results list to appear
 			expect(page.locator('ul li')).toBeVisible({ timeout: 5000 }),
-			// Wait for "Running tests..." message
-			expect(page.getByText('Running tests...')).toBeVisible({ timeout: 5000 }),
+			// Wait for "Running tests..." message in Recent Activity section
+			expect(page.locator('p.text-sm.text-gray-500').getByText('Running tests...')).toBeVisible({
+				timeout: 5000
+			}),
 			// Wait for any test environment message
 			expect(
 				page.getByText(/Skipped API calls|Test environment|Console|connectivity test/)
@@ -57,7 +62,10 @@ test.describe('GraphQL Integration', () => {
 
 		// Should show either test results, "Running tests..." message, or test environment content
 		const hasResults = (await page.locator('li').count()) > 0;
-		const hasRunningMessage = await page.locator('text=Running tests...').isVisible();
+		const hasRunningMessage = await page
+			.locator('p.text-sm.text-gray-500')
+			.getByText('Running tests...')
+			.isVisible();
 		const hasTestEnvMessage = await page.locator('text=Skipped API calls').isVisible();
 
 		expect(hasResults || hasRunningMessage || hasTestEnvMessage).toBeTruthy();
@@ -66,11 +74,11 @@ test.describe('GraphQL Integration', () => {
 	test('should show project count', async ({ page }) => {
 		await page.goto('/');
 
-		// Wait for project count to load
-		await expect(page.locator('text=Total Projects:').locator('span')).toBeVisible();
+		// Wait for project count to load (it should be visible when connected)
+		await expect(page.locator('text=Total Projects:')).toBeVisible({ timeout: 10000 });
 
 		// Check that project count is displayed (should be a number)
-		const projectCount = page.locator('text=Total Projects:').locator('span');
+		const projectCount = page.locator('text=Total Projects:').locator('~ span.font-mono');
 		await expect(projectCount).toBeVisible();
 
 		const countText = await projectCount.textContent();

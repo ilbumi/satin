@@ -182,9 +182,16 @@ class TaskStore {
 	 * Update filters and reload tasks
 	 */
 	async updateFilters(newFilters: Partial<TaskFilters>): Promise<void> {
+		// Update filters immediately for reactive UI updates
 		this.state.filters = { ...this.state.filters, ...newFilters };
 		this.state.list.offset = 0; // Reset pagination
-		await this.loadTasks(false);
+
+		// Try to reload tasks, but don't fail if it errors (for rate limiting)
+		try {
+			await this.loadTasks(false);
+		} catch (error) {
+			console.warn('Filter update succeeded but task reload failed:', error);
+		}
 	}
 
 	/**

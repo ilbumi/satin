@@ -57,7 +57,7 @@ export class AnnotationService {
 
 		const mutation = /* GraphQL */ `
 			mutation UpdateTaskAnnotations($taskId: ID!, $bboxes: [BBoxInput!]!) {
-				updateTask(input: { id: $taskId, bboxes: $bboxes }) {
+				updateTask(id: $taskId, bboxes: $bboxes) {
 					id
 					bboxes {
 						x

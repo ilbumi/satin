@@ -275,21 +275,43 @@ export class TestDataFactory {
 }
 
 /**
- * Helper function to wait for backend to be ready
+ * Helper function to wait for backend to be ready with database connectivity
  */
 export async function waitForBackend(maxAttempts = 30, intervalMs = 1000): Promise<void> {
+	console.log('Waiting for backend to be ready...');
+
 	for (let i = 0; i < maxAttempts; i++) {
 		try {
-			const result = await testGraphQLClient.query('{ __typename }', {}).toPromise();
-			if (!result.error && result.data?.__typename === 'Query') {
-				return; // Backend is ready
+			// First check if backend responds to GraphQL queries
+			const healthResult = await testGraphQLClient.query('{ __typename }', {}).toPromise();
+			if (healthResult.error || healthResult.data?.__typename !== 'Query') {
+				throw new Error('Backend GraphQL endpoint not ready');
 			}
-		} catch {
-			// Continue trying
+
+			// Then test database connectivity with a simple mutation
+			const dbTestResult = await testGraphQLClient
+				.mutation(
+					`mutation { createProject(name: "connectivity-test-${Date.now()}", description: "DB test") { id } }`,
+					{}
+				)
+				.toPromise();
+
+			if (dbTestResult.error) {
+				throw new Error(`Database connectivity test failed: ${dbTestResult.error.message}`);
+			}
+
+			console.log('Backend and database are ready');
+			return; // Backend and database are both ready
+		} catch (error) {
+			console.log(
+				`Attempt ${i + 1}/${maxAttempts}: ${error instanceof Error ? error.message : 'Unknown error'}`
+			);
 		}
 
 		await new Promise((resolve) => setTimeout(resolve, intervalMs));
 	}
 
-	throw new Error('Backend did not become ready within the expected time');
+	throw new Error(
+		`Backend did not become ready within ${(maxAttempts * intervalMs) / 1000} seconds`
+	);
 }
