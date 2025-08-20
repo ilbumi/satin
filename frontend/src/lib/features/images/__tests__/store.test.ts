@@ -18,10 +18,13 @@ import { imageStore } from '../store.svelte';
 
 describe('Image Store', () => {
 	let store: typeof imageStore;
+	let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
 	// Mock data available for potential future tests
 
 	beforeEach(() => {
+		// Mock console.error to suppress error logs during tests
+		consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 		vi.clearAllMocks();
 		vi.useFakeTimers();
 
@@ -40,6 +43,8 @@ describe('Image Store', () => {
 	});
 
 	afterEach(() => {
+		// Restore console.error
+		consoleErrorSpy.mockRestore();
 		vi.restoreAllMocks();
 		vi.useRealTimers();
 	});

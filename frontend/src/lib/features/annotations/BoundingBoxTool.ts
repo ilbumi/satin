@@ -37,7 +37,6 @@ export class BoundingBoxTool extends BaseAnnotator {
 	}
 
 	onPointerDown(event: AnnotationPointerEvent): void {
-		console.log('BoundingBoxTool onPointerDown called with:', event);
 		const point = event.point;
 
 		// If we clicked on an annotation, select it
@@ -152,14 +151,6 @@ export class BoundingBoxTool extends BaseAnnotator {
 	}
 
 	onPointerUp(_event?: AnnotationPointerEvent): void {
-		console.log(
-			'BoundingBoxTool onPointerUp called, isDrawing:',
-			this.isDrawing,
-			'startPoint:',
-			this.startPoint,
-			'currentPoint:',
-			this.currentPoint
-		);
 		if (this.isDrawing && this.startPoint && this.currentPoint) {
 			// Complete drawing
 			const rect = this.createRectFromPoints(this.startPoint, this.currentPoint);
@@ -292,7 +283,6 @@ export class BoundingBoxTool extends BaseAnnotator {
 	}
 
 	private createAnnotation(bounds: Rectangle): void {
-		console.log('BoundingBoxTool createAnnotation called with bounds:', bounds);
 		const annotation: ClientAnnotation = {
 			id: this.generateId(),
 			type: 'bbox',
@@ -309,12 +299,8 @@ export class BoundingBoxTool extends BaseAnnotator {
 			updatedAt: new Date()
 		};
 
-		console.log('About to validate and create annotation:', annotation);
 		if (this.validateAnnotation(annotation)) {
-			console.log('Annotation validated, calling onAnnotationCreate');
 			this.onAnnotationCreate?.(annotation);
-		} else {
-			console.log('Annotation validation failed');
 		}
 	}
 

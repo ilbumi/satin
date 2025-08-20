@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	mockProject,
 	mockProjectPage,
@@ -28,7 +28,12 @@ const mockProjectService = vi.mocked(projectService);
 import { projectStore } from '../store.svelte';
 
 describe('Project Store', () => {
+	let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+
 	beforeEach(() => {
+		// Mock console.error to suppress error logs during tests
+		consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
 		resetMockCounter();
 		vi.clearAllMocks();
 
@@ -48,6 +53,11 @@ describe('Project Store', () => {
 		// Reset filters and pagination to initial state
 		projectStore.setFilters({ search: '', status: 'all' });
 		projectStore.clearError();
+	});
+
+	afterEach(() => {
+		// Restore console.error
+		consoleErrorSpy.mockRestore();
 	});
 
 	describe('initial state', () => {

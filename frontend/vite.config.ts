@@ -10,6 +10,18 @@ export default defineConfig({
 			overlay: false
 		}
 	},
+	build: {
+		sourcemap: true,
+		rollupOptions: {
+			onwarn(warning, warn) {
+				// Ignore sourcemap warnings for node_modules
+				if (warning.code === 'SOURCEMAP_ERROR' && warning.message.includes('node_modules')) {
+					return;
+				}
+				warn(warning);
+			}
+		}
+	},
 	ssr: {
 		external: ['konva', 'canvas']
 	},

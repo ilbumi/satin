@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	mockTask,
 	mockTaskSummary,
@@ -30,8 +30,12 @@ import { taskStore } from '../store.svelte';
 
 describe('TaskStore', () => {
 	let mockTaskService: ReturnType<typeof MockTaskService>;
+	let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
 	beforeEach(() => {
+		// Mock console.error to suppress error logs during tests
+		consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
 		// Reset mock counter
 		resetMockCounter();
 
@@ -74,6 +78,11 @@ describe('TaskStore', () => {
 			assignee: undefined,
 			priority: 'all'
 		};
+	});
+
+	afterEach(() => {
+		// Restore console.error
+		consoleErrorSpy.mockRestore();
 	});
 
 	describe('loadTasks', () => {

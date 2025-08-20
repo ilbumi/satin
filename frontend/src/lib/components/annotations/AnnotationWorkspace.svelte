@@ -339,14 +339,16 @@
 	<!-- Main Content -->
 	<div class="workspace-content">
 		<!-- Tool Panel -->
-		<div class="tool-panel-container">
-			<ToolPanel
-				vertical={true}
-				compact={false}
-				showLabels={true}
-				onToolChange={handleToolChange}
-			/>
-		</div>
+		{#if !readonly}
+			<div class="tool-panel-container">
+				<ToolPanel
+					vertical={true}
+					compact={false}
+					showLabels={true}
+					onToolChange={handleToolChange}
+				/>
+			</div>
+		{/if}
 
 		<!-- Canvas Area -->
 		<div class="canvas-container">

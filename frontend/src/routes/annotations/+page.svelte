@@ -12,6 +12,7 @@
 	let showAnnotator = $state(false);
 	let selectedTask = $state<TaskSummary | null>(null);
 	let selectedImage = $state<ImageSummary | null>(null);
+	let readonlyMode = $state(false);
 
 	onMount(async () => {
 		try {
@@ -20,8 +21,12 @@
 				const urlParams = new URLSearchParams(window.location.search);
 				const taskIdParam = urlParams.get('taskId');
 				const imageIdParam = urlParams.get('imageId');
+				const readonlyParam = urlParams.get('readonly');
 
 				if (taskIdParam && imageIdParam) {
+					// Set readonly mode based on URL parameter
+					readonlyMode = readonlyParam === 'true';
+
 					const fallbackImageUrl = `data:image/svg+xml;base64,${btoa(`
 						<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
 							<rect width="800" height="600" fill="#e2e8f0" />
@@ -33,12 +38,13 @@
 					`)}`;
 
 					// Create fallback task and image for testing
+					// Use FINISHED status for readonly mode, DRAFT for edit mode
 					selectedTask = {
 						id: taskIdParam,
 						projectId: 'fallback-project',
 						projectName: 'Fallback Project',
 						title: 'Fallback Task',
-						status: 'DRAFT' as const,
+						status: readonlyMode ? 'FINISHED' : 'DRAFT',
 						createdAt: new Date().toISOString(),
 						imageUrl: fallbackImageUrl,
 						imageId: imageIdParam,
@@ -50,7 +56,7 @@
 						filename: 'test-image.svg',
 						url: fallbackImageUrl,
 						thumbnailUrl: fallbackImageUrl,
-						status: 'ready' as const,
+						status: 'ready',
 						uploadedAt: new Date().toISOString(),
 						fileSize: 0
 					};
@@ -107,7 +113,7 @@
 				id: selectedImage.id,
 				url: selectedImage.url
 			}}
-			readonly={false}
+			readonly={readonlyMode}
 			onClose={() => {
 				showAnnotator = false;
 			}}

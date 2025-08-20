@@ -30,8 +30,6 @@ if (typeof globalThis.Image === 'undefined') {
 }
 
 beforeAll(() => {
-	console.log('Test setup: Error handlers configured');
-
 	// Mock console methods to suppress warnings and logs in tests
 	const originalError = console.error;
 	const originalWarn = console.warn;

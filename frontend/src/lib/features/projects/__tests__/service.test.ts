@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ProjectService } from '../service';
 import { graphqlClient } from '$lib/core/api/client';
 import type {
@@ -62,11 +62,20 @@ const mockGraphQLClient = vi.mocked(graphqlClient);
 
 describe('ProjectService', () => {
 	let service: ProjectService;
+	let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
 	beforeEach(() => {
+		// Mock console.error to suppress error logs during tests
+		consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
 		service = new ProjectService();
 		resetMockCounter();
 		vi.clearAllMocks();
+	});
+
+	afterEach(() => {
+		// Restore console.error
+		consoleErrorSpy.mockRestore();
 	});
 
 	describe('getProject', () => {
