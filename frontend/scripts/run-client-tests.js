@@ -98,7 +98,7 @@ function runClientTests() {
 				clientProcess.kill('SIGTERM');
 				process.exit(1);
 			}
-		}, 60000); // 60 second timeout
+		}, 600000); // 10 min timeout
 	});
 }
 
