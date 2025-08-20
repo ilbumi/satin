@@ -52,7 +52,13 @@ help:
 	@echo "  sync               Sync dependencies"
 	@echo ""
 	@echo "Documentation:"
-	@echo "  docs               Build documentation"
+	@echo "  docs               Build documentation (HTML)"
+	@echo "  docs-serve         Build and serve documentation locally"
+	@echo "  docs-clean         Clean documentation build files"
+	@echo "  docs-api           Generate API documentation from source"
+	@echo "  docs-watch         Watch and auto-rebuild documentation"
+	@echo "  docs-linkcheck     Check for broken links in documentation"
+	@echo "  docs-pdf           Build PDF documentation (requires LaTeX)"
 
 .PHONY: test
 test: test-backend test-frontend
@@ -159,14 +165,50 @@ sync:
 lock:
 	uv lock
 
+# Documentation commands
 .PHONY: docs
 docs:
-	uv run sphinx-build -b html docs/source docs/build/html
-
-.PHONY: docs-clean
-docs-clean:
-	rm -rf docs/build/
+	@echo "Building HTML documentation..."
+	cd docs && uv run sphinx-build -b html source build/html
+	@echo "Documentation built successfully! Open docs/build/html/index.html"
 
 .PHONY: docs-serve
 docs-serve: docs
+	@echo "Serving documentation at http://localhost:8080"
 	python -m http.server 8080 --directory docs/build/html
+
+.PHONY: docs-clean
+docs-clean:
+	@echo "Cleaning documentation build files..."
+	rm -rf docs/build/
+	@echo "Documentation build files removed."
+
+.PHONY: docs-api
+docs-api:
+	@echo "Generating API documentation from source code..."
+	cd docs && uv run sphinx-apidoc -o source/api ../src/satin --force --module-first
+	@echo "API documentation generated."
+
+.PHONY: docs-watch
+docs-watch:
+	@echo "Starting documentation auto-rebuild server..."
+	cd docs && uv run sphinx-autobuild source build/html --open-browser
+
+.PHONY: docs-linkcheck
+docs-linkcheck:
+	@echo "Checking documentation for broken links..."
+	cd docs && uv run sphinx-build -b linkcheck source build/linkcheck
+	@echo "Link check completed. See docs/build/linkcheck/ for results."
+
+.PHONY: docs-pdf
+docs-pdf:
+	@echo "Building PDF documentation..."
+	cd docs && uv run sphinx-build -b latex source build/latex
+	@cd docs/build/latex && make all-pdf
+	@echo "PDF documentation built at docs/build/latex/SATIn.pdf"
+
+.PHONY: docs-strict
+docs-strict:
+	@echo "Building documentation with warnings as errors..."
+	cd docs && uv run sphinx-build -b html -W source build/html
+	@echo "Strict documentation build completed."
