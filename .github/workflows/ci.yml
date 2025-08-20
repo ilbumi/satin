@@ -153,7 +153,9 @@ jobs:
 
       - name: Install Playwright browsers
         working-directory: ./frontend
-        run: pnpm exec playwright install chromium
+        run: |
+          npx playwright install chromium
+          npx playwright install-deps chromium
 
       - name: Format check with prettier
         working-directory: ./frontend
