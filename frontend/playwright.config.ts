@@ -12,7 +12,7 @@ export default defineConfig({
 				'cd .. && make mongo-start && DISABLE_RATE_LIMITING=true uv run satin --host 0.0.0.0 --port 8000 --no-reload',
 			port: 8000,
 			reuseExistingServer: !process.env.CI,
-			timeout: 20 * 1000, // 20 seconds for backend to start
+			timeout: 120 * 1000, // 2 minutes for backend to start
 			stderr: 'pipe',
 			stdout: 'pipe'
 		},
@@ -43,7 +43,7 @@ export default defineConfig({
 	use: {
 		headless: true,
 		// Add navigation and action timeouts
-		navigationTimeout: 30 * 1000, // 30 seconds
+		navigationTimeout: 20 * 1000, // 20 seconds
 		actionTimeout: 10 * 1000, // 10 seconds
 		// Add base URL for consistent navigation
 		baseURL: 'http://localhost:5173',

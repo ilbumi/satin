@@ -151,6 +151,10 @@ jobs:
         working-directory: ./frontend
         run: pnpm install --frozen-lockfile
 
+      - name: Install Playwright
+        working-directory: ./frontend
+        run: playwright install --with-deps
+
       - name: Format check with prettier
         working-directory: ./frontend
         run: pnpm prettier --check .
