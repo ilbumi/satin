@@ -3,18 +3,28 @@ import devtoolsJson from 'vite-plugin-devtools-json';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 
-export default defineConfig({
+const baseConfig = {
 	plugins: [tailwindcss(), sveltekit(), devtoolsJson()],
 	server: {
 		hmr: {
 			overlay: false
 		}
 	},
+	ssr: {
+		external: ['konva', 'canvas']
+	},
+	define: {
+		global: 'globalThis'
+	}
+};
+
+export default defineConfig({
+	...baseConfig,
 	test: {
 		expect: { requireAssertions: true },
 		projects: [
 			{
-				extends: './vite.config.ts',
+				...baseConfig,
 				test: {
 					name: 'client',
 					environment: 'browser',
@@ -22,15 +32,25 @@ export default defineConfig({
 						enabled: true,
 						provider: 'playwright',
 						headless: true,
-						instances: [{ browser: 'chromium' }]
+						instances: [{ browser: 'chromium' }],
+						// Use dynamic port allocation to avoid conflicts
+						api: {
+							port: 0
+						},
+						// Prevent route interception conflicts
+						isolate: false,
+						ui: false
 					},
+					// Add retry and timeout settings
+					retry: 0,
+					testTimeout: 30000,
 					include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
 					exclude: ['src/lib/server/**'],
 					setupFiles: ['./vitest-setup-client.ts']
 				}
 			},
 			{
-				extends: './vite.config.ts',
+				...baseConfig,
 				test: {
 					name: 'server',
 					environment: 'node',

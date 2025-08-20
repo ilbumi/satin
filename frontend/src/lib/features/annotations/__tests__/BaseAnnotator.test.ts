@@ -25,6 +25,7 @@ class TestAnnotator extends BaseAnnotator {
 	onKeyDown = vi.fn();
 	onActivate = vi.fn();
 	onDeactivate = vi.fn();
+	onDestroy = vi.fn();
 	getCursor = vi.fn(() => 'default');
 	isActive = vi.fn(() => false);
 
@@ -370,9 +371,11 @@ describe('BaseAnnotator', () => {
 		it('should call activation methods', () => {
 			annotator.onActivate();
 			annotator.onDeactivate();
+			annotator.onDestroy();
 
 			expect(annotator.onActivate).toHaveBeenCalled();
 			expect(annotator.onDeactivate).toHaveBeenCalled();
+			expect(annotator.onDestroy).toHaveBeenCalled();
 		});
 
 		it('should call state methods', () => {

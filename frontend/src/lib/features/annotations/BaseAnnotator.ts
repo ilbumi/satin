@@ -17,6 +17,7 @@ export abstract class BaseAnnotator {
 	protected onAnnotationCreate?: (annotation: ClientAnnotation) => void;
 	protected onAnnotationUpdate?: (id: string, annotation: Partial<ClientAnnotation>) => void;
 	protected onAnnotationDelete?: (id: string) => void;
+	protected onAnnotationSelect?: (annotation: ClientAnnotation | null) => void;
 
 	constructor(
 		canvasState: CanvasState,
@@ -25,6 +26,7 @@ export abstract class BaseAnnotator {
 			onAnnotationCreate?: (annotation: ClientAnnotation) => void;
 			onAnnotationUpdate?: (id: string, annotation: Partial<ClientAnnotation>) => void;
 			onAnnotationDelete?: (id: string) => void;
+			onAnnotationSelect?: (annotation: ClientAnnotation | null) => void;
 		}
 	) {
 		this.canvasState = canvasState;
@@ -32,6 +34,7 @@ export abstract class BaseAnnotator {
 		this.onAnnotationCreate = callbacks?.onAnnotationCreate;
 		this.onAnnotationUpdate = callbacks?.onAnnotationUpdate;
 		this.onAnnotationDelete = callbacks?.onAnnotationDelete;
+		this.onAnnotationSelect = callbacks?.onAnnotationSelect;
 	}
 
 	/**
@@ -63,6 +66,11 @@ export abstract class BaseAnnotator {
 	 * Handle tool deactivation
 	 */
 	abstract onDeactivate(): void;
+
+	/**
+	 * Cleanup resources when tool is destroyed
+	 */
+	abstract onDestroy(): void;
 
 	/**
 	 * Get the tool's cursor style
@@ -101,6 +109,20 @@ export abstract class BaseAnnotator {
 		if (typeof window !== 'undefined' && document.body) {
 			document.body.style.cursor = cursor;
 		}
+	}
+
+	/**
+	 * Clean up tool resources
+	 */
+	protected cleanup(): void {
+		// Reset cursor
+		this.setCursor('default');
+
+		// Clear callbacks to prevent memory leaks
+		this.onAnnotationCreate = undefined;
+		this.onAnnotationUpdate = undefined;
+		this.onAnnotationDelete = undefined;
+		this.onAnnotationSelect = undefined;
 	}
 
 	/**

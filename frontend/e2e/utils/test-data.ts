@@ -141,35 +141,26 @@ export class TestDataFactory {
 	 * Create a test image
 	 */
 	async createImage(filename: string): Promise<TestImage> {
-		// Generate a unique URL for each image to avoid duplicate key errors
+		// Generate a unique URL to avoid duplicate key errors
 		const timestamp = Date.now();
 		const randomId = Math.random().toString(36).substring(7);
+		// Use a base64 data URL that loads instantly without network requests
+		// This is a small 800x600 red rectangle for testing purposes
+		const testImageUrl = `data:image/svg+xml;base64,${btoa(`
+			<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+				<rect width="800" height="600" fill="#ff6b6b" />
+				<text x="400" y="300" text-anchor="middle" dominant-baseline="middle"
+				      font-family="Arial" font-size="24" fill="white">
+					Test Image ${timestamp}-${randomId}
+				</text>
+			</svg>
+		`)}`;
 
-		// Try picsum.photos first, fall back to data URL if needed
-		let testImageUrl = `https://picsum.photos/400/300?random=${timestamp}_${randomId}`;
-
-		// Fallback: small base64 test image (1x1 pixel transparent PNG)
-		const fallbackDataUrl =
-			'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
-
-		// You could add logic here to test if picsum is accessible and use fallback if not
-
-		let result = await testGraphQLClient
+		const result = await testGraphQLClient
 			.mutation(CREATE_IMAGE_MUTATION, {
 				url: testImageUrl
 			})
 			.toPromise();
-
-		// If picsum URL fails, try with fallback data URL
-		if (result.error && result.error.message.toLowerCase().includes('url')) {
-			console.warn(`Picsum URL failed, using fallback data URL: ${result.error.message}`);
-			testImageUrl = fallbackDataUrl;
-			result = await testGraphQLClient
-				.mutation(CREATE_IMAGE_MUTATION, {
-					url: testImageUrl
-				})
-				.toPromise();
-		}
 
 		if (result.error) {
 			throw new Error(`Failed to create image: ${result.error.message}`);
@@ -180,7 +171,7 @@ export class TestDataFactory {
 		return {
 			id: image.id,
 			filename,
-			url: testImageUrl, // Use the URL that was successfully created
+			url: testImageUrl,
 			thumbnailUrl: testImageUrl
 		};
 	}
@@ -223,27 +214,33 @@ export class TestDataFactory {
 		const errors: string[] = [];
 
 		// Delete tasks first (they depend on projects and images)
+		console.log(`Cleaning up ${this.createdTasks.length} tasks...`);
 		for (const taskId of this.createdTasks) {
 			try {
 				await testGraphQLClient.mutation(DELETE_TASK_MUTATION, { id: taskId }).toPromise();
+				console.log(`Deleted task: ${taskId}`);
 			} catch (error) {
 				errors.push(`Failed to delete task ${taskId}: ${error}`);
 			}
 		}
 
-		// Delete images
+		// Delete images second (after tasks are deleted)
+		console.log(`Cleaning up ${this.createdImages.length} images...`);
 		for (const imageId of this.createdImages) {
 			try {
 				await testGraphQLClient.mutation(DELETE_IMAGE_MUTATION, { id: imageId }).toPromise();
+				console.log(`Deleted image: ${imageId}`);
 			} catch (error) {
 				errors.push(`Failed to delete image ${imageId}: ${error}`);
 			}
 		}
 
-		// Delete projects last
+		// Delete projects last (after tasks are deleted)
+		console.log(`Cleaning up ${this.createdProjects.length} projects...`);
 		for (const projectId of this.createdProjects) {
 			try {
 				await testGraphQLClient.mutation(DELETE_PROJECT_MUTATION, { id: projectId }).toPromise();
+				console.log(`Deleted project: ${projectId}`);
 			} catch (error) {
 				errors.push(`Failed to delete project ${projectId}: ${error}`);
 			}
@@ -256,6 +253,8 @@ export class TestDataFactory {
 
 		if (errors.length > 0) {
 			console.warn('Some cleanup operations failed:', errors);
+		} else {
+			console.log('All test data cleaned up successfully');
 		}
 	}
 

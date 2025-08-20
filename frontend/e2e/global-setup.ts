@@ -100,6 +100,59 @@ async function globalSetup() {
 		}
 	}
 
+	// Create test images
+	const CREATE_IMAGE_MUTATION = `
+		mutation CreateImage($url: String!) {
+			createImage(url: $url) {
+				id
+				url
+			}
+		}
+	`;
+
+	// Create a few test images using data URLs
+	const testImages = [
+		'data:image/svg+xml;base64,' +
+			btoa(`
+			<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+				<rect width="800" height="600" fill="#ff6b6b" />
+				<text x="400" y="300" text-anchor="middle" dominant-baseline="middle"
+				      font-family="Arial" font-size="24" fill="white">
+					Sample Medical Image 1
+				</text>
+			</svg>
+		`),
+		'data:image/svg+xml;base64,' +
+			btoa(`
+			<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+				<rect width="800" height="600" fill="#4ecdc4" />
+				<text x="400" y="300" text-anchor="middle" dominant-baseline="middle"
+				      font-family="Arial" font-size="24" fill="white">
+					Sample Vehicle Image 1
+				</text>
+			</svg>
+		`),
+		'data:image/svg+xml;base64,' +
+			btoa(`
+			<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+				<rect width="800" height="600" fill="#45b7d1" />
+				<text x="400" y="300" text-anchor="middle" dominant-baseline="middle"
+				      font-family="Arial" font-size="24" fill="white">
+					Sample Wildlife Image 1
+				</text>
+			</svg>
+		`)
+	];
+
+	for (let i = 0; i < testImages.length; i++) {
+		try {
+			await testGraphQLClient.mutation(CREATE_IMAGE_MUTATION, { url: testImages[i] }).toPromise();
+			console.log(`Created test image ${i + 1}`);
+		} catch (error) {
+			console.log(`Error creating test image ${i + 1}:`, error);
+		}
+	}
+
 	console.log('Global setup completed');
 }
 

@@ -78,9 +78,9 @@ frontend-test-e2e:
 .PHONY: mongo-start
 mongo-start:
 	@echo "Starting MongoDB in Docker..."
-	docker-compose up -d mongodb
+	docker compose up -d mongodb
 	@echo "Waiting for MongoDB to be ready..."
-	@sleep 5
+	@sleep 2
 	@docker compose exec -T mongodb mongosh --eval "db.adminCommand('ping')" > /dev/null 2>&1 && echo "MongoDB is ready!" || echo "MongoDB may still be starting..."
 
 .PHONY: mongo-stop
@@ -100,7 +100,7 @@ dev:
 	@make -j2 backend-dev frontend-dev
 
 .PHONY: backend-dev
-backend-dev: mongo-start
+backend-dev: mongo-clean mongo-start
 	@echo "Starting backend server..."
 	uv run satin --reload --host 0.0.0.0 --port 8000
 

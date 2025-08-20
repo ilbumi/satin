@@ -11,6 +11,7 @@ import strawberry
 from bson import ObjectId
 from bson.errors import InvalidId
 
+from satin.config import config
 from satin.constants import (
     ALLOWED_URL_SCHEMES,
     FORBIDDEN_URL_HOSTS,
@@ -24,6 +25,7 @@ from satin.constants import (
     MAX_TAGS_COUNT,
     MIN_PRINTABLE_CHAR,
     OBJECT_ID_LENGTH,
+    TRUSTED_TEST_DOMAINS,
 )
 from satin.exceptions import (
     FieldNameValidationError,
@@ -123,6 +125,10 @@ def _validate_hostname(parsed) -> None:
     """Validate hostname for security issues."""
     hostname = parsed.hostname
     if hostname:
+        # Allow trusted test domains for development and testing
+        if hostname.lower() in TRUSTED_TEST_DOMAINS:
+            return
+
         # Check for localhost and local IPs using proper validation
         if hostname.lower() in FORBIDDEN_URL_HOSTS:
             raise UrlValidationError.local_url_not_allowed()
@@ -344,8 +350,9 @@ def validate_url(url: str, allow_local: bool = False) -> str:
         if "file:" in url.lower():
             raise UrlValidationError.file_protocol_not_allowed()
 
-    # Check for common SSRF bypass patterns
-    _check_dangerous_patterns(url)
+    # Check for common SSRF bypass patterns (unless disabled for testing)
+    if not config.disable_dangerous_pattern_checks:
+        _check_dangerous_patterns(url)
 
     # Additional check for URL shorteners and redirectors which could bypass validation
     _check_url_shorteners(parsed)

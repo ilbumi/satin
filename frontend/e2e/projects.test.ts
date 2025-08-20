@@ -199,7 +199,7 @@ test.describe('Project Management', () => {
 
 		// No project should be created (wait for network to settle)
 		await page.waitForLoadState('networkidle');
-		expect(await page.getByText('Test Project').count()).toBe(0);
+		expect(await page.getByText('Test Project', { exact: true }).count()).toBe(0);
 	});
 
 	test('should filter projects by search', async ({ page }) => {

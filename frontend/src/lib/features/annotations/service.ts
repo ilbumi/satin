@@ -18,7 +18,7 @@ export class AnnotationService {
 	 */
 	async loadTaskAnnotations(taskId: string): Promise<ClientAnnotation[]> {
 		const query = /* GraphQL */ `
-			query GetTaskWithAnnotations($taskId: String!) {
+			query GetTaskWithAnnotations($taskId: ID!) {
 				task(id: $taskId) {
 					id
 					bboxes {
@@ -56,7 +56,7 @@ export class AnnotationService {
 		const bboxes = this.convertClientAnnotationsToBBoxes(annotations);
 
 		const mutation = /* GraphQL */ `
-			mutation UpdateTaskAnnotations($taskId: String!, $bboxes: [BBoxInput!]!) {
+			mutation UpdateTaskAnnotations($taskId: ID!, $bboxes: [BBoxInput!]!) {
 				updateTask(input: { id: $taskId, bboxes: $bboxes }) {
 					id
 					bboxes {

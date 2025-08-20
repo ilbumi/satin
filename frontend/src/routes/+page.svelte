@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { runConnectivityTests } from '$lib/core/api/test';
 	import { testConnection, api } from '$lib/core/api';
 
 	let connectionStatus = 'Testing...';
@@ -29,8 +28,7 @@
 				testResults.push(`❌ Projects query failed: ${result.error.message}`);
 			}
 
-			// Run full connectivity tests in console
-			runConnectivityTests();
+			// Connectivity tests completed above
 		} catch (error) {
 			testResults.push(`❌ Error during testing: ${error}`);
 		}

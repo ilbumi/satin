@@ -45,8 +45,9 @@ validate_mongo_connection(str(config.mongo_dsn))
 try:
     client: AsyncMongoClient = AsyncMongoClient(
         str(config.mongo_dsn),
-        serverSelectionTimeoutMS=5000,  # 5 second timeout for initial connection
-        connectTimeoutMS=10000,  # 10 second connection timeout
+        serverSelectionTimeoutMS=30000,  # 30 second timeout for initial connection
+        connectTimeoutMS=30000,  # 30 second connection timeout
+        socketTimeoutMS=30000,  # 30 second socket timeout
     )
     db = client.get_default_database()
 

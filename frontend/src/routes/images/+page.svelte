@@ -2,7 +2,6 @@
 	import { onMount } from 'svelte';
 	import { Button, Card, Modal, Toast } from '$lib/components/ui';
 	import { ImageGallery, AddImageByUrl, ImageViewer } from '$lib/components/images';
-	import { ImageAnnotator } from '$lib/components/annotations';
 	import { imageStore } from '$lib/features/images/store.svelte';
 	import { taskStore } from '$lib/features/tasks/store.svelte';
 	import type { ImageSummary, ImageDetail, ImageFilters } from '$lib/features/images/types';
@@ -15,6 +14,9 @@
 	let selectedImage = $state<ImageSummary | null>(null);
 	let selectedImageForAnnotation = $state<ImageSummary | null>(null);
 	let selectedTaskForAnnotation = $state<Task | null>(null);
+	let ImageAnnotator = $state<
+		typeof import('$lib/components/annotations/ImageAnnotator.svelte').default | null
+	>(null);
 	let showToast = $state(false);
 	let toastMessage = $state('');
 	let toastType = $state<'success' | 'error'>('success');
@@ -84,6 +86,17 @@
 		if (!fullTask) {
 			showErrorToast('Could not load task details');
 			return;
+		}
+
+		// Dynamically import ImageAnnotator before opening
+		if (!ImageAnnotator) {
+			try {
+				const module = await import('$lib/components/annotations');
+				ImageAnnotator = module.ImageAnnotator;
+			} catch {
+				showErrorToast('Failed to load annotation editor');
+				return;
+			}
 		}
 
 		// Open the annotation editor
@@ -211,8 +224,9 @@
 />
 
 <!-- Image Annotator -->
-{#if selectedImageForAnnotation && selectedTaskForAnnotation}
-	<ImageAnnotator
+{#if selectedImageForAnnotation && selectedTaskForAnnotation && ImageAnnotator}
+	{@const AnnotatorComponent = ImageAnnotator}
+	<AnnotatorComponent
 		bind:open={showAnnotator}
 		task={selectedTaskForAnnotation}
 		image={{

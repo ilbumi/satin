@@ -6,22 +6,12 @@ export default defineConfig({
 	globalSetup: path.resolve('./e2e/global-setup.ts'),
 	globalTeardown: path.resolve('./e2e/global-teardown.ts'),
 	webServer: [
-		// Start MongoDB first
-		{
-			command: 'cd .. && make mongo-start',
-			port: 27017,
-			reuseExistingServer: !process.env.CI,
-			timeout: 60 * 1000, // 1 minute for MongoDB to start
-			stderr: 'pipe',
-			stdout: 'pipe'
-		},
 		// Start backend server
 		{
-			command:
-				'cd .. && MONGO_DSN="mongodb://admin:password@localhost:27017/satin?authSource=admin" uv run granian --interface asgi --host 0.0.0.0 --port 8000 satin:app',
+			command: 'cd .. && make mongo-start && uv run satin --host 0.0.0.0 --port 8000 --no-reload',
 			port: 8000,
 			reuseExistingServer: !process.env.CI,
-			timeout: 60 * 1000, // 1 minute for backend to start
+			timeout: 20 * 1000, // 20 seconds for backend to start
 			stderr: 'pipe',
 			stdout: 'pipe'
 		},

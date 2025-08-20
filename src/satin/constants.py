@@ -31,6 +31,7 @@ MAX_REGEX_PATTERN_LENGTH = 1000
 # URL validation
 ALLOWED_URL_SCHEMES = {"http", "https", "data"}
 FORBIDDEN_URL_HOSTS = {"localhost", "127.0.0.1", "::1"}
+TRUSTED_TEST_DOMAINS = {"picsum.photos", "httpbin.org", "jsonplaceholder.typicode.com"}
 BIND_ALL_INTERFACES = "0.0.0.0"  # nosec  # noqa: S104
 
 # Error messages

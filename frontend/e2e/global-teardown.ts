@@ -31,6 +31,18 @@ async function globalTeardown() {
 		}
 	`;
 
+	// Query for all tasks
+	const GET_TASKS_QUERY = `
+		query GetTasks {
+			tasks(limit: 100, offset: 0) {
+				objects {
+					id
+					status
+				}
+			}
+		}
+	`;
+
 	const DELETE_PROJECT_MUTATION = `
 		mutation DeleteProject($id: ID!) {
 			deleteProject(id: $id)
@@ -43,8 +55,35 @@ async function globalTeardown() {
 		}
 	`;
 
+	const DELETE_TASK_MUTATION = `
+		mutation DeleteTask($id: ID!) {
+			deleteTask(id: $id)
+		}
+	`;
+
 	try {
-		// Clean up images first (especially any with invalid URLs)
+		// Clean up tasks first (they reference images and projects)
+		try {
+			const taskResult = await testGraphQLClient.query(GET_TASKS_QUERY, {}).toPromise();
+
+			if (!taskResult.error && taskResult.data?.tasks?.objects) {
+				const tasks = taskResult.data.tasks.objects;
+				console.log(`Found ${tasks.length} tasks to clean up`);
+
+				for (const task of tasks) {
+					try {
+						await testGraphQLClient.mutation(DELETE_TASK_MUTATION, { id: task.id }).toPromise();
+						console.log(`Deleted task: ${task.id}`);
+					} catch (error) {
+						console.log(`Error deleting task ${task.id}:`, error);
+					}
+				}
+			}
+		} catch (error) {
+			console.log('Error cleaning up tasks:', error);
+		}
+
+		// Clean up images second (after tasks are removed)
 		try {
 			const imageResult = await testGraphQLClient.query(GET_IMAGES_QUERY, {}).toPromise();
 
@@ -65,7 +104,7 @@ async function globalTeardown() {
 			console.log('Error cleaning up images (some may have invalid URLs):', error);
 		}
 
-		// Get all projects
+		// Get all projects last (after tasks are removed)
 		const result = await testGraphQLClient.query(GET_PROJECTS_QUERY, {}).toPromise();
 
 		if (!result.error && result.data?.projects?.objects) {

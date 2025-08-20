@@ -10,6 +10,7 @@ export { createAnnotationService, getAnnotationService, AnnotationService } from
 // Tools
 export { BaseAnnotator } from './BaseAnnotator';
 export { BoundingBoxTool } from './BoundingBoxTool';
+export { SelectTool } from './SelectTool';
 
 // Utils
 export * from './utils';

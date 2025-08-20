@@ -21,6 +21,9 @@
 	// Get available tools (only enabled ones)
 	const availableTools = Object.values(TOOL_CONFIGS).filter((tool) => tool.enabled);
 
+	// Reactive active tool getter for proper state tracking
+	let activeTool = $derived(() => annotationStore.canvas.activeTool);
+
 	function selectTool(toolId: AnnotationTool) {
 		annotationStore.setActiveTool(toolId);
 		onToolChange?.(toolId);
@@ -56,10 +59,7 @@
 		}
 	}
 
-	// Attach keyboard listeners
-	if (typeof window !== 'undefined') {
-		window.addEventListener('keydown', handleKeyboard);
-	}
+	// Keyboard handling is done via svelte:window
 </script>
 
 <svelte:window onkeydown={handleKeyboard} />
@@ -77,9 +77,9 @@
 		<div class="tool-grid {vertical ? 'vertical' : 'horizontal'}">
 			{#each availableTools as tool (tool.id)}
 				<Button
-					variant={annotationStore.canvas.activeTool === tool.id ? 'primary' : 'secondary'}
+					variant={activeTool() === tool.id ? 'primary' : 'secondary'}
 					size={compact ? 'sm' : 'md'}
-					class="tool-button {annotationStore.canvas.activeTool === tool.id ? 'active' : ''}"
+					class="tool-button {activeTool() === tool.id ? 'active' : ''}"
 					data-testid="tool-{tool.id}"
 					onclick={() => selectTool(tool.id)}
 					title="{tool.description} ({tool.shortcut ? `Shortcut: ${tool.shortcut}` : ''})"

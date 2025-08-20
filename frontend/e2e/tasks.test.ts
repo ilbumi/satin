@@ -252,8 +252,57 @@ test.describe('Task Management', () => {
 		const projectSelect = page.getByTestId('project-select');
 		const imageSelect = page.getByTestId('image-select');
 
-		await projectSelect.selectOption('1'); // Medical Images Dataset
-		await imageSelect.selectOption('1'); // sample1.jpg
+		// Wait for options to load and select the first available project
+		await page.waitForFunction(
+			() => {
+				const select = document.querySelector(
+					'[data-testid="project-select"]'
+				) as HTMLSelectElement;
+				return select && select.options.length > 1; // More than just the default option
+			},
+			{ timeout: 10000 }
+		);
+
+		// Get all project options and select the first non-empty one
+		const projectOptions = await projectSelect.locator('option').all();
+		let selectedProject = false;
+		for (const option of projectOptions) {
+			const value = await option.getAttribute('value');
+			if (value && value !== '') {
+				await projectSelect.selectOption(value);
+				selectedProject = true;
+				break;
+			}
+		}
+
+		if (!selectedProject) {
+			throw new Error('No valid project options found');
+		}
+
+		// Wait for image options to load after project selection
+		await page.waitForFunction(
+			() => {
+				const select = document.querySelector('[data-testid="image-select"]') as HTMLSelectElement;
+				return select && select.options.length > 1; // More than just the default option
+			},
+			{ timeout: 10000 }
+		);
+
+		// Get all image options and select the first non-empty one
+		const imageOptions = await imageSelect.locator('option').all();
+		let selectedImage = false;
+		for (const option of imageOptions) {
+			const value = await option.getAttribute('value');
+			if (value && value !== '') {
+				await imageSelect.selectOption(value);
+				selectedImage = true;
+				break;
+			}
+		}
+
+		if (!selectedImage) {
+			throw new Error('No valid image options found');
+		}
 
 		// Create button should now be enabled
 		const createButton = page.getByTestId('create-button');
@@ -270,13 +319,18 @@ test.describe('Task Management', () => {
 
 		// Verify new task appears in list (should be first since it's newest)
 		const taskCards = page.locator('[data-testid="task-card"]');
-		if ((await taskCards.count()) > 0) {
-			const firstTask = taskCards.first();
-			await expect(firstTask).toBeVisible();
+		await expect(taskCards.first()).toBeVisible();
 
-			// Should contain project name
-			await expect(firstTask).toContainText('Medical Images Dataset');
-		}
+		const firstTask = taskCards.first();
+		await expect(firstTask).toBeVisible();
+
+		// Verify the task has the basic elements (project name and status)
+		await expect(firstTask).toContainText(/Draft|In Progress|Completed/);
+
+		// Verify that task has content and status
+		const taskText = await firstTask.textContent();
+		expect(taskText).toBeTruthy();
+		expect(taskText).toMatch(/Draft|In Progress|Completed|DRAFT|IN_PROGRESS|COMPLETED/);
 	});
 
 	test('should handle task operations with existing tasks', async ({ page }) => {
@@ -334,7 +388,7 @@ test.describe('Task Management', () => {
 
 			// Get the href to verify it's correct format
 			const href = await viewLink.getAttribute('href');
-			expect(href).toMatch(/^\/tasks\/\d+$/);
+			expect(href).toMatch(/^\/tasks\/[a-f0-9]{24}$/);
 		}
 	});
 

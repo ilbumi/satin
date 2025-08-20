@@ -62,7 +62,7 @@ test.describe('Images Page', () => {
 		await expect(page.getByText('Browse and manage your image collection')).toBeVisible();
 
 		// Check upload button - be more specific to main page button
-		await expect(page.getByRole('button', { name: /upload images/i }).first()).toBeVisible();
+		await expect(page.getByRole('button', { name: /add by url/i }).first()).toBeVisible();
 	});
 
 	test('should display stats cards', async ({ page }) => {
@@ -82,7 +82,7 @@ test.describe('Images Page', () => {
 		await expect(page.getByRole('dialog')).not.toBeVisible();
 
 		// Click upload button - use first one to avoid strict mode violation
-		const uploadButton = page.getByRole('button', { name: /upload images/i }).first();
+		const uploadButton = page.getByRole('button', { name: /add by url/i }).first();
 		await expect(uploadButton).toBeVisible();
 		await uploadButton.click();
 
@@ -91,16 +91,16 @@ test.describe('Images Page', () => {
 
 		// Check if modal opens with longer timeout
 		await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 });
-		await expect(page.getByRole('heading', { name: 'Upload Images' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Add Images by URL' })).toBeVisible();
 
-		// Check for upload area
-		await expect(page.getByText('Click to upload or drag and drop')).toBeVisible();
+		// Check for URL input area
+		await expect(page.getByText('Image URL')).toBeVisible();
 	});
 
 	test('should close upload modal when close button is clicked', async ({ page }) => {
 		// Open modal
 		await page
-			.getByRole('button', { name: /upload images/i })
+			.getByRole('button', { name: /add by url/i })
 			.first()
 			.click();
 
@@ -135,9 +135,15 @@ test.describe('Images Page', () => {
 	test('should handle empty state when no images', async ({ page }) => {
 		// If no images are present, should show empty state
 		const emptyState = page.getByText('No Images Found');
-		if (await emptyState.isVisible()) {
+		const hasImages = await page.getByText(/Total Images/).isVisible();
+
+		if (!hasImages) {
+			// Only check empty state if there are actually no images
 			await expect(emptyState).toBeVisible();
 			await expect(page.getByText(/Upload your first images/)).toBeVisible();
+		} else {
+			// If images are present, this test should pass - empty state is not relevant
+			console.log('Images are present, skipping empty state check');
 		}
 	});
 
@@ -172,7 +178,7 @@ test.describe('Images Page', () => {
 
 		// Check if page still renders properly - be specific about which h1
 		await expect(page.locator('h1').filter({ hasText: 'Images' })).toBeVisible();
-		await expect(page.getByRole('button', { name: /upload images/i }).first()).toBeVisible();
+		await expect(page.getByRole('button', { name: /add by url/i }).first()).toBeVisible();
 
 		// Stats should stack on mobile
 		const statsContainer = page.locator('.grid').first();
@@ -203,7 +209,7 @@ test.describe('Images Page', () => {
 		await expect(page.getByRole('dialog')).not.toBeVisible();
 
 		// Open upload modal
-		const uploadButton = page.getByRole('button', { name: /upload images/i }).first();
+		const uploadButton = page.getByRole('button', { name: /add by url/i }).first();
 		await expect(uploadButton).toBeVisible();
 		await uploadButton.click();
 
@@ -213,21 +219,62 @@ test.describe('Images Page', () => {
 		// Wait for modal to open first
 		await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 });
 
-		// Check file type restrictions are shown - exact text with default 10MB
-		await expect(page.getByText('Supports JPEG, PNG, and WebP up to 10MB each')).toBeVisible();
+		// Check for URL input field
+		await expect(page.getByLabel('Image URL')).toBeVisible();
 	});
 
-	test.describe('With mock data', () => {
-		// Note: These tests require complex GraphQL mocking that conflicts with existing MSW setup
-		// The core e2e functionality is thoroughly tested above
-		test.skip('should display image grid with mock data', async () => {
-			// TODO: Fix GraphQL route interception conflicts with MSW
-			// This test is skipped as it's not critical to core functionality
+	test.describe('With actual data', () => {
+		test('should display image grid with actual data', async ({ page }) => {
+			// Wait for images to load
+			await page.waitForLoadState('networkidle');
+
+			// Get the actual count from the page
+			const imageCountText = await page.getByText(/\d+ Total Images/).textContent();
+			const totalImages = parseInt(imageCountText?.match(/(\d+) Total Images/)?.[1] || '0');
+
+			// Check that images are displayed - look for view buttons as a more specific selector
+			const viewButtons = page.getByRole('button', { name: /^view$/i });
+			await expect(viewButtons).toHaveCount(totalImages, { timeout: 10000 });
+
+			// Check that each image has proper structure by looking for common elements
+			const firstImage = page.locator('img').first();
+			await expect(firstImage).toBeVisible();
+
+			// Check for status indicators
+			const readyStatusElements = page.locator('text=ready');
+			await expect(readyStatusElements.first()).toBeVisible();
+
+			// Check for annotate buttons
+			const annotateButtons = page.getByRole('button', { name: /^annotate$/i });
+			await expect(annotateButtons).toHaveCount(totalImages);
 		});
 
-		test.skip('should show image viewer when image is clicked', async () => {
-			// TODO: Fix GraphQL route interception conflicts with MSW
-			// This test is skipped as it's not critical to core functionality
+		test('should show image viewer when image is clicked', async ({ page }) => {
+			// Wait for images to load
+			await page.waitForLoadState('networkidle');
+
+			// Click the view button of the first image
+			const firstViewButton = page.getByRole('button', { name: /view/i }).first();
+			await expect(firstViewButton).toBeVisible();
+			await firstViewButton.click();
+
+			// Check that image viewer modal opens
+			await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 });
+
+			// Check for image viewer elements
+			await expect(page.locator('dialog img')).toBeVisible();
+
+			// Check for close functionality
+			const closeButton = page.getByRole('button', { name: /close/i });
+			if (await closeButton.isVisible()) {
+				await closeButton.click();
+			} else {
+				// Try pressing Escape key
+				await page.keyboard.press('Escape');
+			}
+
+			// Check modal is closed
+			await expect(page.getByRole('dialog')).not.toBeVisible();
 		});
 	});
 });

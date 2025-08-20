@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import Konva from 'konva';
+	import { onMount, onDestroy, untrack } from 'svelte';
+	import { browser } from '$app/environment';
 	import type {
 		CanvasState,
 		ClientAnnotation,
@@ -9,6 +9,17 @@
 		CoordinateTransform
 	} from '$lib/features/annotations/types';
 	import { createCoordinateTransform, calculateImageFit } from '$lib/features/annotations/utils';
+
+	// Dynamic Konva import for browser-only usage
+	let Konva: typeof import('konva').default;
+	type KonvaStage = InstanceType<typeof import('konva').default.Stage>;
+	type KonvaLayer = InstanceType<typeof import('konva').default.Layer>;
+	type KonvaImage = InstanceType<typeof import('konva').default.Image>;
+	type KonvaEventObject<T> = {
+		evt: T;
+		target: InstanceType<typeof import('konva').default.Node>;
+		currentTarget: InstanceType<typeof import('konva').default.Node>;
+	};
 
 	interface AnnotationCanvasProps {
 		imageUrl: string;
@@ -37,11 +48,11 @@
 	}: AnnotationCanvasProps = $props();
 
 	let containerElement: HTMLDivElement;
-	let stage: Konva.Stage;
-	let backgroundLayer: Konva.Layer;
-	let annotationLayer: Konva.Layer;
-	let imageObj: Konva.Image;
-	let imageElement: HTMLImageElement;
+	let stage: KonvaStage;
+	let backgroundLayer: KonvaLayer;
+	let annotationLayer: KonvaLayer;
+	let imageObj: KonvaImage;
+	let imageElement = $state<HTMLImageElement | null>(null);
 
 	// Canvas state
 	let internalCanvasState = $state<CanvasState>({
@@ -64,6 +75,9 @@
 		...canvasState
 	});
 
+	// Error state for Konva loading
+	let konvaLoadError = $state<string | null>(null);
+
 	// Coordinate transform
 	let transform: CoordinateTransform;
 
@@ -71,17 +85,43 @@
 	let isPanning = $state(false);
 	let lastPanPos = $state<Point | null>(null);
 
-	onMount(() => {
-		initializeCanvas();
-		loadImage();
+	onMount(async () => {
+		if (!browser) return;
+
+		// Dynamically import Konva only in browser
+		try {
+			const konvaModule = await import('konva');
+			Konva = konvaModule.default;
+
+			initializeCanvas();
+			loadImage();
+		} catch (error) {
+			console.error('Failed to load Konva:', error);
+			konvaLoadError = 'Failed to load canvas library. Canvas functionality will be limited.';
+			// Still load the image for display
+			loadImageFallback();
+		}
 	});
 
 	onDestroy(() => {
-		stage?.destroy();
+		// Clean up window event listeners
+		window.removeEventListener('resize', handleResize);
+
+		// Clean up Konva event listeners
+		if (stage) {
+			stage.off('pointerdown pointermove pointerup wheel');
+			stage.destroy();
+		}
+
+		// Clean up image element
+		if (imageElement) {
+			imageElement.onload = null;
+			imageElement.onerror = null;
+		}
 	});
 
 	function initializeCanvas() {
-		if (!containerElement) return;
+		if (!containerElement || !browser || !Konva) return;
 
 		const containerRect = containerElement.getBoundingClientRect();
 		internalCanvasState.canvasWidth = containerRect.width;
@@ -109,23 +149,30 @@
 
 		// Initial fit to image
 		fitImageToCanvas();
+
+		// Report initial state to parent
+		updateCanvasState();
 	}
 
 	function loadImage() {
+		if (!browser || !Konva) return;
+
 		imageElement = new Image();
 		imageElement.crossOrigin = 'anonymous';
 
 		imageElement.onload = () => {
 			// Update actual image dimensions
-			internalCanvasState.imageWidth = imageElement.naturalWidth;
-			internalCanvasState.imageHeight = imageElement.naturalHeight;
+			if (imageElement) {
+				internalCanvasState.imageWidth = imageElement.naturalWidth;
+				internalCanvasState.imageHeight = imageElement.naturalHeight;
 
-			// Create Konva image
-			imageObj = new Konva.Image({
-				image: imageElement,
-				width: internalCanvasState.imageWidth,
-				height: internalCanvasState.imageHeight
-			});
+				// Create Konva image
+				imageObj = new Konva.Image({
+					image: imageElement,
+					width: internalCanvasState.imageWidth,
+					height: internalCanvasState.imageHeight
+				});
+			}
 
 			backgroundLayer.add(imageObj);
 			backgroundLayer.batchDraw();
@@ -144,7 +191,33 @@
 		imageElement.src = imageUrl;
 	}
 
+	function loadImageFallback() {
+		if (!browser) return;
+
+		imageElement = new Image();
+		imageElement.crossOrigin = 'anonymous';
+
+		imageElement.onload = () => {
+			// Update actual image dimensions
+			if (imageElement) {
+				internalCanvasState.imageWidth = imageElement.naturalWidth;
+				internalCanvasState.imageHeight = imageElement.naturalHeight;
+			}
+
+			// Report initial state to parent
+			updateCanvasState();
+		};
+
+		imageElement.onerror = () => {
+			console.error('Failed to load image:', imageUrl);
+		};
+
+		imageElement.src = imageUrl;
+	}
+
 	function setupEventHandlers() {
+		if (!browser || !Konva || !stage) return;
+
 		// Pointer events
 		stage.on('pointerdown', handlePointerDown);
 		stage.on('pointermove', handlePointerMove);
@@ -157,7 +230,7 @@
 		window.addEventListener('resize', handleResize);
 	}
 
-	function handlePointerDown(e: Konva.KonvaEventObject<PointerEvent>) {
+	function handlePointerDown(e: KonvaEventObject<PointerEvent>) {
 		e.evt.preventDefault();
 
 		const pos = stage.getPointerPosition();
@@ -181,7 +254,7 @@
 		onPointerDown?.(annotationEvent);
 	}
 
-	function handlePointerMove(e: Konva.KonvaEventObject<PointerEvent>) {
+	function handlePointerMove(e: KonvaEventObject<PointerEvent>) {
 		const pos = stage.getPointerPosition();
 		if (!pos) return;
 
@@ -209,7 +282,7 @@
 		onPointerMove?.(annotationEvent);
 	}
 
-	function handlePointerUp(e: Konva.KonvaEventObject<PointerEvent>) {
+	function handlePointerUp(e: KonvaEventObject<PointerEvent>) {
 		const pos = stage.getPointerPosition();
 
 		// End panning
@@ -232,7 +305,7 @@
 		onPointerUp?.(annotationEvent);
 	}
 
-	function handleWheel(e: Konva.KonvaEventObject<WheelEvent>) {
+	function handleWheel(e: KonvaEventObject<WheelEvent>) {
 		e.evt.preventDefault();
 
 		const scaleBy = 1.1;
@@ -277,7 +350,7 @@
 	}
 
 	function fitImageToCanvas() {
-		if (!stage || !imageObj) return;
+		if (!browser || !Konva || !stage || !imageObj) return;
 
 		const fit = calculateImageFit(
 			internalCanvasState.imageWidth,
@@ -300,7 +373,7 @@
 	}
 
 	function renderAnnotations() {
-		if (!annotationLayer) return;
+		if (!browser || !Konva || !annotationLayer) return;
 
 		// Clear existing annotations
 		annotationLayer.destroyChildren();
@@ -379,14 +452,14 @@
 
 	// Public API for external control
 	export function zoomIn() {
-		if (!stage) return;
+		if (!browser || !Konva || !stage) return;
 		const newScale = Math.min(stage.scaleX() * 1.2, 10);
 		stage.scale({ x: newScale, y: newScale });
 		updateCanvasState();
 	}
 
 	export function zoomOut() {
-		if (!stage) return;
+		if (!browser || !Konva || !stage) return;
 		const newScale = Math.max(stage.scaleX() / 1.2, 0.1);
 		stage.scale({ x: newScale, y: newScale });
 		updateCanvasState();
@@ -411,9 +484,14 @@
 		}
 	});
 
-	// Update internal state when props change
+	// Update internal state when props change (prevent reactive loops)
 	$effect(() => {
-		Object.assign(internalCanvasState, canvasState);
+		if (canvasState) {
+			untrack(() => {
+				// Only update if values have actually changed to prevent loops
+				Object.assign(internalCanvasState, canvasState);
+			});
+		}
 	});
 </script>
 
@@ -426,6 +504,20 @@
 	aria-label="{annotations.length} annotations on canvas"
 >
 	<!-- Canvas will be mounted here by Konva -->
+	{#if konvaLoadError && imageElement}
+		<!-- Fallback rendering when Konva fails to load -->
+		<div class="fallback-canvas flex h-full items-center justify-center">
+			<div class="text-center">
+				<img
+					src={imageElement.src}
+					alt="Annotation target"
+					class="max-h-full max-w-full object-contain"
+					style="max-width: {internalCanvasState.canvasWidth}px; max-height: {internalCanvasState.canvasHeight}px;"
+				/>
+				<p class="mt-4 text-sm text-yellow-300">{konvaLoadError}</p>
+			</div>
+		</div>
+	{/if}
 </div>
 
 <style>

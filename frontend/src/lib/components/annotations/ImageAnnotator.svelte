@@ -77,13 +77,20 @@
 			const img = new Image();
 			img.crossOrigin = 'anonymous';
 
+			// Add timeout to prevent hanging on slow/unresponsive images
+			const timeout = setTimeout(() => {
+				reject(new Error('Image loading timed out after 10 seconds'));
+			}, 10000);
+
 			img.onload = () => {
+				clearTimeout(timeout);
 				imageNaturalWidth = img.naturalWidth;
 				imageNaturalHeight = img.naturalHeight;
 				resolve();
 			};
 
 			img.onerror = () => {
+				clearTimeout(timeout);
 				reject(new Error('Failed to load image'));
 			};
 

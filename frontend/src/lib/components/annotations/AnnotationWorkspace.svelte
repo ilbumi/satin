@@ -4,13 +4,13 @@
 	import AnnotationCanvas from './AnnotationCanvas.svelte';
 	import ToolPanel from './ToolPanel.svelte';
 	import { annotationStore } from '$lib/features/annotations/store.svelte';
-	import { BoundingBoxTool } from '$lib/features/annotations/BoundingBoxTool';
-	import { createCoordinateTransform } from '$lib/features/annotations/utils';
+	import { BoundingBoxTool, SelectTool, BaseAnnotator } from '$lib/features/annotations';
 	import type {
 		AnnotationPointerEvent,
 		ClientAnnotation,
 		CanvasState,
-		CoordinateTransform
+		CoordinateTransform,
+		AnnotationTool
 	} from '$lib/features/annotations/types';
 
 	interface AnnotationWorkspaceProps {
@@ -36,81 +36,186 @@
 	}: AnnotationWorkspaceProps = $props();
 
 	let canvasRef: AnnotationCanvas = $state()!;
-	let currentTool: BoundingBoxTool | null = null;
+	let tools = $state(new Map<AnnotationTool, BaseAnnotator>());
 	let transform: CoordinateTransform | null = null;
+	let previousActiveTool: AnnotationTool | null = null;
+
+	// Reactive current tool based on store state
+	let currentTool = $derived(() => {
+		const activeTool = annotationStore.canvas.activeTool;
+		const tool = tools.get(activeTool) || null;
+		console.log(
+			'currentTool derived - activeTool:',
+			activeTool,
+			'tool:',
+			tool,
+			'tools size:',
+			tools.size
+		);
+		return tool;
+	});
+
+	// Handle tool switching with proper activation/deactivation
+	$effect(() => {
+		const activeTool = annotationStore.canvas.activeTool;
+
+		// Deactivate previous tool
+		if (previousActiveTool && tools.has(previousActiveTool)) {
+			const prevTool = tools.get(previousActiveTool);
+			if (prevTool) {
+				prevTool.onDeactivate();
+			}
+		}
+
+		// Activate new tool
+		if (activeTool && tools.has(activeTool)) {
+			const newTool = tools.get(activeTool);
+			if (newTool) {
+				newTool.onActivate();
+			}
+		}
+
+		previousActiveTool = activeTool;
+	});
 
 	// Initialize the annotation store
 	onMount(() => {
 		annotationStore.initialize(taskId, imageId, imageWidth, imageHeight);
-		setupTools();
+		// Don't setup tools immediately - wait for canvas to be ready
 	});
 
 	onDestroy(() => {
-		currentTool = null;
+		// Clean up all tools
+		tools.forEach((tool: BaseAnnotator) => tool.onDestroy());
+		tools.clear();
 	});
 
 	function setupTools() {
-		// Initialize the bounding box tool
+		console.log('AnnotationWorkspace setupTools called');
 		const canvasState = annotationStore.canvas;
 
-		// Create transform (will be updated when canvas is ready)
-		transform = createCoordinateTransform(canvasState);
+		// Get the actual transform from the canvas
+		if (!canvasRef) {
+			console.error('Cannot setup tools: canvas not ready');
+			return;
+		}
 
-		currentTool = new BoundingBoxTool(canvasState, transform, {
-			onAnnotationCreate: (annotation) => {
+		transform = canvasRef.getTransform();
+		console.log('Got transform from canvas:', transform);
+
+		// Common tool callbacks
+		const toolCallbacks = {
+			onAnnotationCreate: (annotation: ClientAnnotation) => {
+				console.log('Tool callback: onAnnotationCreate called with:', annotation);
 				annotationStore.addAnnotation(annotation);
 			},
-			onAnnotationUpdate: (id, updates) => {
+			onAnnotationUpdate: (id: string, updates: Partial<ClientAnnotation>) => {
+				console.log('Tool callback: onAnnotationUpdate called with:', id, updates);
 				annotationStore.updateAnnotation(id, updates);
 			},
-			onAnnotationDelete: (id) => {
+			onAnnotationDelete: (id: string) => {
+				console.log('Tool callback: onAnnotationDelete called with:', id);
 				annotationStore.deleteAnnotation(id);
+			},
+			onAnnotationSelect: (annotation: ClientAnnotation | null) => {
+				console.log('Tool callback: onAnnotationSelect called with:', annotation);
+				annotationStore.selectAnnotation(annotation?.id || null);
+			}
+		};
+
+		// Create all tools
+		console.log('Creating tools with callbacks:', toolCallbacks);
+		tools.set('select', new SelectTool(canvasState, transform, toolCallbacks));
+		tools.set('bbox', new BoundingBoxTool(canvasState, transform, toolCallbacks));
+		console.log('Tools created, tools size:', tools.size);
+
+		// Activate the current tool
+		const activeTool = tools.get(annotationStore.canvas.activeTool);
+		if (activeTool) {
+			console.log('Activating current tool:', annotationStore.canvas.activeTool);
+			activeTool.onActivate();
+		}
+
+		console.log('Tools setup completed, tools are now ready');
+	}
+
+	// Reactive effect to handle tool changes
+	$effect(() => {
+		const activeTool = annotationStore.canvas.activeTool;
+
+		// Only run if tools are initialized
+		if (tools.size === 0) return;
+
+		// Deactivate all tools first
+		tools.forEach((tool: BaseAnnotator, toolType: AnnotationTool) => {
+			if (toolType !== activeTool) {
+				tool.onDeactivate();
 			}
 		});
 
-		// Activate the default tool
-		currentTool.onActivate();
-	}
+		// Activate the selected tool
+		const newTool = tools.get(activeTool);
+		if (newTool) {
+			newTool.onActivate();
+		}
+	});
 
 	function handleCanvasStateChange(state: Partial<CanvasState>) {
+		console.log('AnnotationWorkspace handleCanvasStateChange called with:', state);
 		annotationStore.updateCanvasState(state);
 
-		// Update transform for tools
-		if (canvasRef && currentTool) {
+		// Setup tools if not already done and canvas is ready
+		if (canvasRef && tools.size === 0) {
+			console.log('Canvas is ready, setting up tools for the first time');
+			// Setup tools immediately when canvas state changes
+			setupTools();
+		}
+
+		// Update transform for all tools
+		if (canvasRef && tools.size > 0) {
 			const newTransform = canvasRef.getTransform();
-			currentTool.updateTransform(newTransform);
-			currentTool.updateCanvasState(annotationStore.canvas);
+			transform = newTransform;
+
+			console.log('Updating tools with new transform');
+			tools.forEach((tool: BaseAnnotator) => {
+				tool.updateTransform(newTransform);
+				tool.updateCanvasState(annotationStore.canvas);
+			});
 		}
 	}
 
 	function handlePointerDown(event: AnnotationPointerEvent) {
-		if (readonly || !currentTool) return;
-		currentTool.onPointerDown(event);
+		console.log('AnnotationWorkspace handlePointerDown called with:', event);
+		console.log('readonly:', readonly, 'currentTool():', currentTool());
+		if (readonly) return;
+
+		const tool = currentTool();
+		if (!tool) return;
+
+		tool.onPointerDown(event);
 	}
 
 	function handlePointerMove(event: AnnotationPointerEvent) {
-		if (readonly || !currentTool) return;
-		currentTool.onPointerMove(event);
+		if (readonly) return;
+
+		const tool = currentTool();
+		if (!tool) return;
+
+		tool.onPointerMove(event);
 	}
 
 	function handlePointerUp(event: AnnotationPointerEvent) {
-		if (readonly || !currentTool) return;
-		currentTool.onPointerUp(event);
+		if (readonly) return;
+
+		const tool = currentTool();
+		if (!tool) return;
+
+		tool.onPointerUp(event);
 	}
 
-	function handleToolChange(toolId: string) {
-		if (!currentTool) return;
-
-		// Deactivate current tool
-		currentTool.onDeactivate();
-
-		// For now, we only have bbox tool, but this would switch between tools
-		if (toolId === 'bbox') {
-			currentTool.onActivate();
-		} else if (toolId === 'select') {
-			// Switch to select mode
-			annotationStore.updateCanvasState({ mode: 'view' });
-		}
+	function handleToolChange(toolId: AnnotationTool) {
+		// Update the annotation store's active tool, which will trigger reactive tool switching
+		annotationStore.setActiveTool(toolId);
 	}
 
 	async function handleSave() {
@@ -140,29 +245,48 @@
 		canvasRef?.resetZoom();
 	}
 
-	// Handle keyboard events
+	// Handle workspace-specific keyboard events (not tool shortcuts)
 	function handleKeyboard(event: KeyboardEvent) {
-		if (!currentTool) return;
-
-		// Let the tool handle the keyboard event
-		currentTool.onKeyDown(event);
-
 		// Handle save shortcut
 		if ((event.ctrlKey || event.metaKey) && event.key === 's') {
 			event.preventDefault();
 			handleSave();
+			return;
 		}
 
 		// Handle close shortcut
 		if (event.key === 'Escape' && annotationStore.canvas.mode === 'view') {
 			onClose?.();
+			return;
 		}
+
+		// Tool shortcuts and delete are handled by ToolPanel
+		// Pass other events to current tool if it exists
+		if (currentTool() && !isToolShortcut(event)) {
+			currentTool()!.onKeyDown(event);
+		}
+	}
+
+	function isToolShortcut(event: KeyboardEvent): boolean {
+		// Check if this is a tool shortcut (v for select, b for bbox, etc.)
+		const key = event.key.toLowerCase();
+		return (
+			key === 'v' ||
+			key === 'b' ||
+			key === 'delete' ||
+			key === 'backspace' ||
+			(event.ctrlKey && (key === 'z' || key === 'y'))
+		);
 	}
 </script>
 
 <svelte:window onkeydown={handleKeyboard} />
 
-<div class="annotation-workspace">
+<div
+	class="annotation-workspace"
+	data-testid="annotation-workspace"
+	data-tools-ready={tools.size > 0 ? 'true' : 'false'}
+>
 	<!-- Header -->
 	<div class="workspace-header">
 		<div class="header-left">

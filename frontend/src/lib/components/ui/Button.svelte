@@ -51,8 +51,10 @@
 		lg: 'px-6 py-3 text-base'
 	};
 
-	// Compute final classes
-	const computedClasses = `${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`;
+	// Compute final classes reactively
+	let computedClasses = $derived(
+		`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`
+	);
 
 	// Handle disabled state
 	let isDisabled = $derived(disabled || loading);

@@ -37,6 +37,7 @@ export class BoundingBoxTool extends BaseAnnotator {
 	}
 
 	onPointerDown(event: AnnotationPointerEvent): void {
+		console.log('BoundingBoxTool onPointerDown called with:', event);
 		const point = event.point;
 
 		// If we clicked on an annotation, select it
@@ -151,6 +152,14 @@ export class BoundingBoxTool extends BaseAnnotator {
 	}
 
 	onPointerUp(_event?: AnnotationPointerEvent): void {
+		console.log(
+			'BoundingBoxTool onPointerUp called, isDrawing:',
+			this.isDrawing,
+			'startPoint:',
+			this.startPoint,
+			'currentPoint:',
+			this.currentPoint
+		);
 		if (this.isDrawing && this.startPoint && this.currentPoint) {
 			// Complete drawing
 			const rect = this.createRectFromPoints(this.startPoint, this.currentPoint);
@@ -217,6 +226,23 @@ export class BoundingBoxTool extends BaseAnnotator {
 		this.setCursor('default');
 	}
 
+	onDestroy(): void {
+		// Reset all tool state
+		this.resetDrawingState();
+
+		// Clear selected annotation without updating (component is being destroyed)
+		this.selectedAnnotation = null;
+
+		// Reset editing state
+		this.isEditing = false;
+		this.isResizing = false;
+		this.activeHandle = null;
+		this.dragOffset = null;
+
+		// Call base cleanup
+		this.cleanup();
+	}
+
 	getCursor(): string {
 		if (this.isDrawing) return 'crosshair';
 		if (this.isResizing && this.activeHandle) return getResizeCursor(this.activeHandle);
@@ -266,6 +292,7 @@ export class BoundingBoxTool extends BaseAnnotator {
 	}
 
 	private createAnnotation(bounds: Rectangle): void {
+		console.log('BoundingBoxTool createAnnotation called with bounds:', bounds);
 		const annotation: ClientAnnotation = {
 			id: this.generateId(),
 			type: 'bbox',
@@ -282,8 +309,12 @@ export class BoundingBoxTool extends BaseAnnotator {
 			updatedAt: new Date()
 		};
 
+		console.log('About to validate and create annotation:', annotation);
 		if (this.validateAnnotation(annotation)) {
+			console.log('Annotation validated, calling onAnnotationCreate');
 			this.onAnnotationCreate?.(annotation);
+		} else {
+			console.log('Annotation validation failed');
 		}
 	}
 
@@ -291,9 +322,13 @@ export class BoundingBoxTool extends BaseAnnotator {
 		this.isDrawing = false;
 		this.startPoint = null;
 		this.currentPoint = null;
-		this.canvasState.mode = 'view';
-		this.canvasState.isDrawing = false;
-		this.canvasState.drawingStartPos = null;
-		this.canvasState.drawingCurrentPos = null;
+
+		// Only update canvas state if it exists (may be null during destruction)
+		if (this.canvasState) {
+			this.canvasState.mode = 'view';
+			this.canvasState.isDrawing = false;
+			this.canvasState.drawingStartPos = null;
+			this.canvasState.drawingCurrentPos = null;
+		}
 	}
 }
