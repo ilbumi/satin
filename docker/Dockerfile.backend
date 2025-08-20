@@ -1,5 +1,5 @@
 # Multi-stage build for optimized production image
-FROM python:3.13.6-slim AS builder
+FROM python:3.13.7-slim AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.8.3 /uv /uvx /bin/
 
 # Set environment variables for Python
@@ -24,7 +24,7 @@ COPY src ./src
 RUN uv sync --no-dev --locked
 
 # Production stage
-FROM python:3.13.6-slim AS production
+FROM python:3.13.7-slim AS production
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
