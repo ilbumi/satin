@@ -33,7 +33,7 @@
 	}
 
 	// Computed classes for consistent styling
-	const badgeClasses = $derived(() =>
+	const badgeClasses = $derived(
 		cn('rounded-full px-2 py-1 text-xs font-medium', getStatusColor(project.status))
 	);
 

@@ -31,7 +31,7 @@ describe('ProjectCard', () => {
 		// Check status badge
 		const statusBadge = screen.getByText('active');
 		await expect.element(statusBadge).toBeVisible();
-		await expect.element(statusBadge).toHaveClass('bg-green-100', 'text-green-800');
+		await expect.element(statusBadge).toHaveClass('bg-green-50', 'text-green-800');
 
 		// Check view link
 		const viewLink = screen.getByRole('link', { name: /view/i });
@@ -41,9 +41,9 @@ describe('ProjectCard', () => {
 
 	it('displays status badges with correct colors', async () => {
 		const scenarios = [
-			{ status: 'active' as const, bgClass: 'bg-green-100', textClass: 'text-green-800' },
-			{ status: 'completed' as const, bgClass: 'bg-blue-100', textClass: 'text-blue-800' },
-			{ status: 'draft' as const, bgClass: 'bg-gray-100', textClass: 'text-gray-800' }
+			{ status: 'active' as const, bgClass: 'bg-green-50', textClass: 'text-green-800' },
+			{ status: 'completed' as const, bgClass: 'bg-blue-50', textClass: 'text-blue-800' },
+			{ status: 'draft' as const, bgClass: 'bg-gray-50', textClass: 'text-gray-800' }
 		];
 
 		for (const scenario of scenarios) {
