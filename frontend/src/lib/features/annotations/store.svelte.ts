@@ -5,12 +5,38 @@ import type {
 	AnnotationTool,
 	CanvasMode
 } from './types';
+import { createPersistenceManager } from '$lib/core/persistence';
+import { localStorageAdapter } from '$lib/core/persistence/adapters/localStorage';
 
 /**
- * Annotation store with Svelte 5 runes
- * Manages annotation state, undo/redo, and UI state
+ * Persistable annotation state structure
+ */
+interface PersistedAnnotationState {
+	taskId: string | null;
+	imageId: string | null;
+	annotations: ClientAnnotation[];
+	history: AnnotationAction[];
+	historyIndex: number;
+	canvas: Partial<CanvasState>; // Only persist non-volatile canvas state
+	toolPanelOpen: boolean;
+	propertiesPanelOpen: boolean;
+}
+
+/**
+ * Annotation store with Svelte 5 runes and persistence
+ * Manages annotation state, undo/redo, UI state, and auto-saves work
  */
 class AnnotationStore {
+	// Persistence manager
+	private persistenceManager = createPersistenceManager<PersistedAnnotationState>(
+		'annotation-store',
+		localStorageAdapter,
+		{
+			version: 1,
+			debounceMs: 500, // Auto-save every 500ms after changes
+			ttl: 24 * 60 * 60 * 1000 // Keep for 24 hours
+		}
+	);
 	// Core data
 	annotations = $state<ClientAnnotation[]>([]);
 	taskId = $state<string | null>(null);
@@ -67,15 +93,104 @@ class AnnotationStore {
 	}
 
 	/**
+	 * Auto-save current state to persistence
+	 */
+	private async autoSave() {
+		if (!this.taskId || !this.imageId) return;
+
+		try {
+			const state: PersistedAnnotationState = {
+				taskId: this.taskId,
+				imageId: this.imageId,
+				annotations: this.annotations,
+				history: this.history,
+				historyIndex: this.historyIndex,
+				canvas: {
+					zoom: this.canvas.zoom,
+					panX: this.canvas.panX,
+					panY: this.canvas.panY,
+					activeTool: this.canvas.activeTool,
+					mode: this.canvas.mode
+				},
+				toolPanelOpen: this.toolPanelOpen,
+				propertiesPanelOpen: this.propertiesPanelOpen
+			};
+
+			await this.persistenceManager.save(state);
+		} catch (error) {
+			console.warn('Failed to auto-save annotation state:', error);
+		}
+	}
+
+	/**
+	 * Load persisted state for current task/image
+	 */
+	async loadPersistedState(taskId: string, imageId: string): Promise<boolean> {
+		try {
+			const persistedState = await this.persistenceManager.load();
+
+			if (
+				persistedState &&
+				persistedState.taskId === taskId &&
+				persistedState.imageId === imageId
+			) {
+				// Restore persisted data
+				this.annotations = persistedState.annotations;
+				this.history = persistedState.history;
+				this.historyIndex = persistedState.historyIndex;
+
+				// Restore canvas state (only non-volatile parts)
+				if (persistedState.canvas) {
+					this.canvas.zoom = persistedState.canvas.zoom || 1;
+					this.canvas.panX = persistedState.canvas.panX || 0;
+					this.canvas.panY = persistedState.canvas.panY || 0;
+					this.canvas.activeTool = persistedState.canvas.activeTool || 'select';
+					this.canvas.mode = persistedState.canvas.mode || 'view';
+				}
+
+				// Restore UI state
+				this.toolPanelOpen = persistedState.toolPanelOpen ?? true;
+				this.propertiesPanelOpen = persistedState.propertiesPanelOpen ?? true;
+
+				return true;
+			}
+
+			return false;
+		} catch (error) {
+			console.warn('Failed to load persisted annotation state:', error);
+			return false;
+		}
+	}
+
+	/**
+	 * Clear persisted state for current task
+	 */
+	async clearPersistedState(): Promise<void> {
+		try {
+			await this.persistenceManager.clear();
+		} catch (error) {
+			console.warn('Failed to clear persisted annotation state:', error);
+		}
+	}
+
+	/**
 	 * Initialize the store with task and image data
 	 */
-	initialize(taskId: string, imageId: string, imageWidth: number, imageHeight: number) {
+	async initialize(taskId: string, imageId: string, imageWidth: number, imageHeight: number) {
 		this.taskId = taskId;
 		this.imageId = imageId;
 		this.canvas.imageWidth = imageWidth;
 		this.canvas.imageHeight = imageHeight;
-		this.clearHistory();
 		this.error = null;
+
+		// Try to load persisted state for this task/image
+		const restored = await this.loadPersistedState(taskId, imageId);
+		if (!restored) {
+			this.clearHistory();
+		}
+
+		// Start auto-saving after initialization
+		this.autoSave();
 	}
 
 	/**
@@ -105,6 +220,7 @@ class AnnotationStore {
 
 		this.executeAction(action);
 		this.addToHistory(action);
+		this.autoSave();
 	}
 
 	/**
@@ -122,6 +238,7 @@ class AnnotationStore {
 
 		this.executeAction(action);
 		this.addToHistory(action);
+		this.autoSave();
 	}
 
 	/**
@@ -144,6 +261,8 @@ class AnnotationStore {
 		if (this.canvas.selectedAnnotationId === id) {
 			this.canvas.selectedAnnotationId = null;
 		}
+
+		this.autoSave();
 	}
 
 	/**
@@ -163,6 +282,7 @@ class AnnotationStore {
 
 		this.executeAction(action);
 		this.addToHistory(action);
+		this.autoSave();
 	}
 
 	/**
@@ -182,6 +302,7 @@ class AnnotationStore {
 
 		this.executeAction(action);
 		this.addToHistory(action);
+		this.autoSave();
 	}
 
 	/**
@@ -193,6 +314,7 @@ class AnnotationStore {
 		const action = this.history[this.historyIndex];
 		this.undoAction(action);
 		this.historyIndex--;
+		this.autoSave();
 	}
 
 	/**
@@ -204,6 +326,7 @@ class AnnotationStore {
 		this.historyIndex++;
 		const action = this.history[this.historyIndex];
 		this.executeAction(action);
+		this.autoSave();
 	}
 
 	/**
@@ -243,6 +366,7 @@ class AnnotationStore {
 	setActiveTool(tool: AnnotationTool) {
 		this.canvas.activeTool = tool;
 		this.canvas.mode = tool === 'select' ? 'view' : 'draw';
+		this.autoSave();
 	}
 
 	/**
@@ -250,6 +374,16 @@ class AnnotationStore {
 	 */
 	updateCanvasState(updates: Partial<CanvasState>) {
 		Object.assign(this.canvas, updates);
+		// Only auto-save if we're updating persistent canvas state
+		if (
+			'zoom' in updates ||
+			'panX' in updates ||
+			'panY' in updates ||
+			'activeTool' in updates ||
+			'mode' in updates
+		) {
+			this.autoSave();
+		}
 	}
 
 	/**
@@ -284,6 +418,8 @@ class AnnotationStore {
 
 		// Ensure canvas state is clean
 		this.canvas.hoveredAnnotationId = null;
+
+		this.autoSave();
 	}
 
 	/**
@@ -342,6 +478,20 @@ class AnnotationStore {
 		this.error = null;
 		this.toolPanelOpen = true;
 		this.propertiesPanelOpen = true;
+	}
+
+	/**
+	 * Cleanup method for store - can be called when component unmounts
+	 * Cancels any pending operations and cleans up state
+	 */
+	cleanup() {
+		// Reset all state
+		this.reset();
+
+		// Clear any persisted state to prevent memory leaks
+		this.clearPersistedState().catch((error) => {
+			console.warn('Failed to clear persisted state during cleanup:', error);
+		});
 	}
 
 	// Private methods
