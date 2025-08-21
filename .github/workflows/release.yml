@@ -1,10 +1,5 @@
 name: Release
 
-# SETUP REQUIRED:
-# 1. Create a Personal Access Token (PAT) with 'repo' scope in GitHub Settings > Developer settings > Personal access tokens
-# 2. Add the PAT as a repository secret named 'RELEASE_TOKEN' in Settings > Secrets and variables > Actions
-# This is required to bypass branch protection rules when semantic-release commits version updates
-
 on:
   workflow_dispatch:
     inputs:
