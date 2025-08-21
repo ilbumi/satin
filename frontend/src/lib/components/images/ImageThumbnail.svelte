@@ -51,6 +51,13 @@
 	function handleImageError() {
 		imageLoading = false;
 
+		// For data URLs, don't retry as they're either valid or invalid immediately
+		const imageUrl = image.thumbnailUrl || image.url;
+		if (imageUrl?.startsWith('data:')) {
+			imageError = true;
+			return;
+		}
+
 		// Try to retry loading the image up to MAX_RETRIES times
 		if (retryCount < MAX_RETRIES && imageElement) {
 			retryCount++;
@@ -175,6 +182,7 @@
 				class="h-full w-full object-cover transition-opacity duration-200 {imageLoading
 					? 'opacity-0'
 					: 'opacity-100'}"
+				loading="lazy"
 				onload={handleImageLoad}
 				onerror={handleImageError}
 			/>

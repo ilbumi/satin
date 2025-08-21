@@ -60,6 +60,20 @@ describe('Image Store', () => {
 
 	describe('Error Handling', () => {
 		it('should handle delete errors', async () => {
+			// First add an image to the store so we have something to delete
+			const mockImage = {
+				id: '1',
+				filename: 'test.jpg',
+				url: 'http://example.com/test.jpg',
+				thumbnailUrl: 'http://example.com/test-thumb.jpg',
+				status: 'ready' as const,
+				uploadedAt: new Date().toISOString(),
+				fileSize: 1000
+			};
+
+			// Add the image to store state - access internal state for testing
+			(store as any).state.images = [mockImage];
+
 			const error = new Error('Delete failed');
 			mockImageService.deleteImage.mockRejectedValue(error);
 
