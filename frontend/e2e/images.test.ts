@@ -156,15 +156,24 @@ test.describe('Images Page', () => {
 	});
 
 	test('should filter images by status', async ({ page }) => {
-		// Try to interact with status filter
+		// Wait for page to be ready
+		await page.waitForLoadState('networkidle');
+
+		// Try to interact with status filter - wait for it to exist
 		const statusFilter = page.getByRole('combobox').first();
+		await expect(statusFilter).toBeVisible({ timeout: 10000 });
 		await statusFilter.click();
 
 		// Check if filter options are available
 		const readyOption = page.getByText('Ready');
-		if (await readyOption.isVisible()) {
+		const hasReadyOption = await readyOption.isVisible().catch(() => false);
+		if (hasReadyOption) {
 			await readyOption.click();
-			// The filter should be applied (we can't easily test the actual filtering without real data)
+			// Verify the filter was selected
+			await expect(statusFilter).toContainText('Ready');
+		} else {
+			// If no Ready option, just check that the dropdown opened
+			console.log('Ready option not found, but dropdown interaction worked');
 		}
 	});
 
@@ -266,17 +275,11 @@ test.describe('Images Page', () => {
 			// Wait for images to load
 			await page.waitForLoadState('networkidle');
 
-			// Try to find any View button (with or without emoji)
-			let firstViewButton = page.getByRole('button', { name: /👁️ View/i }).first();
-
-			// If emoji version not found, try the plain version
-			const hasEmojiVersion = await firstViewButton.isVisible().catch(() => false);
-			if (!hasEmojiVersion) {
-				firstViewButton = page.getByRole('button', { name: 'View' }).first();
-			}
-
-			await expect(firstViewButton).toBeVisible({ timeout: 15000 });
-			await firstViewButton.click();
+			// Wait for any View button to appear and click it
+			// Try both emoji and non-emoji versions
+			const viewButton = page.getByRole('button', { name: /^(👁️ )?View$/i }).first();
+			await expect(viewButton).toBeVisible({ timeout: 15000 });
+			await viewButton.click();
 
 			// Check that image viewer modal opens
 			await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10000 });

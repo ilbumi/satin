@@ -208,9 +208,9 @@ test.describe('Project Management', () => {
 		await expect(page.getByRole('heading', { name: 'Projects', exact: true })).toBeVisible();
 		await page.waitForLoadState('networkidle');
 
-		// First, verify all projects are visible using specific headings
-		await expect(page.getByRole('heading', { name: 'Medical Images Dataset' })).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'Vehicle Detection' })).toBeVisible();
+		// First, verify all projects are visible using partial matches for timestamped names
+		await expect(page.getByRole('heading', { name: /Medical Images Dataset/ })).toBeVisible();
+		await expect(page.getByRole('heading', { name: /Vehicle Detection/ })).toBeVisible();
 
 		// Enter search term
 		const searchInput = page.getByLabel(/search projects/i);
@@ -221,10 +221,10 @@ test.describe('Project Management', () => {
 		await waitForDebouncedSearch(page);
 
 		// Should filter the results - Medical project should still be visible
-		await expect(page.getByRole('heading', { name: 'Medical Images Dataset' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: /Medical Images Dataset/ })).toBeVisible();
 
 		// Other projects should not be visible - wait for them to disappear
-		await expect(page.getByRole('heading', { name: 'Vehicle Detection' })).not.toBeVisible({
+		await expect(page.getByRole('heading', { name: /Vehicle Detection/ })).not.toBeVisible({
 			timeout: 5000
 		});
 	});
