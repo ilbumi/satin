@@ -1,12 +1,8 @@
-import {
-	Client,
-	cacheExchange,
-	fetchExchange,
-	errorExchange,
-	type CombinedError
-} from '@urql/core';
+import { Client, fetchExchange, errorExchange, type CombinedError } from '@urql/core';
 import { env } from '$lib/config';
 import { APIError, parseGraphQLError } from './errors';
+import { errorStore } from '$lib/core/errors';
+import { createEnhancedCacheExchange } from './cache';
 
 /**
  * GraphQL endpoint URL
@@ -28,15 +24,29 @@ function handleGraphQLError(error: CombinedError): void {
 	// Handle network errors
 	if (error.networkError) {
 		console.error('Network error occurred:', error.networkError.message);
-		// Could dispatch to a global error store here
+		errorStore.addNetworkError(error.networkError.message, 'GraphQL Client', () => {
+			// Could implement retry logic here
+			console.log('Retrying GraphQL operation...');
+		});
 	}
 
 	// Handle GraphQL errors
 	if (error.graphQLErrors && error.graphQLErrors.length > 0) {
 		error.graphQLErrors.forEach((gqlError) => {
 			console.error('GraphQL error:', gqlError.message);
-			// Could dispatch specific error types to global store here
+			errorStore.addGraphQLError(
+				gqlError.message,
+				`GraphQL Operation: ${gqlError.path?.join('.')}`
+			);
 		});
+	}
+
+	// If no specific errors but still an error, add a general error
+	if (!error.networkError && (!error.graphQLErrors || error.graphQLErrors.length === 0)) {
+		errorStore.addSystemError(
+			error.message || 'An unknown GraphQL error occurred',
+			'GraphQL Client'
+		);
 	}
 }
 
@@ -51,8 +61,8 @@ export function createGraphQLClient(): Client {
 			errorExchange({
 				onError: handleGraphQLError
 			}),
-			// Cache exchange for client-side caching
-			cacheExchange,
+			// Enhanced cache exchange with normalization and cache updates
+			createEnhancedCacheExchange(),
 			// Fetch exchange for making HTTP requests
 			fetchExchange
 		],
