@@ -3,7 +3,7 @@
 import { spawn } from 'child_process';
 
 function runClientTests() {
-	return new Promise(() => {
+	return new Promise((resolve, reject) => {
 		console.log('Running client tests...');
 		const clientProcess = spawn('npx', ['vitest', '--run', '--project=client'], { stdio: 'pipe' });
 		let hasTestFailures = false;
@@ -71,14 +71,14 @@ function runClientTests() {
 
 				if (hasTestFailures) {
 					console.log('❌ Some tests failed');
-					process.exit(1);
+					reject(new Error('Some tests failed'));
 				} else {
 					console.log('✅ All client tests passed successfully!');
-					process.exit(0);
+					resolve();
 				}
 			} else {
 				console.log('❌ No tests were detected or completed');
-				process.exit(1);
+				reject(new Error('No tests were detected or completed'));
 			}
 		});
 
@@ -92,11 +92,11 @@ function runClientTests() {
 					`✅ Found ${testCount} completed tests across ${completedTestFiles.size} files, considering successful`
 				);
 				clientProcess.kill('SIGTERM');
-				process.exit(0);
+				resolve();
 			} else {
 				console.log('❌ Tests may have stalled');
 				clientProcess.kill('SIGTERM');
-				process.exit(1);
+				reject(new Error('Tests may have stalled'));
 			}
 		}, 600000); // 10 min timeout
 	});
