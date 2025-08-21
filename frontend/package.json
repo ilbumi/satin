@@ -13,7 +13,7 @@
 		"format": "prettier --write .",
 		"lint": "prettier --check . && eslint .",
 		"test:unit:server": "vitest --run --project=server",
-		"test:unit:client": "vitest --run --project=client",
+		"test:unit:client": "node vitest-wrapper.js --run --project=client",
 		"test:unit": "pnpm run test:unit:server && pnpm run test:unit:client",
 		"test:e2e": "NODE_OPTIONS=\"--max-old-space-size=4096\" playwright test",
 		"test:e2e:debug": "NODE_OPTIONS=\"--max-old-space-size=4096\" playwright test --debug",

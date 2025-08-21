@@ -75,6 +75,7 @@ export default defineConfig({
 						isolate: true,
 						ui: false
 					},
+					maxConcurrency: 1,
 					retry: 0,
 					testTimeout: 30000,
 					include: ['src/**/*.svelte.{test,spec}.{js,ts}'],

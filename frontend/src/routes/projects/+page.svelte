@@ -1,21 +1,24 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { Button, Toast } from '$lib/components/ui';
+
+	// Type definitions for dynamic imports
+	type ProjectListComponent = typeof import('$lib/components/projects/ProjectList.svelte').default;
+	type ProjectFiltersComponent =
+		typeof import('$lib/components/projects/ProjectFilters.svelte').default;
+	type ProjectPaginationComponent =
+		typeof import('$lib/components/projects/ProjectPagination.svelte').default;
+	type CreateProjectModalComponent =
+		typeof import('$lib/components/projects/CreateProjectModal.svelte').default;
+	type EditProjectModalComponent =
+		typeof import('$lib/components/projects/EditProjectModal.svelte').default;
+
 	// Dynamic imports for heavy components
-	let ProjectList: typeof import('$lib/components/projects/ProjectList.svelte').default | null =
-		$state(null);
-	let ProjectFilters:
-		| typeof import('$lib/components/projects/ProjectFilters.svelte').default
-		| null = $state(null);
-	let ProjectPagination:
-		| typeof import('$lib/components/projects/ProjectPagination.svelte').default
-		| null = $state(null);
-	let CreateProjectModal:
-		| typeof import('$lib/components/projects/CreateProjectModal.svelte').default
-		| null = $state(null);
-	let EditProjectModal:
-		| typeof import('$lib/components/projects/EditProjectModal.svelte').default
-		| null = $state(null);
+	let ProjectList: ProjectListComponent | null = $state(null);
+	let ProjectFilters: ProjectFiltersComponent | null = $state(null);
+	let ProjectPagination: ProjectPaginationComponent | null = $state(null);
+	let CreateProjectModal: CreateProjectModalComponent | null = $state(null);
+	let EditProjectModal: EditProjectModalComponent | null = $state(null);
 	import { projectStore } from '$lib/features/projects/store.svelte';
 	import type {
 		ProjectSummary,

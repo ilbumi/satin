@@ -5,6 +5,7 @@
 
 import { cacheExchange, type CacheExchangeOpts } from '@urql/exchange-graphcache';
 import type { UpdatesConfig, ResolverConfig, KeyingConfig, Cache } from '@urql/exchange-graphcache';
+import { GET_PROJECTS, GET_IMAGES, GET_TASKS } from './queries';
 
 /**
  * Cache key generation for entities
@@ -42,7 +43,7 @@ const updates: UpdatesConfig = {
 		// Project mutations
 		createProject: (result: unknown, _args: unknown, cache: Cache, _info: unknown) => {
 			// Add new project to the projects list
-			cache.updateQuery({ query: 'projects' }, (data: unknown) => {
+			cache.updateQuery({ query: GET_PROJECTS }, (data: unknown) => {
 				const typedData = data as {
 					projects?: { objects: unknown[]; totalCount: number; count: number; hasMore: boolean };
 				};
@@ -76,7 +77,7 @@ const updates: UpdatesConfig = {
 			const typedArgs = args as { id: string };
 			if (typedResult.deleteProject && typedArgs.id) {
 				// Remove from projects list
-				cache.updateQuery({ query: 'projects' }, (data: unknown) => {
+				cache.updateQuery({ query: GET_PROJECTS }, (data: unknown) => {
 					const typedData = data as {
 						projects?: { objects: { id: string }[]; totalCount: number; count: number };
 					};
@@ -104,7 +105,7 @@ const updates: UpdatesConfig = {
 			const typedResult = result as { createImage?: unknown };
 			if (typedResult.createImage) {
 				// Add new image to the images list
-				cache.updateQuery({ query: 'images' }, (data: unknown) => {
+				cache.updateQuery({ query: GET_IMAGES }, (data: unknown) => {
 					const typedData = data as {
 						images?: { objects: unknown[]; totalCount: number; count: number; hasMore: boolean };
 					};
@@ -130,7 +131,7 @@ const updates: UpdatesConfig = {
 			const typedArgs = args as { id: string };
 			if (typedResult.deleteImage && typedArgs.id) {
 				// Remove from images list
-				cache.updateQuery({ query: 'images' }, (data: unknown) => {
+				cache.updateQuery({ query: GET_IMAGES }, (data: unknown) => {
 					const typedData = data as {
 						images?: { objects: { id: string }[]; totalCount: number; count: number };
 					};
@@ -158,7 +159,7 @@ const updates: UpdatesConfig = {
 			const typedResult = result as { createTask?: unknown };
 			if (typedResult.createTask) {
 				// Add new task to tasks list
-				cache.updateQuery({ query: 'tasks' }, (data: unknown) => {
+				cache.updateQuery({ query: GET_TASKS }, (data: unknown) => {
 					const typedData = data as {
 						tasks?: { objects: unknown[]; totalCount: number; count: number; hasMore: boolean };
 					};
@@ -193,7 +194,7 @@ const updates: UpdatesConfig = {
 			const typedArgs = args as { id: string };
 			if (typedResult.deleteTask && typedArgs.id) {
 				// Remove from tasks list
-				cache.updateQuery({ query: 'tasks' }, (data: unknown) => {
+				cache.updateQuery({ query: GET_TASKS }, (data: unknown) => {
 					const typedData = data as {
 						tasks?: { objects: { id: string }[]; totalCount: number; count: number };
 					};
