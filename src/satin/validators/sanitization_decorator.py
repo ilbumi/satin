@@ -14,7 +14,6 @@ from satin.validators.input_sanitizer import (
     validate_description,
     validate_project_name,
     validate_tags,
-    validate_url,
 )
 
 logger = logging.getLogger(__name__)
@@ -23,10 +22,8 @@ logger = logging.getLogger(__name__)
 SANITIZATION_RULES: dict[str, Callable[[Any], Any]] = {
     "name": validate_project_name,
     "description": validate_description,
-    "url": lambda x: validate_url(x, allow_local=True),  # Allow local URLs for development
     "tags": validate_tags,
     "project_name": validate_project_name,
-    "image_url": lambda x: validate_url(x, allow_local=True),
 }
 
 # Parameters that should be treated as ObjectIds
