@@ -1,10 +1,14 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { taskStore } from '$lib/features/tasks/store.svelte';
 	import { imageStore } from '$lib/features/images/store.svelte';
-	import { ImageAnnotator } from '$lib/components/annotations';
 	import type { TaskSummary } from '$lib/features/tasks/types';
 	import type { ImageSummary } from '$lib/features/images/types';
+
+	// Dynamic import for heavy annotation component
+	let ImageAnnotator:
+		| typeof import('$lib/components/annotations/ImageAnnotator.svelte').default
+		| null = $state(null);
 	// Test step 5: Adding all imports
 	let debugMessage = $state('Annotations page with all imports loaded successfully!');
 
@@ -66,6 +70,17 @@
 				}
 			}
 
+			// Dynamically import ImageAnnotator when needed
+			if (showAnnotator && !ImageAnnotator) {
+				try {
+					const module = await import('$lib/components/annotations/ImageAnnotator.svelte');
+					ImageAnnotator = module.default;
+				} catch (error) {
+					console.error('Failed to load ImageAnnotator:', error);
+					debugMessage = 'Failed to load annotation component';
+				}
+			}
+
 			// Load store data in background
 			try {
 				await Promise.all([taskStore.loadTasks(), imageStore.fetchImages()]);
@@ -75,6 +90,12 @@
 		} catch (error) {
 			debugMessage = `Page initialization failed: ${error}`;
 		}
+	});
+
+	onDestroy(() => {
+		// Clean up stores to prevent memory leaks
+		taskStore.cleanup();
+		imageStore.cleanup();
 	});
 </script>
 

@@ -1,12 +1,23 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { Button, Card, Modal, Toast } from '$lib/components/ui';
-	import { ImageGallery, AddImageByUrl, ImageViewer } from '$lib/components/images';
+	// Dynamic imports for heavy components
+	let ImageGallery: typeof import('$lib/components/images/ImageGallery.svelte').default | null =
+		$state(null);
+	let VirtualImageGallery:
+		| typeof import('$lib/components/images/VirtualImageGallery.svelte').default
+		| null = $state(null);
+	let AddImageByUrl: typeof import('$lib/components/images/AddImageByUrl.svelte').default | null =
+		$state(null);
+	let ImageViewer: typeof import('$lib/components/images/ImageViewer.svelte').default | null =
+		$state(null);
 	import { imageStore } from '$lib/features/images/store.svelte';
 	import { taskStore } from '$lib/features/tasks/store.svelte';
 	import type { ImageSummary, ImageDetail, ImageFilters } from '$lib/features/images/types';
 	import type { ClientAnnotation } from '$lib/features/annotations/types';
 	import type { Task } from '$lib/graphql/generated/graphql';
+	import { storeCoordinator } from '$lib/core/stores/coordinator';
+	import { errorStore } from '$lib/core/errors';
 
 	let showAddModal = $state(false);
 	let showViewer = $state(false);
@@ -20,6 +31,9 @@
 	let showToast = $state(false);
 	let toastMessage = $state('');
 	let toastType = $state<'success' | 'error'>('success');
+
+	// Virtualization threshold - use virtual gallery when we have many images
+	const VIRTUAL_GALLERY_THRESHOLD = 50;
 
 	function showSuccessToast(message: string) {
 		toastMessage = message;
@@ -50,7 +64,13 @@
 
 	async function handleImageAnnotate(image: ImageSummary | ImageDetail) {
 		// Find or create a task for this image
-		await taskStore.loadTasks();
+		try {
+			await taskStore.loadTasks();
+		} catch (error) {
+			console.error('Failed to load tasks:', error);
+			showErrorToast('Failed to load tasks');
+			return;
+		}
 
 		let task = taskStore.state.list.tasks.find((t) => t.imageId === image.id);
 
@@ -80,29 +100,34 @@
 		}
 
 		// Get the actual Task object from the service
-		const taskService = new (await import('$lib/features/tasks/service')).TaskService();
-		const fullTask = await taskService.getTask(task.id);
+		try {
+			const taskService = new (await import('$lib/features/tasks/service')).TaskService();
+			const fullTask = await taskService.getTask(task.id);
 
-		if (!fullTask) {
-			showErrorToast('Could not load task details');
-			return;
-		}
-
-		// Dynamically import ImageAnnotator before opening
-		if (!ImageAnnotator) {
-			try {
-				const module = await import('$lib/components/annotations');
-				ImageAnnotator = module.ImageAnnotator;
-			} catch {
-				showErrorToast('Failed to load annotation editor');
+			if (!fullTask) {
+				showErrorToast('Could not load task details');
 				return;
 			}
-		}
 
-		// Open the annotation editor
-		selectedImageForAnnotation = image as ImageSummary;
-		selectedTaskForAnnotation = fullTask;
-		showAnnotator = true;
+			// Dynamically import ImageAnnotator before opening
+			if (!ImageAnnotator) {
+				try {
+					const module = await import('$lib/components/annotations');
+					ImageAnnotator = module.ImageAnnotator;
+				} catch {
+					showErrorToast('Failed to load annotation editor');
+					return;
+				}
+			}
+
+			// Open the annotation editor
+			selectedImageForAnnotation = image as ImageSummary;
+			selectedTaskForAnnotation = fullTask;
+			showAnnotator = true;
+		} catch (error) {
+			console.error('Failed to prepare annotation task:', error);
+			showErrorToast('Failed to prepare annotation task');
+		}
 	}
 
 	function handleAnnotationSave(annotations: ClientAnnotation[]) {
@@ -137,10 +162,43 @@
 		imageStore.nextPage();
 	}
 
-	// Load images and tasks on mount
-	onMount(() => {
-		imageStore.fetchImages();
-		taskStore.loadTasks();
+	// Load images, tasks and components on mount
+	onMount(async () => {
+		// Load core components first
+		try {
+			const [galleryModule, virtualGalleryModule, addImageModule, viewerModule] = await Promise.all(
+				[
+					import('$lib/components/images/ImageGallery.svelte'),
+					import('$lib/components/images/VirtualImageGallery.svelte'),
+					import('$lib/components/images/AddImageByUrl.svelte'),
+					import('$lib/components/images/ImageViewer.svelte')
+				]
+			);
+			ImageGallery = galleryModule.default;
+			VirtualImageGallery = virtualGalleryModule.default;
+			AddImageByUrl = addImageModule.default;
+			ImageViewer = viewerModule.default;
+		} catch (error) {
+			console.error('Failed to load image components:', error);
+			errorStore.addSystemError('Failed to load image components', 'Images Page');
+		}
+
+		// Load data using the coordinator to prevent race conditions
+		try {
+			const result = await storeCoordinator.loadInitialData();
+			if (!result.success && result.errors.length > 0) {
+				console.warn('Some data failed to load:', result.errors);
+				// Errors are already handled by the coordinator and stores
+			}
+		} catch (error) {
+			console.error('Failed to load initial data:', error);
+			errorStore.addSystemError('Failed to load page data', 'Images Page');
+		}
+	});
+
+	onDestroy(() => {
+		// Clean up all stores using the coordinator
+		storeCoordinator.cleanup();
 	});
 </script>
 
@@ -190,38 +248,62 @@
 		</Card>
 	</div>
 
-	<!-- Image Gallery -->
-	<ImageGallery
-		images={imageStore.images()}
-		loading={imageStore.loading}
-		error={imageStore.error}
-		filters={imageStore.filters}
-		pagination={imageStore.pagination}
-		onImageView={handleImageView}
-		onImageDelete={handleImageDelete}
-		onImageAnnotate={handleImageAnnotate}
-		onFiltersChange={handleFiltersChange}
-		onLoadMore={handleLoadMore}
-	/>
+	<!-- Image Gallery - Use virtual gallery for large datasets -->
+	{#if imageStore.pagination.totalCount >= VIRTUAL_GALLERY_THRESHOLD && VirtualImageGallery}
+		<VirtualImageGallery
+			images={imageStore.images()}
+			loading={imageStore.loading}
+			error={imageStore.error}
+			filters={imageStore.filters}
+			pagination={imageStore.pagination}
+			containerHeight={800}
+			onImageView={handleImageView}
+			onImageDelete={handleImageDelete}
+			onImageAnnotate={handleImageAnnotate}
+			onFiltersChange={handleFiltersChange}
+			onLoadMore={handleLoadMore}
+		/>
+	{:else if ImageGallery}
+		<ImageGallery
+			images={imageStore.images()}
+			loading={imageStore.loading}
+			error={imageStore.error}
+			filters={imageStore.filters}
+			pagination={imageStore.pagination}
+			onImageView={handleImageView}
+			onImageDelete={handleImageDelete}
+			onImageAnnotate={handleImageAnnotate}
+			onFiltersChange={handleFiltersChange}
+			onLoadMore={handleLoadMore}
+		/>
+	{:else}
+		<div class="flex items-center justify-center py-12">
+			<div class="animate-pulse text-gray-600">Loading images...</div>
+		</div>
+	{/if}
 </div>
 
 <!-- Add Images Modal -->
-<Modal bind:open={showAddModal} title="Add Images by URL" size="lg" closeOnBackdropClick={true}>
-	<AddImageByUrl multiple={true} onAdd={handleAddSuccess} onError={handleAddError} />
-</Modal>
+{#if AddImageByUrl && showAddModal}
+	<Modal bind:open={showAddModal} title="Add Images by URL" size="lg" closeOnBackdropClick={true}>
+		<AddImageByUrl multiple={true} onAdd={handleAddSuccess} onError={handleAddError} />
+	</Modal>
+{/if}
 
 <!-- Image Viewer -->
-<ImageViewer
-	bind:open={showViewer}
-	image={selectedImage}
-	images={imageStore.allImages}
-	onDelete={handleImageDelete}
-	onAnnotate={handleImageAnnotate}
-	onClose={() => {
-		showViewer = false;
-		selectedImage = null;
-	}}
-/>
+{#if ImageViewer && showViewer}
+	<ImageViewer
+		bind:open={showViewer}
+		image={selectedImage}
+		images={imageStore.allImages}
+		onDelete={handleImageDelete}
+		onAnnotate={handleImageAnnotate}
+		onClose={() => {
+			showViewer = false;
+			selectedImage = null;
+		}}
+	/>
+{/if}
 
 <!-- Image Annotator -->
 {#if selectedImageForAnnotation && selectedTaskForAnnotation && ImageAnnotator}

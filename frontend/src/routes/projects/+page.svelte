@@ -1,19 +1,29 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { Button, Toast } from '$lib/components/ui';
-	import {
-		ProjectList,
-		ProjectFilters,
-		ProjectPagination,
-		CreateProjectModal,
-		EditProjectModal
-	} from '$lib/components/projects';
+	// Dynamic imports for heavy components
+	let ProjectList: typeof import('$lib/components/projects/ProjectList.svelte').default | null =
+		$state(null);
+	let ProjectFilters:
+		| typeof import('$lib/components/projects/ProjectFilters.svelte').default
+		| null = $state(null);
+	let ProjectPagination:
+		| typeof import('$lib/components/projects/ProjectPagination.svelte').default
+		| null = $state(null);
+	let CreateProjectModal:
+		| typeof import('$lib/components/projects/CreateProjectModal.svelte').default
+		| null = $state(null);
+	let EditProjectModal:
+		| typeof import('$lib/components/projects/EditProjectModal.svelte').default
+		| null = $state(null);
 	import { projectStore } from '$lib/features/projects/store.svelte';
 	import type {
 		ProjectSummary,
 		CreateProjectForm,
 		UpdateProjectForm
 	} from '$lib/features/projects/types';
+	import { storeCoordinator } from '$lib/core/stores/coordinator';
+	import { errorStore } from '$lib/core/errors';
 
 	let showCreateModal = $state(false);
 	let showEditModal = $state(false);
@@ -34,11 +44,31 @@
 		showToast = true;
 	}
 
-	function handleCreateProject() {
+	async function handleCreateProject() {
+		if (!CreateProjectModal) {
+			try {
+				const module = await import('$lib/components/projects/CreateProjectModal.svelte');
+				CreateProjectModal = module.default;
+			} catch (error) {
+				console.error('Failed to load CreateProjectModal:', error);
+				errorStore.addSystemError('Failed to load create project modal', 'Projects Page');
+				return;
+			}
+		}
 		showCreateModal = true;
 	}
 
-	function handleEditProject(project: ProjectSummary) {
+	async function handleEditProject(project: ProjectSummary) {
+		if (!EditProjectModal) {
+			try {
+				const module = await import('$lib/components/projects/EditProjectModal.svelte');
+				EditProjectModal = module.default;
+			} catch (error) {
+				console.error('Failed to load EditProjectModal:', error);
+				errorStore.addSystemError('Failed to load edit project modal', 'Projects Page');
+				return;
+			}
+		}
 		editingProject = project;
 		showEditModal = true;
 	}
@@ -104,9 +134,39 @@
 		projectStore.refetch();
 	}
 
-	// Load projects on mount
-	onMount(() => {
-		projectStore.fetchProjects();
+	// Load projects and components on mount
+	onMount(async () => {
+		// Load core components first
+		try {
+			const [projectListModule, projectFiltersModule, paginationModule] = await Promise.all([
+				import('$lib/components/projects/ProjectList.svelte'),
+				import('$lib/components/projects/ProjectFilters.svelte'),
+				import('$lib/components/projects/ProjectPagination.svelte')
+			]);
+			ProjectList = projectListModule.default;
+			ProjectFilters = projectFiltersModule.default;
+			ProjectPagination = paginationModule.default;
+		} catch (error) {
+			console.error('Failed to load project components:', error);
+			errorStore.addSystemError('Failed to load project components', 'Projects Page');
+		}
+
+		// Load data using the coordinator to prevent race conditions
+		try {
+			const result = await storeCoordinator.loadInitialData();
+			if (!result.success && result.errors.length > 0) {
+				console.warn('Some data failed to load:', result.errors);
+				// Errors are already handled by the coordinator and stores
+			}
+		} catch (error) {
+			console.error('Failed to load initial data:', error);
+			errorStore.addSystemError('Failed to load page data', 'Projects Page');
+		}
+	});
+
+	onDestroy(() => {
+		// Clean up all stores using the coordinator
+		storeCoordinator.cleanup();
 	});
 </script>
 
@@ -127,11 +187,13 @@
 	</div>
 
 	<!-- Filters -->
-	<ProjectFilters
-		filters={projectStore.filters}
-		onFiltersChange={projectStore.setFilters}
-		onClear={() => projectStore.setFilters({ search: '', status: 'all' })}
-	/>
+	{#if ProjectFilters}
+		<ProjectFilters
+			filters={projectStore.filters}
+			onFiltersChange={projectStore.setFilters}
+			onClear={() => projectStore.setFilters({ search: '', status: 'all' })}
+		/>
+	{/if}
 
 	<!-- Error display -->
 	{#if projectStore.error}
@@ -156,18 +218,24 @@
 	{/if}
 
 	<!-- Project List -->
-	<ProjectList
-		projects={projectStore.projects}
-		loading={projectStore.loading}
-		error={projectStore.error}
-		onCreateProject={handleCreateProject}
-		onEditProject={handleEditProject}
-		onDeleteProject={handleDeleteProject}
-		onRetry={handleRetry}
-	/>
+	{#if ProjectList}
+		<ProjectList
+			projects={projectStore.projects}
+			loading={projectStore.loading}
+			error={projectStore.error}
+			onCreateProject={handleCreateProject}
+			onEditProject={handleEditProject}
+			onDeleteProject={handleDeleteProject}
+			onRetry={handleRetry}
+		/>
+	{:else}
+		<div class="flex items-center justify-center py-12">
+			<div class="animate-pulse text-gray-600">Loading projects...</div>
+		</div>
+	{/if}
 
 	<!-- Pagination -->
-	{#if projectStore.hasProjects}
+	{#if ProjectPagination && projectStore.hasProjects}
 		<ProjectPagination
 			limit={projectStore.pagination.limit}
 			offset={projectStore.pagination.offset}
@@ -181,18 +249,22 @@
 </div>
 
 <!-- Modals -->
-<CreateProjectModal
-	open={showCreateModal}
-	onClose={handleCloseCreateModal}
-	onSubmit={handleCreateSubmit}
-/>
+{#if CreateProjectModal && showCreateModal}
+	<CreateProjectModal
+		open={showCreateModal}
+		onClose={handleCloseCreateModal}
+		onSubmit={handleCreateSubmit}
+	/>
+{/if}
 
-<EditProjectModal
-	open={showEditModal}
-	project={editingProject}
-	onClose={handleCloseEditModal}
-	onSubmit={handleEditSubmit}
-/>
+{#if EditProjectModal && showEditModal}
+	<EditProjectModal
+		open={showEditModal}
+		project={editingProject}
+		onClose={handleCloseEditModal}
+		onSubmit={handleEditSubmit}
+	/>
+{/if}
 
 <!-- Toast Notifications -->
 {#if showToast}
