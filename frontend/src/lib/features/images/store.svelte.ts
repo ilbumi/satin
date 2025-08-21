@@ -1,5 +1,15 @@
 import { imageService } from './service';
-import type { ImageListState, ImageOperations, ImageFilters, ImageDetail } from './types';
+import type {
+	ImageListState,
+	ImageOperations,
+	ImageFilters,
+	ImageDetail,
+	ImageSummary
+} from './types';
+import { errorStore } from '$lib/core/errors';
+import { createOptimisticStore } from '$lib/core/optimistic';
+import { createPersistenceManager } from '$lib/core/persistence';
+import { localStorageAdapter } from '$lib/core/persistence/adapters/localStorage';
 
 function createImageStore() {
 	const state = $state<ImageListState>({
@@ -25,8 +35,33 @@ function createImageStore() {
 		adding: false
 	});
 
+	// Optimistic updates store for better UX
+	const optimisticImages = createOptimisticStore<ImageSummary>([], (img) => img.id);
+
+	// Persistence for settings (filters, pagination preferences)
+	const settingsPersistence = createPersistenceManager<{
+		filters: ImageFilters;
+		pagination: { limit: number };
+	}>('image-store-settings', localStorageAdapter, {
+		version: 1,
+		debounceMs: 1000,
+		ttl: 7 * 24 * 60 * 60 * 1000 // 7 days
+	});
+
 	async function fetchImages(): Promise<void> {
+		// Cancel any existing fetch operation
+		if (currentFetchController) {
+			currentFetchController.abort();
+		}
+
+		// Create new abort controller for this fetch
+		currentFetchController = new AbortController();
+		const fetchController = currentFetchController;
+
 		try {
+			// Check if operation was cancelled before starting
+			if (fetchController.signal.aborted) return;
+
 			state.loading = true;
 			state.error = null;
 
@@ -36,6 +71,9 @@ function createImageStore() {
 				state.filters
 			);
 
+			// Check if operation was cancelled after the async call
+			if (fetchController.signal.aborted) return;
+
 			// Map GraphQL images to summaries
 			state.images = result.objects.map((image) =>
 				imageService.mapImageToSummary(imageService.mapImageToDetail(image))
@@ -43,10 +81,18 @@ function createImageStore() {
 			state.pagination.totalCount = result.totalCount;
 			state.pagination.hasMore = result.hasMore;
 		} catch (error) {
-			state.error = error instanceof Error ? error.message : 'Failed to fetch images';
+			const errorMessage = error instanceof Error ? error.message : 'Failed to fetch images';
+			state.error = errorMessage;
 			console.error('Store.fetchImages error:', error);
+
+			// Add to global error store with retry capability
+			errorStore.addNetworkError(errorMessage, 'Image Store', () => fetchImages());
 		} finally {
-			state.loading = false;
+			// Only update loading state if this is still the current operation
+			if (fetchController === currentFetchController) {
+				state.loading = false;
+				currentFetchController = null;
+			}
 		}
 	}
 
@@ -76,17 +122,31 @@ function createImageStore() {
 				return [];
 			}
 
-			// Add images by URL
+			// Add images with optimistic updates
 			const addPromises = validUrls.map(async (url) => {
 				try {
-					const result = await imageService.addImageByUrl(url);
+					// Create optimistic summary
+					const optimisticSummary: ImageSummary = {
+						id: `temp-${Date.now()}-${Math.random()}`,
+						filename: url.split('/').pop() || 'image',
+						url,
+						thumbnailUrl: url,
+						status: 'processing',
+						uploadedAt: new Date().toISOString(),
+						fileSize: 0
+					};
 
-					// Add to images list optimistically
-					const summary = imageService.mapImageToSummary(result);
-					state.images.unshift(summary);
+					// Use optimistic update
+					const result = await optimisticImages.optimisticCreate(optimisticSummary, async () => {
+						const detail = await imageService.addImageByUrl(url);
+						return imageService.mapImageToSummary(detail);
+					});
+
+					// Update main state after successful creation
+					state.images = [result, ...state.images.filter((img) => img.id !== optimisticSummary.id)];
 					state.pagination.totalCount += 1;
 
-					return result;
+					return imageService.mapImageToDetail(result as ImageSummary); // Convert back to ImageDetail
 				} catch (error) {
 					console.error('Add image error:', error);
 					return null;
@@ -96,8 +156,12 @@ function createImageStore() {
 			const results = await Promise.all(addPromises);
 			return results.filter((result): result is ImageDetail => result !== null);
 		} catch (error) {
-			state.error = error instanceof Error ? error.message : 'Failed to add images';
+			const errorMessage = error instanceof Error ? error.message : 'Failed to add images';
+			state.error = errorMessage;
 			console.error('Store.addImagesByUrl error:', error);
+
+			// Add to global error store
+			errorStore.addGraphQLError(errorMessage, 'Image Upload');
 			return [];
 		} finally {
 			addingState.adding = false;
@@ -107,18 +171,30 @@ function createImageStore() {
 	async function deleteImage(id: string): Promise<boolean> {
 		try {
 			state.error = null;
-			const success = await imageService.deleteImage(id);
 
-			if (success) {
-				// Remove from the list
-				state.images = state.images.filter((img) => img.id !== id);
-				state.pagination.totalCount -= 1;
-			}
+			const imageToDelete = state.images.find((img) => img.id === id);
+			if (!imageToDelete) return false;
 
-			return success;
+			// Use optimistic delete
+			await optimisticImages.optimisticDelete(imageToDelete, async () => {
+				const success = await imageService.deleteImage(id);
+				if (!success) {
+					throw new Error('Delete operation failed');
+				}
+			});
+
+			// Remove from main state after successful deletion
+			state.images = state.images.filter((img) => img.id !== id);
+			state.pagination.totalCount = Math.max(0, state.pagination.totalCount - 1);
+
+			return true;
 		} catch (error) {
-			state.error = error instanceof Error ? error.message : 'Failed to delete image';
+			const errorMessage = error instanceof Error ? error.message : 'Failed to delete image';
+			state.error = errorMessage;
 			console.error('Store.deleteImage error:', error);
+
+			// Add to global error store
+			errorStore.addGraphQLError(errorMessage, 'Image Deletion');
 			return false;
 		}
 	}
@@ -126,6 +202,10 @@ function createImageStore() {
 	function setFilters(filters: Partial<ImageFilters>): void {
 		state.filters = { ...state.filters, ...filters };
 		state.pagination.offset = 0; // Reset to first page when filtering
+
+		// Persist filter settings
+		saveSettings();
+
 		fetchImages();
 	}
 
@@ -154,8 +234,73 @@ function createImageStore() {
 		state.error = null;
 	}
 
+	// Settings persistence functions
+	async function loadSettings(): Promise<void> {
+		try {
+			const savedSettings = await settingsPersistence.load();
+			if (savedSettings) {
+				// Restore filters (but don't trigger fetchImages)
+				state.filters = { ...state.filters, ...savedSettings.filters };
+				// Restore pagination limit
+				state.pagination.limit = savedSettings.pagination.limit;
+			}
+		} catch (error) {
+			console.warn('Failed to load image store settings:', error);
+		}
+	}
+
+	async function saveSettings(): Promise<void> {
+		try {
+			await settingsPersistence.save({
+				filters: state.filters,
+				pagination: { limit: state.pagination.limit }
+			});
+		} catch (error) {
+			console.warn('Failed to save image store settings:', error);
+		}
+	}
+
+	function cleanup(): void {
+		// Clear any pending search timeout
+		if (searchTimeout) {
+			clearTimeout(searchTimeout);
+			searchTimeout = null;
+		}
+
+		// Cancel any pending fetch operations
+		if (currentFetchController) {
+			currentFetchController.abort();
+			currentFetchController = null;
+		}
+
+		// Clean up optimistic updates
+		optimisticImages.cleanup();
+
+		// Reset all state to initial values
+		state.images = [];
+		state.loading = false;
+		state.error = null;
+		state.pagination = {
+			limit: 20,
+			offset: 0,
+			totalCount: 0,
+			hasMore: false
+		};
+		state.filters = {
+			search: '',
+			status: 'all',
+			projectId: undefined
+		};
+
+		// Reset adding state
+		addingState.adding = false;
+	}
+
 	// Search functionality with debouncing
 	let searchTimeout: number | null = null;
+
+	// Race condition protection
+	let currentFetchController: AbortController | null = null;
 
 	function searchImages(query: string): void {
 		if (searchTimeout) {
@@ -213,6 +358,9 @@ function createImageStore() {
 		refetch
 	};
 
+	// Initialize settings on store creation
+	loadSettings();
+
 	return {
 		// State getters
 		get images() {
@@ -242,6 +390,14 @@ function createImageStore() {
 			return addingState.adding;
 		},
 
+		// Optimistic updates state
+		get hasPendingUpdates() {
+			return optimisticImages.hasPending;
+		},
+		get pendingUpdateIds() {
+			return optimisticImages.pendingIds;
+		},
+
 		// Operations
 		...operations,
 
@@ -249,7 +405,12 @@ function createImageStore() {
 		searchImages,
 		nextPage,
 		prevPage,
-		clearError
+		clearError,
+		cleanup,
+
+		// Settings persistence
+		loadSettings,
+		saveSettings
 	};
 }
 

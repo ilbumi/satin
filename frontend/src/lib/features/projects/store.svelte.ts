@@ -7,8 +7,12 @@ import type {
 	ProjectFilters
 } from './types';
 import type { Project } from '$lib/graphql/generated/graphql';
+import { errorStore } from '$lib/core/errors';
 
 function createProjectStore() {
+	// Search debouncing
+	let searchTimeout: number | null = null;
+
 	const state = $state<ProjectListState>({
 		projects: [],
 		loading: false,
@@ -40,8 +44,12 @@ function createProjectStore() {
 			state.pagination.totalCount = result.totalCount;
 			state.pagination.hasMore = result.hasMore;
 		} catch (error) {
-			state.error = error instanceof Error ? error.message : 'Failed to fetch projects';
+			const errorMessage = error instanceof Error ? error.message : 'Failed to fetch projects';
+			state.error = errorMessage;
 			console.error('Store.fetchProjects error:', error);
+
+			// Add to global error store with retry capability
+			errorStore.addNetworkError(errorMessage, 'Project Store', () => fetchProjects());
 		} finally {
 			state.loading = false;
 		}
@@ -58,8 +66,12 @@ function createProjectStore() {
 
 			return project;
 		} catch (error) {
-			state.error = error instanceof Error ? error.message : 'Failed to create project';
+			const errorMessage = error instanceof Error ? error.message : 'Failed to create project';
+			state.error = errorMessage;
 			console.error('Store.createProject error:', error);
+
+			// Add to global error store
+			errorStore.addGraphQLError(errorMessage, 'Project Creation');
 			return null;
 		}
 	}
@@ -79,8 +91,12 @@ function createProjectStore() {
 
 			return project;
 		} catch (error) {
-			state.error = error instanceof Error ? error.message : 'Failed to update project';
+			const errorMessage = error instanceof Error ? error.message : 'Failed to update project';
+			state.error = errorMessage;
 			console.error('Store.updateProject error:', error);
+
+			// Add to global error store
+			errorStore.addGraphQLError(errorMessage, 'Project Update');
 			return null;
 		}
 	}
@@ -98,8 +114,12 @@ function createProjectStore() {
 
 			return success;
 		} catch (error) {
-			state.error = error instanceof Error ? error.message : 'Failed to delete project';
+			const errorMessage = error instanceof Error ? error.message : 'Failed to delete project';
+			state.error = errorMessage;
 			console.error('Store.deleteProject error:', error);
+
+			// Add to global error store
+			errorStore.addGraphQLError(errorMessage, 'Project Deletion');
 			return false;
 		}
 	}
@@ -133,6 +153,41 @@ function createProjectStore() {
 
 	function clearError(): void {
 		state.error = null;
+	}
+
+	function searchProjects(query: string): void {
+		// Clear any existing timeout
+		if (searchTimeout) {
+			clearTimeout(searchTimeout);
+		}
+
+		// Set new timeout for debounced search
+		searchTimeout = window.setTimeout(() => {
+			setFilters({ search: query });
+		}, 300);
+	}
+
+	function cleanup(): void {
+		// Clear any pending search timeout
+		if (searchTimeout) {
+			clearTimeout(searchTimeout);
+			searchTimeout = null;
+		}
+
+		// Reset all state to initial values
+		state.projects = [];
+		state.loading = false;
+		state.error = null;
+		state.pagination = {
+			limit: 20,
+			offset: 0,
+			totalCount: 0,
+			hasMore: false
+		};
+		state.filters = {
+			search: '',
+			status: 'all'
+		};
 	}
 
 	const operations: ProjectOperations = {
@@ -173,7 +228,9 @@ function createProjectStore() {
 		...operations,
 		nextPage,
 		prevPage,
-		clearError
+		clearError,
+		searchProjects,
+		cleanup
 	};
 }
 
