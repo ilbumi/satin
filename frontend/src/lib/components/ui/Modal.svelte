@@ -8,7 +8,6 @@
 		showCloseButton?: boolean;
 		closeOnBackdropClick?: boolean;
 		closeOnEscape?: boolean;
-		onclose?: () => void;
 		onClose?: () => void;
 		children?: import('svelte').Snippet;
 		header?: import('svelte').Snippet;
@@ -22,7 +21,6 @@
 		showCloseButton = true,
 		closeOnBackdropClick = true,
 		closeOnEscape = true,
-		onclose,
 		onClose,
 		children,
 		header,
@@ -47,11 +45,9 @@
 
 	// Handle close modal
 	function closeModal() {
-		// Call whichever close handler is provided (prefer onClose over onclose)
+		// Call close handler if provided
 		if (onClose) {
 			onClose();
-		} else if (onclose) {
-			onclose();
 		}
 		open = false;
 	}
@@ -161,9 +157,8 @@
 					} else {
 						dialogElement.focus();
 					}
-				} catch (error) {
-					// Element might not be focusable, ignore the error
-					console.debug('Could not focus modal element:', error);
+				} catch {
+					// Element might not be focusable, ignore the error silently
 				}
 			});
 
@@ -183,9 +178,8 @@
 			if (previousActiveElement instanceof HTMLElement) {
 				try {
 					previousActiveElement.focus();
-				} catch (error) {
-					// Element might not be focusable anymore, ignore the error
-					console.debug('Could not restore focus to previous element:', error);
+				} catch {
+					// Element might not be focusable anymore, ignore the error silently
 				}
 			}
 		}
