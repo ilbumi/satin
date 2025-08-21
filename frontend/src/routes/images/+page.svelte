@@ -16,7 +16,7 @@
 	import type { ImageSummary, ImageDetail, ImageFilters } from '$lib/features/images/types';
 	import type { ClientAnnotation } from '$lib/features/annotations/types';
 	import type { Task } from '$lib/graphql/generated/graphql';
-	import { storeCoordinator } from '$lib/core/stores/coordinator.svelte';
+	// Remove coordinator import to avoid circular dependencies
 	import { errorStore } from '$lib/core/errors';
 
 	let showAddModal = $state(false);
@@ -183,13 +183,9 @@
 			errorStore.addSystemError('Failed to load image components', 'Images Page');
 		}
 
-		// Load data using the coordinator to prevent race conditions
+		// Load data directly
 		try {
-			const result = await storeCoordinator.loadInitialData();
-			if (!result.success && result.errors.length > 0) {
-				console.warn('Some data failed to load:', result.errors);
-				// Errors are already handled by the coordinator and stores
-			}
+			await imageStore.fetchImages();
 		} catch (error) {
 			console.error('Failed to load initial data:', error);
 			errorStore.addSystemError('Failed to load page data', 'Images Page');
@@ -197,8 +193,8 @@
 	});
 
 	onDestroy(() => {
-		// Clean up all stores using the coordinator
-		storeCoordinator.cleanup();
+		// Clean up image store only
+		imageStore.cleanup();
 	});
 </script>
 

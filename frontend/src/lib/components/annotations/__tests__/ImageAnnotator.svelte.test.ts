@@ -51,6 +51,7 @@ vi.mock('$lib/features/annotations/store.svelte', () => ({
 		initialize: vi.fn(),
 		loadAnnotations: vi.fn(),
 		reset: vi.fn(),
+		cleanup: vi.fn(),
 		annotations: [],
 		getHasUnsavedChanges: vi.fn(() => false),
 		error: null,

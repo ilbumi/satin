@@ -136,17 +136,24 @@
 					validateField('projectId', value);
 				}}
 				error={errors.projectId}
-				disabled={submitting}
+				disabled={submitting || projects.length === 0}
 				class="mt-1"
 				data-testid="project-select"
 			>
-				<option value="">Select a project...</option>
-				{#each projects as project (project.id)}
-					<option value={project.id}>{project.name}</option>
-				{/each}
+				{#if projects.length === 0}
+					<option value="">Loading projects...</option>
+				{:else}
+					<option value="">Select a project...</option>
+					{#each projects as project (project.id)}
+						<option value={project.id}>{project.name}</option>
+					{/each}
+				{/if}
 			</Select>
 			{#if errors.projectId}
 				<p class="mt-1 text-sm text-red-600">{errors.projectId}</p>
+			{/if}
+			{#if projects.length === 0}
+				<p class="mt-1 text-sm text-gray-500">Loading available projects...</p>
 			{/if}
 		</div>
 
@@ -164,19 +171,26 @@
 					validateField('imageId', value);
 				}}
 				error={errors.imageId}
-				disabled={submitting}
+				disabled={submitting || images.length === 0}
 				class="mt-1"
 				data-testid="image-select"
 			>
-				<option value="">Select an image...</option>
-				{#each images as image (image.id)}
-					<option value={image.id}>
-						{image.name || image.url.split('/').pop() || 'Unknown Image'}
-					</option>
-				{/each}
+				{#if images.length === 0}
+					<option value="">Loading images...</option>
+				{:else}
+					<option value="">Select an image...</option>
+					{#each images as image (image.id)}
+						<option value={image.id}>
+							{image.name || image.url.split('/').pop() || 'Unknown Image'}
+						</option>
+					{/each}
+				{/if}
 			</Select>
 			{#if errors.imageId}
 				<p class="mt-1 text-sm text-red-600">{errors.imageId}</p>
+			{/if}
+			{#if images.length === 0}
+				<p class="mt-1 text-sm text-gray-500">Loading available images...</p>
 			{/if}
 		</div>
 

@@ -60,9 +60,12 @@ function createProjectStore() {
 			state.error = null;
 			const project = await projectService.createProject(data);
 
-			// Optimistically add to the list
-			state.projects.unshift(projectService.mapProjectToSummary(project));
-			state.pagination.totalCount += 1;
+			// Add the new project to the beginning of the list with optimistic update
+			if (project) {
+				const projectSummary = projectService.mapProjectToSummary(project);
+				state.projects.unshift(projectSummary);
+				state.pagination.totalCount += 1;
+			}
 
 			return project;
 		} catch (error) {

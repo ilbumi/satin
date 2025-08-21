@@ -22,7 +22,7 @@
 		CreateProjectForm,
 		UpdateProjectForm
 	} from '$lib/features/projects/types';
-	import { storeCoordinator } from '$lib/core/stores/coordinator.svelte';
+	// Remove the coordinator import and use project store directly
 	import { errorStore } from '$lib/core/errors';
 
 	let showCreateModal = $state(false);
@@ -98,11 +98,14 @@
 			if (project) {
 				showSuccessToast('Project created successfully');
 			} else {
+				// Error is already shown by the store and displayed in the UI
 				showErrorToast('Failed to create project');
+				// Don't re-throw here - let the modal close so user can try again
 			}
 		} catch (error) {
+			// Error is already handled by the store
 			showErrorToast(error instanceof Error ? error.message : 'Failed to create project');
-			throw error; // Re-throw to keep modal open
+			// Don't re-throw here - let the modal close so user can try again
 		}
 	}
 
@@ -151,22 +154,18 @@
 			errorStore.addSystemError('Failed to load project components', 'Projects Page');
 		}
 
-		// Load data using the coordinator to prevent race conditions
+		// Load projects data directly
 		try {
-			const result = await storeCoordinator.loadInitialData();
-			if (!result.success && result.errors.length > 0) {
-				console.warn('Some data failed to load:', result.errors);
-				// Errors are already handled by the coordinator and stores
-			}
+			await projectStore.fetchProjects();
 		} catch (error) {
-			console.error('Failed to load initial data:', error);
-			errorStore.addSystemError('Failed to load page data', 'Projects Page');
+			console.error('Failed to load projects:', error);
+			errorStore.addSystemError('Failed to load projects', 'Projects Page');
 		}
 	});
 
 	onDestroy(() => {
-		// Clean up all stores using the coordinator
-		storeCoordinator.cleanup();
+		// Clean up project store only
+		projectStore.cleanup();
 	});
 </script>
 

@@ -30,7 +30,7 @@
 	// Import stores for projects and images data
 	import { projectStore } from '$lib/features/projects/store.svelte';
 	import { imageStore } from '$lib/features/images/store.svelte';
-	import { storeCoordinator } from '$lib/core/stores/coordinator.svelte';
+	// Remove coordinator import to avoid circular dependencies
 	import { errorStore } from '$lib/core/errors';
 
 	// Get data from actual stores instead of hardcoded arrays
@@ -60,13 +60,13 @@
 			errorStore.addSystemError('Failed to load task components', 'Tasks Page');
 		}
 
-		// Load data using the coordinator to prevent race conditions
+		// Load data directly from each store
 		try {
-			const result = await storeCoordinator.loadInitialData();
-			if (!result.success && result.errors.length > 0) {
-				console.warn('Some data failed to load:', result.errors);
-				// Errors are already handled by the coordinator and stores
-			}
+			await Promise.all([
+				taskStore.loadTasks(),
+				projectStore.fetchProjects(),
+				imageStore.fetchImages()
+			]);
 		} catch (error) {
 			console.error('Failed to load initial data:', error);
 			errorStore.addSystemError('Failed to load page data', 'Tasks Page');
@@ -74,8 +74,10 @@
 	});
 
 	onDestroy(() => {
-		// Clean up all stores using the coordinator
-		storeCoordinator.cleanup();
+		// Clean up stores directly
+		taskStore.cleanup();
+		projectStore.cleanup();
+		imageStore.cleanup();
 	});
 
 	// Event handlers
@@ -121,10 +123,9 @@
 
 	async function handleRetry() {
 		try {
-			await storeCoordinator.refreshAllData();
+			await Promise.all([taskStore.refreshTasks(), projectStore.refetch(), imageStore.refetch()]);
 		} catch (error) {
 			console.error('Failed to retry data load:', error);
-			// Error is already handled by coordinator
 		}
 	}
 
@@ -183,6 +184,14 @@
 
 	// Use virtualization for large datasets (> 50 items)
 	const useVirtualization = $derived(tasks.length > 50);
+
+	// Check if initial data is loaded (for testing purposes)
+	const isDataLoaded = $derived(
+		// Data is considered loaded when we have both projects and images data,
+		// or when all stores are not loading anymore
+		(projects.length > 0 && images.length > 0) ||
+			(!taskStore.state.list.loading && !projectStore.loading && !imageStore.loading)
+	);
 </script>
 
 <svelte:head>
@@ -190,6 +199,13 @@
 </svelte:head>
 
 <div class="p-6">
+	<!-- Hidden indicator for tests to know when data is loaded -->
+	{#if isDataLoaded}
+		<div data-testid="data-loaded" class="sr-only">Data loaded</div>
+	{:else}
+		<div data-testid="data-loading" class="sr-only">Data loading</div>
+	{/if}
+
 	<!-- Header -->
 	<div class="mb-8 flex items-center justify-between">
 		<div>
