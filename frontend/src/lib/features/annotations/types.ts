@@ -203,6 +203,18 @@ export interface UpdateAnnotationForm {
 }
 
 /**
+ * Performance optimization settings
+ */
+export interface PerformanceSettings {
+	viewportCulling: boolean;
+	levelOfDetail: boolean;
+	maxVisibleAnnotations: number;
+	batchSize: number;
+	lodThreshold: number;
+	cullingPadding: number;
+}
+
+/**
  * Canvas configuration
  */
 export interface CanvasConfig {
@@ -213,7 +225,20 @@ export interface CanvasConfig {
 	gridSize: number;
 	snapToGrid: boolean;
 	snapTolerance: number;
+	performance: PerformanceSettings;
 }
+
+/**
+ * Default performance settings
+ */
+export const DEFAULT_PERFORMANCE_SETTINGS: PerformanceSettings = {
+	viewportCulling: true,
+	levelOfDetail: true,
+	maxVisibleAnnotations: 500,
+	batchSize: 50,
+	lodThreshold: 0.5,
+	cullingPadding: 100
+};
 
 /**
  * Default canvas configuration
@@ -225,7 +250,8 @@ export const DEFAULT_CANVAS_CONFIG: CanvasConfig = {
 	gridEnabled: false,
 	gridSize: 20,
 	snapToGrid: false,
-	snapTolerance: 5
+	snapTolerance: 5,
+	performance: DEFAULT_PERFORMANCE_SETTINGS
 };
 
 /**

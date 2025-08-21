@@ -140,6 +140,7 @@
 		class="fixed z-50 {positionClasses[position]} w-full max-w-sm"
 		role="alert"
 		aria-live="polite"
+		data-testid="toast-{type}"
 	>
 		<div
 			role="status"

@@ -21,25 +21,30 @@ class Config(BaseSettings):
         ],
     )
 
-    # URL validation configuration
-    allow_local_urls: bool = Field(
-        validation_alias="ALLOW_LOCAL_URLS",
-        default=True,
-        description="Allow local URLs in image validation (useful for development/testing)",
-    )
-
-    # Disable dangerous pattern checks for testing
-    disable_dangerous_pattern_checks: bool = Field(
-        validation_alias="DISABLE_DANGEROUS_PATTERN_CHECKS",
-        default=True,
-        description="Disable dangerous pattern checks in URL validation (useful for testing)",
-    )
-
     # Rate limiting configuration
     disable_rate_limiting: bool = Field(
         validation_alias="DISABLE_RATE_LIMITING",
         default=False,
         description="Disable rate limiting (useful for testing)",
+    )
+
+    # File upload configuration
+    upload_directory: str = Field(
+        validation_alias="UPLOAD_DIRECTORY",
+        default="uploads",
+        description="Directory to store uploaded files",
+    )
+
+    max_file_size: int = Field(
+        validation_alias="MAX_FILE_SIZE",
+        default=10 * 1024 * 1024,  # 10MB
+        description="Maximum file size in bytes",
+    )
+
+    base_url: str = Field(
+        validation_alias="BASE_URL",
+        default="http://localhost:8000",
+        description="Base URL for generating file URLs",
     )
 
 

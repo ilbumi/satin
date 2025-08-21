@@ -28,11 +28,6 @@ MAX_FILTER_LIST_SIZE = 100
 MAX_BBOXES_PER_TASK = 1000
 MAX_REGEX_PATTERN_LENGTH = 1000
 
-# URL validation
-ALLOWED_URL_SCHEMES = {"http", "https", "data"}
-FORBIDDEN_URL_HOSTS = {"localhost", "127.0.0.1", "::1"}
-TRUSTED_TEST_DOMAINS = {"picsum.photos", "httpbin.org", "jsonplaceholder.typicode.com"}
-BIND_ALL_INTERFACES = "0.0.0.0"  # nosec  # noqa: S104
 
 # Error messages
 ERROR_MESSAGES = {
@@ -53,14 +48,6 @@ ERROR_MESSAGES = {
     "INVALID_FIELD_FORMAT": "Invalid field name format",
     "FIELD_NOT_ALLOWED": "Field '{field}' is not allowed",
     "FIELD_STARTS_WITH_DOLLAR": "Field name cannot start with $",
-    # URL validation errors
-    "EMPTY_URL": "URL cannot be empty",
-    "INVALID_URL_FORMAT": "Invalid URL format: {error}",
-    "INVALID_URL_SCHEME": "URL scheme must be one of: {schemes}",
-    "LOCAL_URL_NOT_ALLOWED": "Local URLs are not allowed",
-    "PRIVATE_URL_NOT_ALLOWED": "Private network URLs are not allowed",
-    "FILE_PROTOCOL_NOT_ALLOWED": "File protocol is not allowed",
-    "DANGEROUS_URL_PATTERNS": "URL contains potentially dangerous patterns",
     # Project validation errors
     "PROJECT_NAME_INVALID_CHARS": "Project name contains invalid characters",
     # Tag validation errors

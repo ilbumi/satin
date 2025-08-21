@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import { Toast, ErrorBoundary } from '$lib/components/ui';
 	import { ConnectionStatus, SystemTestResults } from '$lib/components/dashboard';
 	import { connectionStore } from '$lib/features/connection';
@@ -22,7 +23,12 @@
 	});
 
 	async function handleRetry() {
-		await connectionStore.manualRetry();
+		try {
+			await connectionStore.manualRetry();
+		} catch (error) {
+			console.error('Failed to retry connection:', error);
+			// Error is already handled in the connection store and global error system
+		}
 	}
 
 	// Dashboard layout classes
@@ -34,6 +40,11 @@
 	const quickActionsClasses = 'space-y-3';
 	const linkClasses = 'block text-sm text-blue-600 hover:text-blue-800 transition-colors';
 	const systemResultsClasses = 'mt-8';
+
+	onDestroy(() => {
+		// Clean up store to prevent memory leaks
+		connectionStore.cleanup();
+	});
 </script>
 
 <ErrorBoundary fallbackMessage="Failed to load dashboard. Please try again." onRetry={handleRetry}>

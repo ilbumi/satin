@@ -1,20 +1,14 @@
 """Input sanitization and validation utilities for security."""
 
 import html
-import ipaddress
 import re
-import socket
-from urllib.parse import urlparse
 
 import bleach
 import strawberry
 from bson import ObjectId
 from bson.errors import InvalidId
 
-from satin.config import config
 from satin.constants import (
-    ALLOWED_URL_SCHEMES,
-    FORBIDDEN_URL_HOSTS,
     MAX_CHAR_EXCLUDE,
     MAX_DESCRIPTION_LENGTH,
     MAX_FIELD_NAME_LENGTH,
@@ -25,7 +19,6 @@ from satin.constants import (
     MAX_TAGS_COUNT,
     MIN_PRINTABLE_CHAR,
     OBJECT_ID_LENGTH,
-    TRUSTED_TEST_DOMAINS,
 )
 from satin.exceptions import (
     FieldNameValidationError,
@@ -34,109 +27,7 @@ from satin.exceptions import (
     ProjectValidationError,
     RegexValidationError,
     TagValidationError,
-    UrlValidationError,
 )
-
-# Error message constants
-URL_SHORTENERS_ERROR = "URL shorteners are not allowed for security reasons"
-
-
-def _check_url_shorteners(parsed) -> None:
-    """Check for URL shorteners and raise error if found."""
-    suspicious_domains = ["bit.ly", "tinyurl.com", "goo.gl", "ow.ly", "is.gd", "buff.ly"]
-    if parsed.hostname and any(domain in parsed.hostname.lower() for domain in suspicious_domains):
-        raise UrlValidationError(URL_SHORTENERS_ERROR)
-
-
-def _check_dangerous_patterns(url: str) -> None:
-    """Check for dangerous SSRF bypass patterns."""
-    dangerous_patterns = [
-        "@",  # Credential bypass
-        "%40",  # URL encoded @
-        "0x",  # Hex IP notation
-        "0177",  # Octal IP notation
-        "0o177",  # Python octal notation
-        "[::]",  # IPv6 any address
-        "%2e%2e",  # URL encoded ../
-        "..%2f",  # Mixed encoding
-        "%252e",  # Double encoding
-        "\\",  # Backslash bypass
-        "%5c",  # URL encoded backslash
-        "0.0.0.0",  # Bind all interfaces  # noqa: S104
-    ]
-
-    url_lower = url.lower()
-    for pattern in dangerous_patterns:
-        if pattern in url_lower:
-            raise UrlValidationError.dangerous_patterns()
-
-
-def _is_private_ip(hostname: str) -> bool:
-    """Check if a hostname resolves to a private IP address.
-
-    Args:
-        hostname: The hostname to check
-
-    Returns:
-        True if the hostname resolves to a private IP, False otherwise
-
-    """
-    try:
-        # Try to parse as IP address first
-        ip = ipaddress.ip_address(hostname)
-        return (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_link_local
-            or ip.is_multicast
-            or ip.is_reserved
-            or (hasattr(ip, "is_unspecified") and ip.is_unspecified)
-        )
-    except ValueError:
-        # Not an IP address, try to resolve hostname
-        try:
-            # Resolve hostname to IP addresses
-            # Use getaddrinfo to handle both IPv4 and IPv6
-            addr_info = socket.getaddrinfo(hostname, None)
-            for info in addr_info:
-                # info[4][0] contains the IP address
-                ip_str = info[4][0]
-                try:
-                    ip = ipaddress.ip_address(ip_str)
-                    if (
-                        ip.is_private
-                        or ip.is_loopback
-                        or ip.is_link_local
-                        or ip.is_multicast
-                        or ip.is_reserved
-                        or (hasattr(ip, "is_unspecified") and ip.is_unspecified)
-                    ):
-                        return True
-                except ValueError:
-                    continue
-        except (OSError, socket.gaierror):
-            # Cannot resolve hostname, treat as potentially dangerous
-            return True
-        else:
-            return False
-
-
-def _validate_hostname(parsed) -> None:
-    """Validate hostname for security issues."""
-    hostname = parsed.hostname
-    if hostname:
-        # Allow trusted test domains for development and testing
-        if hostname.lower() in TRUSTED_TEST_DOMAINS:
-            return
-
-        # Check for localhost and local IPs using proper validation
-        if hostname.lower() in FORBIDDEN_URL_HOSTS:
-            raise UrlValidationError.local_url_not_allowed()
-
-        # Use proper IP validation to check for private IPs
-        if _is_private_ip(hostname):
-            raise UrlValidationError.private_url_not_allowed()
-
 
 # Regex patterns for validation
 SAFE_STRING_PATTERN = re.compile(r"^[\w\s\-.,!?@#$%^&*()\[\]{}/\\:;'\"+=~`|]+$")
@@ -301,63 +192,6 @@ def validate_field_name(field_name: str, allowed_fields: set[str] | None = None)
         raise FieldNameValidationError.starts_with_dollar()
 
     return field_name
-
-
-def validate_url(url: str, allow_local: bool = False) -> str:
-    """Validate and sanitize a URL to prevent SSRF attacks.
-
-    Args:
-        url: The URL to validate
-        allow_local: Whether to allow local URLs
-
-    Returns:
-        Validated URL
-
-    Raises:
-        UrlValidationError: If the URL is invalid or potentially dangerous
-
-    """
-    if not url:
-        raise UrlValidationError.empty_url()
-
-    # Basic string sanitization
-    url = url.strip()
-
-    # Parse the URL
-    try:
-        parsed = urlparse(url)
-    except Exception as e:
-        raise UrlValidationError.invalid_format(str(e)) from e
-
-    # Check scheme
-    if parsed.scheme not in ALLOWED_URL_SCHEMES:
-        schemes = ", ".join(ALLOWED_URL_SCHEMES)
-        raise UrlValidationError.invalid_scheme(schemes)
-
-    # Skip validation for data URLs (base64 encoded images)
-    if parsed.scheme == "data":
-        # Basic data URL validation: check if it's an image
-        if not url.lower().startswith("data:image/"):
-            msg = "Data URLs must be image type"
-            raise UrlValidationError.invalid_format(msg)
-        return url
-
-    # Check for local URLs if not allowed
-    if not allow_local:
-        _validate_hostname(parsed)
-
-        # Check for file:// protocol disguised as http
-        if "file:" in url.lower():
-            raise UrlValidationError.file_protocol_not_allowed()
-
-    # Check for common SSRF bypass patterns (unless disabled for testing)
-    if not config.disable_dangerous_pattern_checks:
-        _check_dangerous_patterns(url)
-
-    # Additional check for URL shorteners and redirectors which could bypass validation
-    _check_url_shorteners(parsed)
-
-    return url
 
 
 def _validate_regex_pattern(pattern: str) -> None:

@@ -99,47 +99,6 @@ class FieldNameValidationError(ValidationError):
         return cls(ERROR_MESSAGES["FIELD_STARTS_WITH_DOLLAR"])
 
 
-class UrlValidationError(ValidationError):
-    """Exception raised when URL validation fails."""
-
-    @classmethod
-    def empty_url(cls) -> "UrlValidationError":
-        """Create error for empty URL."""
-        return cls(ERROR_MESSAGES["EMPTY_URL"])
-
-    @classmethod
-    def invalid_format(cls, error: str) -> "UrlValidationError":
-        """Create error for invalid URL format."""
-        message = ERROR_MESSAGES["INVALID_URL_FORMAT"].format(error=error)
-        return cls(message)
-
-    @classmethod
-    def invalid_scheme(cls, schemes: str) -> "UrlValidationError":
-        """Create error for invalid URL scheme."""
-        message = ERROR_MESSAGES["INVALID_URL_SCHEME"].format(schemes=schemes)
-        return cls(message)
-
-    @classmethod
-    def local_url_not_allowed(cls) -> "UrlValidationError":
-        """Create error for local URL."""
-        return cls(ERROR_MESSAGES["LOCAL_URL_NOT_ALLOWED"])
-
-    @classmethod
-    def private_url_not_allowed(cls) -> "UrlValidationError":
-        """Create error for private URL."""
-        return cls(ERROR_MESSAGES["PRIVATE_URL_NOT_ALLOWED"])
-
-    @classmethod
-    def file_protocol_not_allowed(cls) -> "UrlValidationError":
-        """Create error for file protocol."""
-        return cls(ERROR_MESSAGES["FILE_PROTOCOL_NOT_ALLOWED"])
-
-    @classmethod
-    def dangerous_patterns(cls) -> "UrlValidationError":
-        """Create error for dangerous URL patterns."""
-        return cls(ERROR_MESSAGES["DANGEROUS_URL_PATTERNS"])
-
-
 class ProjectValidationError(ValidationError):
     """Exception raised when project validation fails."""
 

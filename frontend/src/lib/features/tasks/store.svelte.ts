@@ -6,12 +6,27 @@ import type {
 	UpdateTaskForm
 } from './types';
 import { TaskService } from './service';
+import { errorStore } from '$lib/core/errors';
+import { createPersistenceManager } from '$lib/core/persistence';
+import { localStorageAdapter } from '$lib/core/persistence/adapters/localStorage';
+
+const DEFAULT_PAGE_SIZE = 10;
 
 /**
  * Task store for managing task-related state in Svelte 5
  */
 class TaskStore {
 	private taskService = new TaskService();
+
+	// Persistence for settings (filters, pagination preferences)
+	private settingsPersistence = createPersistenceManager<{
+		filters: TaskFilters;
+		pagination: { limit: number };
+	}>('task-store-settings', localStorageAdapter, {
+		version: 1,
+		debounceMs: 1000,
+		ttl: 7 * 24 * 60 * 60 * 1000 // 7 days
+	});
 
 	// Reactive state
 	state = $state<TaskStoreState>({
@@ -45,11 +60,26 @@ class TaskStore {
 		}
 	});
 
+	// Race condition protection
+	private currentLoadController: AbortController | null = null;
+
+	// Search debouncing
+	private searchTimeout: number | null = null;
+
 	/**
 	 * Load tasks with current filters and pagination
 	 */
 	async loadTasks(loadMore = false): Promise<void> {
 		if (this.state.list.loading) return;
+
+		// Cancel any existing load operation
+		if (this.currentLoadController) {
+			this.currentLoadController.abort();
+		}
+
+		// Create new abort controller for this load
+		this.currentLoadController = new AbortController();
+		const loadController = this.currentLoadController;
 
 		try {
 			this.state.list.loading = true;
@@ -62,6 +92,9 @@ class TaskStore {
 				offset,
 				this.state.filters
 			);
+
+			// Check if operation was cancelled after the async call
+			if (loadController.signal.aborted) return;
 
 			// Map tasks to summaries
 			const taskSummaries = result.objects.map((task) => this.taskService.mapTaskToSummary(task));
@@ -77,9 +110,17 @@ class TaskStore {
 			this.state.list.offset = offset;
 		} catch (error) {
 			console.error('Failed to load tasks:', error);
-			this.state.list.error = error instanceof Error ? error.message : 'Failed to load tasks';
+			const errorMessage = error instanceof Error ? error.message : 'Failed to load tasks';
+			this.state.list.error = errorMessage;
+
+			// Add to global error store with retry capability
+			errorStore.addNetworkError(errorMessage, 'Task Store', () => this.loadTasks(loadMore));
 		} finally {
-			this.state.list.loading = false;
+			// Only update loading state if this is still the current operation
+			if (loadController === this.currentLoadController) {
+				this.state.list.loading = false;
+				this.currentLoadController = null;
+			}
 		}
 	}
 
@@ -115,7 +156,11 @@ class TaskStore {
 			await this.refreshTasks();
 		} catch (error) {
 			console.error('Failed to create task:', error);
-			this.state.create.error = error instanceof Error ? error.message : 'Failed to create task';
+			const errorMessage = error instanceof Error ? error.message : 'Failed to create task';
+			this.state.create.error = errorMessage;
+
+			// Add to global error store
+			errorStore.addGraphQLError(errorMessage, 'Task Creation');
 			throw error;
 		} finally {
 			this.state.create.creating = false;
@@ -145,7 +190,11 @@ class TaskStore {
 			}
 		} catch (error) {
 			console.error('Failed to update task:', error);
-			this.state.update.error = error instanceof Error ? error.message : 'Failed to update task';
+			const errorMessage = error instanceof Error ? error.message : 'Failed to update task';
+			this.state.update.error = errorMessage;
+
+			// Add to global error store
+			errorStore.addGraphQLError(errorMessage, 'Task Update');
 			throw error;
 		} finally {
 			this.state.update.updating = false;
@@ -171,7 +220,11 @@ class TaskStore {
 			}
 		} catch (error) {
 			console.error('Failed to delete task:', error);
-			this.state.delete.error = error instanceof Error ? error.message : 'Failed to delete task';
+			const errorMessage = error instanceof Error ? error.message : 'Failed to delete task';
+			this.state.delete.error = errorMessage;
+
+			// Add to global error store
+			errorStore.addGraphQLError(errorMessage, 'Task Deletion');
 			throw error;
 		} finally {
 			this.state.delete.deleting = false;
@@ -217,6 +270,21 @@ class TaskStore {
 		this.state.create.error = null;
 		this.state.update.error = null;
 		this.state.delete.error = null;
+	}
+
+	/**
+	 * Search tasks with debouncing to improve performance
+	 */
+	searchTasks(query: string): void {
+		// Clear any existing timeout
+		if (this.searchTimeout) {
+			clearTimeout(this.searchTimeout);
+		}
+
+		// Set new timeout for debounced search
+		this.searchTimeout = window.setTimeout(async () => {
+			await this.updateFilters({ search: query });
+		}, 300);
 	}
 
 	/**
@@ -269,6 +337,56 @@ class TaskStore {
 		if (this.state.update.error) errors.push(this.state.update.error);
 		if (this.state.delete.error) errors.push(this.state.delete.error);
 		return errors;
+	}
+
+	/**
+	 * Cleanup method for store - can be called when component unmounts
+	 * Clears all state and cancels any pending operations
+	 */
+	cleanup(): void {
+		// Cancel any pending load operations
+		if (this.currentLoadController) {
+			this.currentLoadController.abort();
+			this.currentLoadController = null;
+		}
+
+		// Clear any pending search timeout
+		if (this.searchTimeout) {
+			clearTimeout(this.searchTimeout);
+			this.searchTimeout = null;
+		}
+
+		// Reset all state to initial values
+		this.state = {
+			list: {
+				tasks: [],
+				loading: false,
+				error: null,
+				hasMore: false,
+				totalCount: 0,
+				offset: 0,
+				limit: DEFAULT_PAGE_SIZE
+			},
+			filters: {
+				search: '',
+				status: 'all',
+				projectId: undefined,
+				assignee: undefined,
+				priority: 'all'
+			},
+			create: {
+				creating: false,
+				error: null
+			},
+			update: {
+				updating: false,
+				error: null
+			},
+			delete: {
+				deleting: false,
+				error: null
+			}
+		};
 	}
 }
 

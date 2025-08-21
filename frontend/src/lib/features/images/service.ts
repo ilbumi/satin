@@ -178,6 +178,13 @@ export class ImageService {
 	}
 
 	/**
+	 * Check if URL is a data URL
+	 */
+	private isDataUrl(url: string): boolean {
+		return url.toLowerCase().startsWith('data:image/');
+	}
+
+	/**
 	 * Validate image URL
 	 */
 	validateImageUrl(url: string): { valid: boolean; error?: string } {
@@ -186,10 +193,15 @@ export class ImageService {
 		}
 
 		// Check for data URLs (base64 images)
-		if (url.toLowerCase().startsWith('data:image/')) {
+		if (this.isDataUrl(url)) {
 			// Basic validation for data URLs
 			if (url.includes(';base64,')) {
-				return { valid: true };
+				// Check if base64 data is present
+				const base64Part = url.split(',')[1];
+				if (base64Part && base64Part.length > 0) {
+					return { valid: true };
+				}
+				return { valid: false, error: 'Data URL missing base64 data' };
 			}
 			return { valid: false, error: 'Data URL must be base64 encoded' };
 		}
@@ -211,7 +223,7 @@ export class ImageService {
 	 */
 	generateThumbnailUrl(imageUrl: string, width = 200, height = 200): string {
 		// For data URLs, return as-is (they're already self-contained)
-		if (imageUrl.toLowerCase().startsWith('data:image/')) {
+		if (this.isDataUrl(imageUrl)) {
 			return imageUrl;
 		}
 
@@ -225,7 +237,7 @@ export class ImageService {
 	 */
 	generatePreviewUrl(imageUrl: string, width = 800): string {
 		// For data URLs, return as-is
-		if (imageUrl.toLowerCase().startsWith('data:image/')) {
+		if (this.isDataUrl(imageUrl)) {
 			return imageUrl;
 		}
 

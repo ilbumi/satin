@@ -37,9 +37,11 @@ class ImageRepository(BaseRepository[Image]):
         results_data = await self.find_all(limit=limit, offset=offset, query_input=query_input)
         return [await self.to_domain_object(data) for data in results_data]
 
-    async def create_image(self, url: str) -> Image:
+    async def create_image(self, url: str, metadata: dict[str, Any] | None = None) -> Image:
         """Create a new image in the database."""
         image_data = {"url": url}
+        if metadata:
+            image_data.update(metadata)
         created_data = await self.create(image_data)
         return await self.to_domain_object(created_data)
 

@@ -171,7 +171,12 @@ class TaskRepository(BaseRepository[Task]):
             # Convert joined image and project data to proper objects
             if "image" in task_data:
                 image_data = task_data["image"]
-                task_data["image"] = Image(id=str(image_data["_id"]), url=image_data["url"])
+                task_data["image"] = Image(
+                    id=str(image_data["_id"]),
+                    url=image_data["url"],
+                    dimensions=image_data.get("dimensions"),
+                    metadata=image_data.get("metadata"),
+                )
 
             if "project" in task_data:
                 project_data = task_data["project"]

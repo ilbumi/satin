@@ -1,10 +1,19 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { Button } from '$lib/components/ui';
-	import TaskList from '$lib/components/tasks/TaskList.svelte';
-	import TaskFilters from '$lib/components/tasks/TaskFilters.svelte';
-	import CreateTaskModal from '$lib/components/tasks/CreateTaskModal.svelte';
-	import EditTaskModal from '$lib/components/tasks/EditTaskModal.svelte';
+	// Dynamic imports for heavy components
+	let TaskList: typeof import('$lib/components/tasks/TaskList.svelte').default | null =
+		$state(null);
+	let VirtualTaskList:
+		| typeof import('$lib/components/tasks/VirtualTaskList.svelte').default
+		| null = $state(null);
+	let TaskFilters: typeof import('$lib/components/tasks/TaskFilters.svelte').default | null =
+		$state(null);
+	let CreateTaskModal:
+		| typeof import('$lib/components/tasks/CreateTaskModal.svelte').default
+		| null = $state(null);
+	let EditTaskModal: typeof import('$lib/components/tasks/EditTaskModal.svelte').default | null =
+		$state(null);
 	import { taskStore } from '$lib/features/tasks/store.svelte';
 	import type {
 		TaskSummary,
@@ -21,6 +30,8 @@
 	// Import stores for projects and images data
 	import { projectStore } from '$lib/features/projects/store.svelte';
 	import { imageStore } from '$lib/features/images/store.svelte';
+	// Remove coordinator import to avoid circular dependencies
+	import { errorStore } from '$lib/core/errors';
 
 	// Get data from actual stores instead of hardcoded arrays
 	let projects = $derived(projectStore.projects.map((p) => ({ id: p.id, name: p.name })));
@@ -32,19 +43,69 @@
 		}))
 	);
 
-	// Load data when component mounts
-	onMount(() => {
-		taskStore.loadTasks();
-		projectStore.fetchProjects();
-		imageStore.fetchImages();
+	// Load data and components when component mounts
+	onMount(async () => {
+		// Load core components first
+		try {
+			const [taskListModule, virtualTaskListModule, taskFiltersModule] = await Promise.all([
+				import('$lib/components/tasks/TaskList.svelte'),
+				import('$lib/components/tasks/VirtualTaskList.svelte'),
+				import('$lib/components/tasks/TaskFilters.svelte')
+			]);
+			TaskList = taskListModule.default;
+			VirtualTaskList = virtualTaskListModule.default;
+			TaskFilters = taskFiltersModule.default;
+		} catch (error) {
+			console.error('Failed to load task components:', error);
+			errorStore.addSystemError('Failed to load task components', 'Tasks Page');
+		}
+
+		// Load data directly from each store
+		try {
+			await Promise.all([
+				taskStore.loadTasks(),
+				projectStore.fetchProjects(),
+				imageStore.fetchImages()
+			]);
+		} catch (error) {
+			console.error('Failed to load initial data:', error);
+			errorStore.addSystemError('Failed to load page data', 'Tasks Page');
+		}
+	});
+
+	onDestroy(() => {
+		// Clean up stores directly
+		taskStore.cleanup();
+		projectStore.cleanup();
+		imageStore.cleanup();
 	});
 
 	// Event handlers
-	function handleCreateTask() {
+	async function handleCreateTask() {
+		if (!CreateTaskModal) {
+			try {
+				const module = await import('$lib/components/tasks/CreateTaskModal.svelte');
+				CreateTaskModal = module.default;
+			} catch (error) {
+				console.error('Failed to load CreateTaskModal:', error);
+				errorStore.addSystemError('Failed to load create task modal', 'Tasks Page');
+				return;
+			}
+		}
 		showCreateModal = true;
 	}
 
-	function handleEditTask(task: TaskSummary) {
+	async function handleEditTask(task: TaskSummary) {
+		if (!EditTaskModal) {
+			try {
+				const module = await import('$lib/components/tasks/EditTaskModal.svelte');
+				EditTaskModal = module.default;
+			} catch (error) {
+				console.error('Failed to load EditTaskModal:', error);
+				errorStore.addSystemError('Failed to load edit task modal', 'Tasks Page');
+				return;
+			}
+		}
 		taskToEdit = task;
 		showEditModal = true;
 	}
@@ -60,8 +121,12 @@
 		}
 	}
 
-	function handleRetry() {
-		taskStore.refreshTasks();
+	async function handleRetry() {
+		try {
+			await Promise.all([taskStore.refreshTasks(), projectStore.refetch(), imageStore.refetch()]);
+		} catch (error) {
+			console.error('Failed to retry data load:', error);
+		}
 	}
 
 	function handleLoadMore() {
@@ -69,18 +134,35 @@
 	}
 
 	async function handleFiltersChange(filters: TaskFiltersType) {
-		await taskStore.updateFilters(filters);
+		try {
+			await taskStore.updateFilters(filters);
+		} catch (error) {
+			console.error('Failed to update filters:', error);
+			// Error is already handled in the store and global error system
+		}
 	}
 
 	async function handleCreateSubmit(data: CreateTaskForm) {
-		await taskStore.createTask(data);
-		showCreateModal = false;
+		try {
+			await taskStore.createTask(data);
+			showCreateModal = false;
+		} catch (error) {
+			console.error('Failed to create task:', error);
+			// Error is already handled in the store and global error system
+			// Keep modal open so user can retry
+		}
 	}
 
 	async function handleEditSubmit(data: UpdateTaskForm) {
-		await taskStore.updateTask(data);
-		showEditModal = false;
-		taskToEdit = null;
+		try {
+			await taskStore.updateTask(data);
+			showEditModal = false;
+			taskToEdit = null;
+		} catch (error) {
+			console.error('Failed to update task:', error);
+			// Error is already handled in the store and global error system
+			// Keep modal open so user can retry
+		}
 	}
 
 	function handleCreateModalClose() {
@@ -99,6 +181,17 @@
 	let hasMore = $derived(taskStore.state.list.hasMore);
 	let filters = $derived(taskStore.state.filters);
 	let statistics = $derived(taskStore.statistics);
+
+	// Use virtualization for large datasets (> 50 items)
+	const useVirtualization = $derived(tasks.length > 50);
+
+	// Check if initial data is loaded (for testing purposes)
+	const isDataLoaded = $derived(
+		// Data is considered loaded when we have both projects and images data,
+		// or when all stores are not loading anymore
+		(projects.length > 0 && images.length > 0) ||
+			(!taskStore.state.list.loading && !projectStore.loading && !imageStore.loading)
+	);
 </script>
 
 <svelte:head>
@@ -106,6 +199,13 @@
 </svelte:head>
 
 <div class="p-6">
+	<!-- Hidden indicator for tests to know when data is loaded -->
+	{#if isDataLoaded}
+		<div data-testid="data-loaded" class="sr-only">Data loaded</div>
+	{:else}
+		<div data-testid="data-loading" class="sr-only">Data loading</div>
+	{/if}
+
 	<!-- Header -->
 	<div class="mb-8 flex items-center justify-between">
 		<div>
@@ -157,39 +257,64 @@
 	</div>
 
 	<!-- Filters -->
-	<div class="mb-6">
-		<TaskFilters {filters} {projects} {loading} onFiltersChange={handleFiltersChange} />
-	</div>
+	{#if TaskFilters}
+		<div class="mb-6">
+			<TaskFilters {filters} {projects} {loading} onFiltersChange={handleFiltersChange} />
+		</div>
+	{/if}
 
 	<!-- Task List -->
-	<TaskList
-		{tasks}
-		{loading}
-		{error}
-		{hasMore}
-		onCreateTask={handleCreateTask}
-		onEditTask={handleEditTask}
-		onDeleteTask={handleDeleteTask}
-		onRetry={handleRetry}
-		onLoadMore={handleLoadMore}
-	/>
+	{#if useVirtualization && VirtualTaskList}
+		<VirtualTaskList
+			{tasks}
+			{loading}
+			{error}
+			{hasMore}
+			onCreateTask={handleCreateTask}
+			onEditTask={handleEditTask}
+			onDeleteTask={handleDeleteTask}
+			onRetry={handleRetry}
+			onLoadMore={handleLoadMore}
+			containerHeight={800}
+		/>
+	{:else if TaskList}
+		<TaskList
+			{tasks}
+			{loading}
+			{error}
+			{hasMore}
+			onCreateTask={handleCreateTask}
+			onEditTask={handleEditTask}
+			onDeleteTask={handleDeleteTask}
+			onRetry={handleRetry}
+			onLoadMore={handleLoadMore}
+		/>
+	{:else}
+		<div class="flex items-center justify-center py-12">
+			<div class="animate-pulse text-gray-600">Loading tasks...</div>
+		</div>
+	{/if}
 
 	<!-- Create Task Modal -->
-	<CreateTaskModal
-		open={showCreateModal}
-		{projects}
-		{images}
-		onClose={handleCreateModalClose}
-		onSubmit={handleCreateSubmit}
-	/>
+	{#if CreateTaskModal && showCreateModal}
+		<CreateTaskModal
+			open={showCreateModal}
+			{projects}
+			{images}
+			onClose={handleCreateModalClose}
+			onSubmit={handleCreateSubmit}
+		/>
+	{/if}
 
 	<!-- Edit Task Modal -->
-	<EditTaskModal
-		open={showEditModal}
-		task={taskToEdit}
-		{projects}
-		{images}
-		onClose={handleEditModalClose}
-		onSubmit={handleEditSubmit}
-	/>
+	{#if EditTaskModal && showEditModal}
+		<EditTaskModal
+			open={showEditModal}
+			task={taskToEdit}
+			{projects}
+			{images}
+			onClose={handleEditModalClose}
+			onSubmit={handleEditSubmit}
+		/>
+	{/if}
 </div>

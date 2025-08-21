@@ -76,6 +76,12 @@
 	function handleImageError() {
 		imageLoading = false;
 		imageError = true;
+
+		// Log error for debugging data URL issues
+		const imageUrl = fullDetail?.previewUrl || fullDetail?.url || image?.thumbnailUrl;
+		if (imageUrl?.startsWith('data:')) {
+			console.warn('Data URL failed to load in ImageViewer:', imageUrl.substring(0, 50) + '...');
+		}
 	}
 
 	function resetZoom() {
@@ -335,6 +341,7 @@
 							alt={fullDetail?.filename || image.filename}
 							class="max-w-none transition-transform"
 							style="transform: scale({zoom}) translate({panX / zoom}px, {panY / zoom}px)"
+							loading="lazy"
 							onload={handleImageLoad}
 							onerror={handleImageError}
 							draggable="false"

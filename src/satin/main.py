@@ -8,6 +8,7 @@ from satin.middleware.graphql_security import GraphQLSecurityExtension
 from satin.middleware.logging import RequestLoggingMiddleware
 from satin.middleware.rate_limit import RateLimitMiddleware
 from satin.middleware.security import SecurityHeadersMiddleware
+from satin.routers.upload import router as upload_router
 from satin.schema.mutation import Mutation
 from satin.schema.query import Query
 
@@ -33,12 +34,25 @@ def create_app() -> FastAPI:
         allow_origins=config.cors_origins,  # Use specific origins from config
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allow_headers=["*"],
+        allow_headers=[
+            "accept",
+            "accept-language",
+            "content-type",
+            "content-disposition",
+            "origin",
+            "user-agent",
+            "x-csrftoken",
+            "x-requested-with",
+            "authorization",
+        ],
         expose_headers=["*"],
     )
 
     graphql_app = GraphQLRouter(schema)
     app.include_router(graphql_app, prefix="/graphql")
+
+    # Add upload router
+    app.include_router(upload_router)
 
     return app
 

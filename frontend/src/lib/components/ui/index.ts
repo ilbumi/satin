@@ -7,6 +7,8 @@ export { default as Modal } from './Modal.svelte';
 export { default as Select } from './Select.svelte';
 export { default as Spinner } from './Spinner.svelte';
 export { default as Toast } from './Toast.svelte';
+export { default as VirtualList } from './VirtualList.svelte';
+export { default as VirtualGrid } from './VirtualGrid.svelte';
 
 // Type exports for better TypeScript support
 export type {

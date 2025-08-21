@@ -109,6 +109,14 @@ function createConnectionStore() {
 		state.projectCount = 0;
 	}
 
+	/**
+	 * Cleanup method for store - can be called when component unmounts
+	 * Alias for reset() for consistency with other stores
+	 */
+	function cleanup(): void {
+		reset();
+	}
+
 	// Computed values using $derived
 	const statusDisplay = $derived(() => {
 		switch (state.status) {
@@ -182,7 +190,8 @@ function createConnectionStore() {
 		checkHealth,
 		retryConnection,
 		manualRetry,
-		reset
+		reset,
+		cleanup
 	};
 }
 

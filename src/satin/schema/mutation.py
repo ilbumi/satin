@@ -1,4 +1,5 @@
 import logging
+from datetime import UTC, datetime
 from typing import NoReturn
 
 import strawberry
@@ -7,6 +8,7 @@ from pymongo.errors import PyMongoError
 from satin.constants import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 from satin.db import db
 from satin.exceptions import ValidationError
+from satin.models.image import ImageDimensions, ImageMetadata
 from satin.models.task import TaskStatus
 from satin.repositories import RepositoryFactory
 from satin.schema.annotation import BBoxInput
@@ -389,6 +391,50 @@ class Mutation:
             raise ValueError(IMAGE_DB_ERROR) from e
         except Exception as e:
             logger.exception("Unexpected error creating image")
+            raise ValueError(IMAGE_UNEXPECTED_ERROR) from e
+
+    @strawberry.mutation
+    @sanitize_graphql_mutation
+    async def create_image_from_upload(
+        self,
+        url: str,
+        filename: str,
+        size: int,
+        mime_type: str,
+        width: int,
+        height: int,
+        image_format: str | None = None,
+    ) -> Image:
+        """Create a new image from uploaded file."""
+        try:
+            # Validate URL
+            if not url or not url.strip():
+                _raise_image_url_empty()
+
+            # Create metadata
+            dimensions = ImageDimensions(width=width, height=height)
+            metadata = ImageMetadata(
+                filename=filename,
+                size=size,
+                mime_type=mime_type,
+                format=image_format,
+                uploaded_at=datetime.now(UTC),
+                is_uploaded=True,
+            )
+
+            # Create image with metadata
+            pydantic_image = await repo_factory.image_repo.create_image(
+                url=url, metadata={"dimensions": dimensions.model_dump(), "metadata": metadata.model_dump()}
+            )
+            return convert_pydantic_to_strawberry(pydantic_image, Image)
+        except ValidationError as e:
+            logger.exception("Validation error creating image from upload")
+            raise ValueError(str(e)) from e
+        except PyMongoError as e:
+            logger.exception("Database error creating image from upload")
+            raise ValueError(IMAGE_DB_ERROR) from e
+        except Exception as e:
+            logger.exception("Unexpected error creating image from upload")
             raise ValueError(IMAGE_UNEXPECTED_ERROR) from e
 
     @strawberry.mutation

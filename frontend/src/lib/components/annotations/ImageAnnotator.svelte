@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { Button, Modal, Spinner } from '$lib/components/ui';
 	import AnnotationWorkspace from './AnnotationWorkspace.svelte';
 	import { annotationStore } from '$lib/features/annotations/store.svelte';
@@ -38,6 +38,15 @@
 	onMount(() => {
 		if (open) {
 			loadAnnotations();
+		}
+	});
+
+	onDestroy(() => {
+		// Clean up annotation store when component is destroyed
+		try {
+			annotationStore.cleanup();
+		} catch (error) {
+			console.warn('Failed to cleanup annotation store in ImageAnnotator:', error);
 		}
 	});
 
@@ -123,8 +132,13 @@
 			}
 		}
 
-		// Reset the store
-		annotationStore.reset();
+		// Reset and cleanup the store
+		try {
+			annotationStore.reset();
+			annotationStore.cleanup();
+		} catch (error) {
+			console.warn('Failed to reset/cleanup annotation store:', error);
+		}
 
 		// Close the modal
 		open = false;

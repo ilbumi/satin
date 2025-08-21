@@ -37,6 +37,18 @@ export const GET_IMAGE = /* GraphQL */ `
 		image(id: $id) {
 			id
 			url
+			dimensions {
+				width
+				height
+			}
+			metadata {
+				filename
+				size
+				mimeType
+				format
+				uploadedAt
+				isUploaded
+			}
 		}
 	}
 `;
@@ -47,6 +59,18 @@ export const GET_IMAGES = /* GraphQL */ `
 			objects {
 				id
 				url
+				dimensions {
+					width
+					height
+				}
+				metadata {
+					filename
+					size
+					mimeType
+					format
+					uploadedAt
+					isUploaded
+				}
 			}
 			totalCount
 			count
@@ -67,6 +91,18 @@ export const GET_TASK = /* GraphQL */ `
 			image {
 				id
 				url
+				dimensions {
+					width
+					height
+				}
+				metadata {
+					filename
+					size
+					mimeType
+					format
+					uploadedAt
+					isUploaded
+				}
 			}
 			project {
 				id
@@ -132,6 +168,18 @@ export const GET_TASK_BY_IMAGE_AND_PROJECT = /* GraphQL */ `
 			image {
 				id
 				url
+				dimensions {
+					width
+					height
+				}
+				metadata {
+					filename
+					size
+					mimeType
+					format
+					uploadedAt
+					isUploaded
+				}
 			}
 			project {
 				id
@@ -219,6 +267,18 @@ export const CREATE_TASK = /* GraphQL */ `
 			image {
 				id
 				url
+				dimensions {
+					width
+					height
+				}
+				metadata {
+					filename
+					size
+					mimeType
+					format
+					uploadedAt
+					isUploaded
+				}
 			}
 			project {
 				id
@@ -260,6 +320,18 @@ export const UPDATE_TASK = /* GraphQL */ `
 			image {
 				id
 				url
+				dimensions {
+					width
+					height
+				}
+				metadata {
+					filename
+					size
+					mimeType
+					format
+					uploadedAt
+					isUploaded
+				}
 			}
 			project {
 				id

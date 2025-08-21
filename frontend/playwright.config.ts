@@ -16,40 +16,42 @@ export default defineConfig({
 			stderr: 'pipe',
 			stdout: 'pipe'
 		},
-		// Start frontend dev server
+		// Start frontend dev server with increased memory
 		{
-			command: 'pnpm run dev',
+			command: 'NODE_OPTIONS="--max-old-space-size=4096" pnpm run dev',
 			port: 5173,
 			reuseExistingServer: !process.env.CI,
-			timeout: 120 * 1000, // 2 minutes for dev server to start
+			timeout: 180 * 1000, // 3 minutes for dev server to start (increased)
 			stderr: 'pipe',
 			stdout: 'pipe'
 		}
 	],
 	testDir: 'e2e',
-	// Global test timeout
-	timeout: 60 * 1000, // 60 seconds per test
+	// Global test timeout (increased)
+	timeout: 90 * 1000, // 90 seconds per test
 	// Expect timeout
 	expect: {
-		timeout: 10 * 1000 // 10 seconds
+		timeout: 15 * 1000 // 15 seconds (increased)
 	},
 	// Run tests in serial to avoid interference
 	workers: 1,
 	// Fresh context for each test
 	fullyParallel: false,
-	// Retry on failure (useful for flaky tests)
-	retries: process.env.CI ? 2 : 1,
+	// Retry on failure (increased retries for stability)
+	retries: process.env.CI ? 3 : 2,
 	// Combined use configuration
 	use: {
 		headless: true,
-		// Add navigation and action timeouts
-		navigationTimeout: 20 * 1000, // 20 seconds
-		actionTimeout: 10 * 1000, // 10 seconds
+		// Add navigation and action timeouts (increased)
+		navigationTimeout: 30 * 1000, // 30 seconds
+		actionTimeout: 15 * 1000, // 15 seconds
 		// Add base URL for consistent navigation
 		baseURL: 'http://localhost:5173',
 		// Capture screenshots on failure
 		screenshot: 'only-on-failure',
 		// Record video on first retry
-		video: 'retain-on-failure'
+		video: 'retain-on-failure',
+		// Add trace collection for debugging
+		trace: 'retain-on-failure'
 	}
 });

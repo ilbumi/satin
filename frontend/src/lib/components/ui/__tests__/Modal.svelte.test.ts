@@ -77,7 +77,7 @@ describe('Modal', () => {
 		const onclose = vi.fn();
 		const screen = render(TestModal, {
 			open: true,
-			onclose,
+			onClose: onclose,
 			content: 'Modal content'
 		});
 

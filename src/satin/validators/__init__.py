@@ -13,7 +13,6 @@ from .input_sanitizer import (
     validate_project_name,
     validate_tag,
     validate_tags,
-    validate_url,
 )
 
 __all__ = [
@@ -27,5 +26,4 @@ __all__ = [
     "validate_project_name",
     "validate_tag",
     "validate_tags",
-    "validate_url",
 ]

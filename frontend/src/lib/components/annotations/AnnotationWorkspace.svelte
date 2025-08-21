@@ -86,9 +86,26 @@
 	});
 
 	onDestroy(() => {
-		// Clean up all tools
-		tools.forEach((tool: BaseAnnotator) => tool.onDestroy());
-		tools.clear();
+		// Clean up all tools with error handling
+		try {
+			tools.forEach((tool: BaseAnnotator) => {
+				try {
+					tool.onDestroy();
+				} catch (error) {
+					console.warn('Failed to destroy annotation tool:', error);
+				}
+			});
+			tools.clear();
+		} catch (error) {
+			console.warn('Failed to clean up annotation tools:', error);
+		}
+
+		// Clean up annotation store
+		try {
+			annotationStore.cleanup();
+		} catch (error) {
+			console.warn('Failed to cleanup annotation store:', error);
+		}
 	});
 
 	function setupTools() {
@@ -126,8 +143,10 @@
 
 		// Create all tools
 		debugLog('Creating tools with callbacks:', toolCallbacks);
-		tools.set('select', new SelectTool(canvasState, transform, toolCallbacks));
-		tools.set('bbox', new BoundingBoxTool(canvasState, transform, toolCallbacks));
+		if (transform) {
+			tools.set('select', new SelectTool(canvasState, transform, toolCallbacks));
+			tools.set('bbox', new BoundingBoxTool(canvasState, transform, toolCallbacks));
+		}
 		debugLog('Tools created, tools size:', tools.size);
 
 		// Activate the current tool
@@ -178,10 +197,12 @@
 			transform = newTransform;
 
 			debugLog('Updating tools with new transform');
-			tools.forEach((tool: BaseAnnotator) => {
-				tool.updateTransform(newTransform);
-				tool.updateCanvasState(annotationStore.canvas);
-			});
+			if (newTransform) {
+				tools.forEach((tool: BaseAnnotator) => {
+					tool.updateTransform(newTransform);
+					tool.updateCanvasState(annotationStore.canvas);
+				});
+			}
 		}
 	}
 

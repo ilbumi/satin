@@ -1,10 +1,15 @@
 <script lang="ts">
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
+	import { onMount, onDestroy } from 'svelte';
 	import { setContextClient } from '@urql/svelte';
 	import { graphqlClient } from '$lib/core/api/client';
 	import { Sidebar, Breadcrumb } from '$lib/components/layout';
 	import { navigating } from '$app/state';
+	import { ErrorBoundary } from '$lib/components/ui';
+	import { ErrorDisplay } from '$lib/core/errors';
+	import { initializePerformanceTracking } from '$lib/core/performance';
+	import PerformanceDashboard from '$lib/components/debug/PerformanceDashboard.svelte';
 
 	let { children } = $props();
 
@@ -14,6 +19,9 @@
 	// Sidebar state
 	let sidebarOpen = $state(false);
 
+	// Performance dashboard state
+	let performanceDashboardOpen = $state(false);
+
 	function toggleSidebar() {
 		sidebarOpen = !sidebarOpen;
 	}
@@ -21,6 +29,29 @@
 	function closeSidebar() {
 		sidebarOpen = false;
 	}
+
+	// Keyboard shortcuts
+	function handleKeydown(event: KeyboardEvent) {
+		// Ctrl/Cmd + Shift + P = Performance Dashboard
+		if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'P') {
+			event.preventDefault();
+			performanceDashboardOpen = !performanceDashboardOpen;
+		}
+	}
+
+	onMount(() => {
+		// Initialize performance tracking
+		initializePerformanceTracking();
+
+		// Add keyboard event listener
+		window.addEventListener('keydown', handleKeydown);
+	});
+
+	onDestroy(() => {
+		if (typeof window !== 'undefined') {
+			window.removeEventListener('keydown', handleKeydown);
+		}
+	});
 </script>
 
 <svelte:head>
@@ -72,9 +103,24 @@
 
 				<!-- Page content -->
 				<div class="min-h-[calc(100vh-8rem)] rounded-lg bg-white shadow-sm">
-					{@render children?.()}
+					<ErrorBoundary
+						fallbackMessage="Something went wrong while rendering this page. Please try refreshing."
+						showRetry={true}
+						onRetry={() => location.reload()}
+					>
+						{@render children?.()}
+					</ErrorBoundary>
 				</div>
 			</div>
 		</main>
 	</div>
+
+	<!-- Global error display -->
+	<ErrorDisplay />
+
+	<!-- Performance Dashboard -->
+	<PerformanceDashboard
+		bind:open={performanceDashboardOpen}
+		onClose={() => (performanceDashboardOpen = false)}
+	/>
 </div>

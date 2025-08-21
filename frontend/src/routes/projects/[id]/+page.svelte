@@ -2,8 +2,14 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { Button, Card, Spinner, Toast, Modal } from '$lib/components/ui';
-	import { EditProjectModal } from '$lib/components/projects';
-	import { AddImageByUrl } from '$lib/components/images';
+	// Dynamic imports for heavy components
+	let EditProjectModal:
+		| typeof import('$lib/components/projects/EditProjectModal.svelte').default
+		| null = $state(null);
+	let AddImageByUrl: typeof import('$lib/components/images/AddImageByUrl.svelte').default | null =
+		$state(null);
+	let AddImageByFile: typeof import('$lib/components/images/AddImageByFile.svelte').default | null =
+		$state(null);
 	import { projectService } from '$lib/features/projects/service';
 	import { imageService } from '$lib/features/images/service';
 	import { TaskService } from '$lib/features/tasks/service';
@@ -23,6 +29,7 @@
 	let showEditModal = $state(false);
 	let showAddImageModal = $state(false);
 	let showToast = $state(false);
+	let uploadMethod = $state<'url' | 'file'>('url');
 	let toastMessage = $state('');
 	let toastType = $state<'success' | 'error'>('success');
 	let projectImages = $state<ImageDetail[]>([]);
@@ -63,7 +70,16 @@
 		}
 	}
 
-	function handleEditProject() {
+	async function handleEditProject() {
+		if (!EditProjectModal) {
+			try {
+				const module = await import('$lib/components/projects/EditProjectModal.svelte');
+				EditProjectModal = module.default;
+			} catch (error) {
+				console.error('Failed to load EditProjectModal:', error);
+				return;
+			}
+		}
 		showEditModal = true;
 	}
 
@@ -86,7 +102,20 @@
 		showEditModal = false;
 	}
 
-	function handleAddImages() {
+	async function handleAddImages() {
+		if (!AddImageByUrl || !AddImageByFile) {
+			try {
+				const [urlModule, fileModule] = await Promise.all([
+					import('$lib/components/images/AddImageByUrl.svelte'),
+					import('$lib/components/images/AddImageByFile.svelte')
+				]);
+				AddImageByUrl = urlModule.default;
+				AddImageByFile = fileModule.default;
+			} catch (error) {
+				console.error('Failed to load image upload components:', error);
+				return;
+			}
+		}
 		showAddImageModal = true;
 	}
 
@@ -294,6 +323,7 @@
 									src={image.thumbnailUrl || image.url}
 									alt={image.filename}
 									class="h-full w-full object-cover"
+									loading="lazy"
 								/>
 							</div>
 							<p class="truncate text-sm font-medium text-gray-900">{image.filename}</p>
@@ -338,21 +368,48 @@
 {/if}
 
 <!-- Edit Modal -->
-<EditProjectModal
-	open={showEditModal}
-	project={projectSummary}
-	onClose={handleCloseEditModal}
-	onSubmit={handleEditSubmit}
-/>
+{#if EditProjectModal && showEditModal}
+	<EditProjectModal
+		open={showEditModal}
+		project={projectSummary}
+		onClose={handleCloseEditModal}
+		onSubmit={handleEditSubmit}
+	/>
+{/if}
 
 <!-- Add Images Modal -->
-<Modal
-	bind:open={showAddImageModal}
-	title="Add Images by URL"
-	size="lg"
-	closeOnBackdropClick={true}
->
-	<AddImageByUrl multiple={true} onAdd={handleAddImageSuccess} onError={handleAddImageError} />
+<Modal bind:open={showAddImageModal} title="Add Images" size="lg" closeOnBackdropClick={true}>
+	<div class="mb-6">
+		<!-- Upload method tabs -->
+		<div class="flex border-b border-gray-200">
+			<button
+				class="border-b-2 px-4 py-2 text-sm font-medium transition-colors {uploadMethod === 'url'
+					? 'border-blue-500 text-blue-600'
+					: 'border-transparent text-gray-500 hover:text-gray-700'}"
+				onclick={() => (uploadMethod = 'url')}
+			>
+				🌐 From URL
+			</button>
+			<button
+				class="border-b-2 px-4 py-2 text-sm font-medium transition-colors {uploadMethod === 'file'
+					? 'border-blue-500 text-blue-600'
+					: 'border-transparent text-gray-500 hover:text-gray-700'}"
+				onclick={() => (uploadMethod = 'file')}
+			>
+				📁 Upload Files
+			</button>
+		</div>
+	</div>
+
+	{#if uploadMethod === 'url' && AddImageByUrl}
+		<AddImageByUrl multiple={true} onAdd={handleAddImageSuccess} onError={handleAddImageError} />
+	{:else if uploadMethod === 'file' && AddImageByFile}
+		<AddImageByFile multiple={true} onAdd={handleAddImageSuccess} onError={handleAddImageError} />
+	{:else}
+		<div class="flex items-center justify-center py-8">
+			<div class="animate-pulse text-gray-600">Loading upload components...</div>
+		</div>
+	{/if}
 </Modal>
 
 <!-- Toast Notifications -->

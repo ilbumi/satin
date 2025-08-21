@@ -3,18 +3,21 @@
  * Handles environment variables from the project root .env file
  */
 
+import { browser } from '$app/environment';
+
 /**
  * Get environment variable with type safety
- * Safe for SSR by checking if import.meta.env is available
+ * Safe for SSR using SvelteKit's browser detection
  */
 function getEnvVar(key: keyof ImportMetaEnv, defaultValue?: string): string {
-	// During SSR, import.meta.env might not be available
-	const value =
-		typeof window !== 'undefined' && import.meta?.env ? import.meta.env[key] : undefined;
+	// In SvelteKit, import.meta.env is available both client and server side
+	const value = import.meta.env?.[key];
 
 	if (!value && !defaultValue) {
 		// During SSR, just use defaults instead of throwing
-		console.warn(`Environment variable ${key} not available during SSR, using default`);
+		if (!browser) {
+			console.warn(`Environment variable ${key} not available during SSR, using default`);
+		}
 		return defaultValue || '';
 	}
 
@@ -35,18 +38,17 @@ export const env = {
 	/**
 	 * Check if we're in development mode
 	 */
-	isDevelopment: typeof window !== 'undefined' && import.meta?.env ? import.meta.env.DEV : true,
+	isDevelopment: import.meta.env?.DEV ?? true,
 
 	/**
 	 * Check if we're in production mode
 	 */
-	isProduction: typeof window !== 'undefined' && import.meta?.env ? import.meta.env.PROD : false,
+	isProduction: import.meta.env?.PROD ?? false,
 
 	/**
 	 * Check if we're running tests
 	 */
-	isTest:
-		typeof window !== 'undefined' && import.meta?.env ? import.meta.env.MODE === 'test' : false
+	isTest: import.meta.env?.MODE === 'test'
 } as const;
 
 /**
@@ -56,15 +58,12 @@ export function validateEnv(): void {
 	try {
 		// Access the env property to trigger validation
 		const url = env.BACKEND_URL;
-		// Only log in development, not in tests, and not during SSR
-		const isVitest =
-			typeof window !== 'undefined' && import.meta?.env ? import.meta.env.VITEST : false;
-		const isTestEnv =
-			typeof window !== 'undefined' && import.meta?.env
-				? import.meta.env.NODE_ENV === 'test'
-				: false;
 
-		if (env.isDevelopment && !isVitest && !isTestEnv && typeof window !== 'undefined') {
+		// Only log in development, not in tests, and only in browser
+		const isVitest = import.meta.env?.VITEST ?? false;
+		const isTestEnv = import.meta.env?.NODE_ENV === 'test';
+
+		if (env.isDevelopment && !isVitest && !isTestEnv && browser) {
 			console.log(`Environment validated. Backend URL: ${url}`);
 		}
 	} catch (error) {
