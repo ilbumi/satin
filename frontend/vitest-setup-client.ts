@@ -1,6 +1,56 @@
 import { afterEach, beforeAll, vi } from 'vitest';
 import { cleanup } from '@testing-library/svelte';
 
+// Mock SvelteKit modules for client tests
+vi.mock('$app/environment', () => ({
+	browser: true,
+	dev: true,
+	building: false,
+	version: '1.0.0'
+}));
+
+vi.mock('$app/navigation', () => ({
+	beforeNavigate: vi.fn(),
+	afterNavigate: vi.fn(),
+	goto: vi.fn(),
+	invalidate: vi.fn(),
+	invalidateAll: vi.fn(),
+	preloadData: vi.fn(),
+	preloadCode: vi.fn(),
+	onNavigate: vi.fn(),
+	pushState: vi.fn(),
+	replaceState: vi.fn()
+}));
+
+vi.mock('$app/state', () => ({
+	page: {
+		url: new URL('http://localhost:5173/'),
+		params: {},
+		route: { id: null },
+		data: {},
+		form: null,
+		state: {}
+	}
+}));
+
+vi.mock('$app/stores', () => ({
+	page: {
+		subscribe: vi.fn(() => vi.fn()),
+		set: vi.fn(),
+		update: vi.fn()
+	},
+	navigating: {
+		subscribe: vi.fn(() => vi.fn()),
+		set: vi.fn(),
+		update: vi.fn()
+	},
+	updated: {
+		subscribe: vi.fn(() => vi.fn()),
+		set: vi.fn(),
+		update: vi.fn()
+	}
+}));
+
 // Make vi globally available
 (globalThis as unknown as { vi: typeof vi }).vi = vi;
 

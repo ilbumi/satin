@@ -20,6 +20,30 @@ const baseConfig = {
 
 export default defineConfig({
 	test: {
+		coverage: {
+			provider: 'v8',
+			reporter: ['text', 'json', 'html', 'lcov'],
+			reportsDirectory: './coverage',
+			exclude: [
+				'coverage/**',
+				'dist/**',
+				'**/node_modules/**',
+				'**/[.]**',
+				'**/*.d.ts',
+				'**/*.config.*',
+				'**/vitest-setup*.ts',
+				'src/app.html',
+				'src/hooks.client.ts',
+				'src/hooks.server.ts',
+				'src/service-worker.ts'
+			],
+			thresholds: {
+				lines: 70,
+				functions: 70,
+				branches: 60,
+				statements: 70
+			}
+		},
 		projects: [
 			{
 				...baseConfig,
@@ -28,7 +52,11 @@ export default defineConfig({
 					environment: 'node',
 					include: ['src/**/*.{test,spec}.{js,ts}'],
 					exclude: ['src/**/*.svelte.{test,spec}.{js,ts}'],
-					setupFiles: ['./src/vitest-setup.ts']
+					setupFiles: ['./src/vitest-setup.ts'],
+					coverage: {
+						include: ['src/**/*.{js,ts}'],
+						exclude: ['src/**/*.svelte', 'src/**/*.svelte.{test,spec}.{js,ts}']
+					}
 				}
 			},
 			{
@@ -51,7 +79,11 @@ export default defineConfig({
 					testTimeout: 30000,
 					include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
 					exclude: ['src/lib/server/**'],
-					setupFiles: ['./vitest-setup-client.ts']
+					setupFiles: ['./vitest-setup-client.ts'],
+					coverage: {
+						include: ['src/**/*.svelte', 'src/**/*.{js,ts}'],
+						exclude: ['src/lib/server/**', 'src/**/*.{test,spec}.{js,ts}']
+					}
 				}
 			}
 		]
