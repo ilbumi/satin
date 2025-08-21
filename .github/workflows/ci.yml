@@ -172,7 +172,7 @@ jobs:
 
       - name: Run unit tests with coverage
         working-directory: ./frontend
-        run: pnpm run test:unit --coverage
+        run: pnpm run test:unit:server --coverage
 
       - name: Build frontend
         working-directory: ./frontend
