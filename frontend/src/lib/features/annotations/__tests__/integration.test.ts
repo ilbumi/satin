@@ -505,16 +505,22 @@ describe('Annotation Integration Tests', () => {
 				() => annotationStore.deleteAnnotation('batch-2')
 			];
 
-			// Execute all operations
+			// Execute all operations synchronously
 			operations.forEach((op) => op());
 
-			await tick();
-
-			// All operations should be reflected correctly
+			// Check results immediately after operations (before any async effects)
 			expect(annotationStore.annotations).toHaveLength(1);
 			expect(annotationStore.annotations[0].id).toBe('batch-1');
 			expect(annotationStore.annotations[0].annotation.text).toBe('Batch updated');
 			expect(annotationStore.history).toHaveLength(4); // All operations tracked
+
+			// Allow async operations to complete
+			await tick();
+
+			// Operations should still be reflected correctly after tick
+			expect(annotationStore.annotations).toHaveLength(1);
+			expect(annotationStore.annotations[0].id).toBe('batch-1');
+			expect(annotationStore.annotations[0].annotation.text).toBe('Batch updated');
 		});
 	});
 

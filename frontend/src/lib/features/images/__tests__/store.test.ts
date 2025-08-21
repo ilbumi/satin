@@ -60,7 +60,7 @@ describe('Image Store', () => {
 
 	describe('Error Handling', () => {
 		it('should handle delete errors', async () => {
-			// First add an image to the store so we have something to delete
+			// Mock successful getImages to populate the store with test data
 			const mockImage = {
 				id: '1',
 				filename: 'test.jpg',
@@ -68,12 +68,25 @@ describe('Image Store', () => {
 				thumbnailUrl: 'http://example.com/test-thumb.jpg',
 				status: 'ready' as const,
 				uploadedAt: new Date().toISOString(),
-				fileSize: 1000
+				fileSize: 1000,
+				width: 800,
+				height: 600
 			};
 
-			// Add the image to store state - access internal state for testing
-			(store as any).state.images = [mockImage];
+			// Mock the mapping functions to avoid issues
+			mockImageService.mapImageToDetail.mockReturnValue(mockImage);
+			mockImageService.mapImageToSummary.mockReturnValue(mockImage);
 
+			mockImageService.getImages.mockResolvedValue({
+				objects: [mockImage],
+				totalCount: 1,
+				hasMore: false
+			});
+
+			// Fetch images to populate the store
+			await store.fetchImages();
+
+			// Now mock deleteImage to reject
 			const error = new Error('Delete failed');
 			mockImageService.deleteImage.mockRejectedValue(error);
 

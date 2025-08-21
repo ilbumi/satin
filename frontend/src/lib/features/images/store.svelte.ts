@@ -175,19 +175,24 @@ function createImageStore() {
 			const imageToDelete = state.images.find((img) => img.id === id);
 			if (!imageToDelete) return false;
 
-			// Use optimistic delete
-			await optimisticImages.optimisticDelete(imageToDelete, async () => {
+			// Optimistically remove from UI
+			const originalImages = [...state.images];
+			const originalTotalCount = state.pagination.totalCount;
+			state.images = state.images.filter((img) => img.id !== id);
+			state.pagination.totalCount = Math.max(0, state.pagination.totalCount - 1);
+
+			try {
 				const success = await imageService.deleteImage(id);
 				if (!success) {
 					throw new Error('Delete operation failed');
 				}
-			});
-
-			// Remove from main state after successful deletion
-			state.images = state.images.filter((img) => img.id !== id);
-			state.pagination.totalCount = Math.max(0, state.pagination.totalCount - 1);
-
-			return true;
+				return true;
+			} catch (apiError) {
+				// Rollback optimistic changes on failure
+				state.images = originalImages;
+				state.pagination.totalCount = originalTotalCount;
+				throw apiError;
+			}
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : 'Failed to delete image';
 			state.error = errorMessage;

@@ -3,7 +3,7 @@
  * Provides rollback mechanisms and loading states
  */
 
-import { writable, derived, type Writable } from 'svelte/store';
+import { writable } from 'svelte/store';
 
 export type OptimisticUpdateStatus = 'pending' | 'success' | 'error' | 'rollback';
 
