@@ -99,8 +99,8 @@ class PerformanceMonitor {
 			entry.domContentLoadedEventEnd - entry.domContentLoadedEventStart,
 			'navigation'
 		);
-		this.addMetric('domComplete', entry.domComplete - entry.navigationStart, 'navigation');
-		this.addMetric('loadComplete', entry.loadEventEnd - entry.navigationStart, 'navigation');
+		this.addMetric('domComplete', entry.domComplete, 'navigation');
+		this.addMetric('loadComplete', entry.loadEventEnd, 'navigation');
 	}
 
 	private processPaintEntry(entry: PerformanceEntry) {
@@ -178,12 +178,8 @@ class PerformanceMonitor {
 		const paints = performance.getEntriesByType('paint');
 
 		if (navigation) {
-			this.addMetric('navigationStart', navigation.navigationStart, 'navigation');
-			this.addMetric(
-				'domInteractive',
-				navigation.domInteractive - navigation.navigationStart,
-				'navigation'
-			);
+			this.addMetric('navigationStart', 0, 'navigation');
+			this.addMetric('domInteractive', navigation.domInteractive, 'navigation');
 		}
 
 		paints.forEach((paint) => {
@@ -307,6 +303,11 @@ class PerformanceMonitor {
 // Global performance monitor instance
 export const performanceMonitor = new PerformanceMonitor();
 
+// Type for components with lifecycle methods
+type ComponentWithLifecycle = Record<string, unknown> & {
+	onMount?: (...args: unknown[]) => unknown;
+};
+
 // Svelte-specific performance utilities
 export function measureSvelteComponent<T extends Record<string, unknown>>(
 	componentName: string,
@@ -319,8 +320,9 @@ export function measureSvelteComponent<T extends Record<string, unknown>>(
 
 	// Track mount/unmount if methods exist
 	if ('onMount' in wrappedComponent && typeof wrappedComponent.onMount === 'function') {
-		const originalOnMount = wrappedComponent.onMount;
-		wrappedComponent.onMount = (...args: unknown[]) => {
+		const componentWithLifecycle = wrappedComponent as ComponentWithLifecycle;
+		const originalOnMount = componentWithLifecycle.onMount as (...args: unknown[]) => unknown;
+		componentWithLifecycle.onMount = (...args: unknown[]) => {
 			performanceMonitor.measureComponent(`${componentName}:mount`, () => {
 				originalOnMount.apply(wrappedComponent, args);
 			});

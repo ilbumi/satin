@@ -5,8 +5,15 @@ test.describe('Images Page', () => {
 		// Navigate to images page
 		await page.goto('/images');
 
-		// Wait for page to be fully loaded
+		// Wait for page to be fully loaded and network stable
 		await page.waitForLoadState('domcontentloaded');
+		await page.waitForLoadState('networkidle');
+
+		// Wait for dynamic imports to complete by checking for the presence of the upload button
+		await expect(page.getByRole('button', { name: /add by url/i })).toBeVisible({ timeout: 15000 });
+
+		// Wait for stats to be loaded (indicates the data and components are ready)
+		await expect(page.getByText('Total Images')).toBeVisible({ timeout: 10000 });
 
 		// Reset any modal state thoroughly
 		await page.evaluate(() => {
@@ -66,7 +73,7 @@ test.describe('Images Page', () => {
 	});
 
 	test('should display stats cards', async ({ page }) => {
-		// Wait for stats cards to be visible - use more specific selectors
+		// Stats cards should already be visible from beforeEach
 		await expect(page.getByText('Total Images')).toBeVisible();
 		await expect(page.locator('.grid').getByText('Annotated')).toBeVisible();
 		await expect(page.locator('.grid').getByText('Processing')).toBeVisible();
@@ -77,52 +84,35 @@ test.describe('Images Page', () => {
 		// Ensure no dialogs are open initially
 		await expect(page.getByRole('dialog')).not.toBeVisible();
 
-		// Wait for page and images to fully load to avoid race conditions
-		await page.waitForLoadState('networkidle');
-		await expect(page.getByText('Total Images')).toBeVisible({ timeout: 10000 });
-
 		// Click upload button - use first one to avoid strict mode violation
 		const uploadButton = page.getByRole('button', { name: /add by url/i }).first();
 		await expect(uploadButton).toBeVisible();
 		await uploadButton.click();
 
-		// Wait for the modal to appear - try multiple approaches
-		const modalVisible = await page
-			.waitForSelector('dialog[open]', { timeout: 15000 })
-			.catch(() => null);
+		// Wait for the modal to appear with proper role
+		await expect(page.getByRole('dialog')).toBeVisible({ timeout: 15000 });
 
-		if (modalVisible) {
-			// Check for modal heading
-			await expect(page.getByRole('heading', { name: 'Add Images by URL' })).toBeVisible();
-			// Check for URL input area
-			await expect(page.getByText('Image URL')).toBeVisible();
-		} else {
-			throw new Error('Modal dialog did not appear after clicking upload button');
-		}
+		// Check for modal heading
+		await expect(page.getByRole('heading', { name: 'Add Images by URL' })).toBeVisible();
+
+		// Check for URL input area
+		await expect(page.getByText('Image URL')).toBeVisible();
 	});
 
 	test('should close upload modal when close button is clicked', async ({ page }) => {
-		// Wait for page to fully load first
-		await page.waitForLoadState('networkidle');
-		await expect(page.getByText('Total Images')).toBeVisible({ timeout: 10000 });
-
 		// Open modal
 		const uploadButton = page.getByRole('button', { name: /add by url/i }).first();
 		await expect(uploadButton).toBeVisible();
 		await uploadButton.click();
 
-		// Wait for modal to open using the selector approach
-		await page.waitForSelector('dialog[open]', { timeout: 15000 });
+		// Wait for modal to open
+		await expect(page.getByRole('dialog')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByRole('heading', { name: 'Add Images by URL' })).toBeVisible();
 
 		// Close modal using X button (more reliable than text-based close button)
 		const closeButton = page.getByLabel('Close modal');
-		if (await closeButton.isVisible()) {
-			await closeButton.click();
-		} else {
-			// Fallback: Try pressing Escape key
-			await page.keyboard.press('Escape');
-		}
+		await expect(closeButton).toBeVisible();
+		await closeButton.click();
 
 		// Check modal is closed
 		await expect(page.getByRole('dialog')).not.toBeVisible();

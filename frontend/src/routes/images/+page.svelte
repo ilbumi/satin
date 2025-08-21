@@ -16,7 +16,7 @@
 	import type { ImageSummary, ImageDetail, ImageFilters } from '$lib/features/images/types';
 	import type { ClientAnnotation } from '$lib/features/annotations/types';
 	import type { Task } from '$lib/graphql/generated/graphql';
-	import { storeCoordinator } from '$lib/core/stores/coordinator';
+	import { storeCoordinator } from '$lib/core/stores/coordinator.svelte';
 	import { errorStore } from '$lib/core/errors';
 
 	let showAddModal = $state(false);

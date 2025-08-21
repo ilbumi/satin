@@ -113,8 +113,11 @@ test.describe('Project Management', () => {
 				'This is a test project created by E2E tests to verify the project creation workflow works correctly.'
 			);
 
-		// Submit the form
-		await page.getByRole('button', { name: /create project/i }).click();
+		// Submit the form - use the one inside the modal
+		await page
+			.getByTestId('create-project-modal')
+			.getByRole('button', { name: /create project/i })
+			.click();
 
 		// Modal should close
 		await expect(page.getByTestId('create-project-modal')).not.toBeVisible({ timeout: 5000 });

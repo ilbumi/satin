@@ -11,7 +11,7 @@
 	}
 
 	let {
-		open = false,
+		open = $bindable(false),
 		onClose,
 		autoRefresh = true,
 		refreshInterval = 5000

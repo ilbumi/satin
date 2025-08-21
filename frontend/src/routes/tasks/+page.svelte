@@ -30,7 +30,7 @@
 	// Import stores for projects and images data
 	import { projectStore } from '$lib/features/projects/store.svelte';
 	import { imageStore } from '$lib/features/images/store.svelte';
-	import { storeCoordinator } from '$lib/core/stores/coordinator';
+	import { storeCoordinator } from '$lib/core/stores/coordinator.svelte';
 	import { errorStore } from '$lib/core/errors';
 
 	// Get data from actual stores instead of hardcoded arrays

@@ -22,7 +22,7 @@
 		CreateProjectForm,
 		UpdateProjectForm
 	} from '$lib/features/projects/types';
-	import { storeCoordinator } from '$lib/core/stores/coordinator';
+	import { storeCoordinator } from '$lib/core/stores/coordinator.svelte';
 	import { errorStore } from '$lib/core/errors';
 
 	let showCreateModal = $state(false);
