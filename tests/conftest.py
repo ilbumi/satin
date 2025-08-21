@@ -151,7 +151,7 @@ class TestDataFactory:
         return {"name": name, "description": description}
 
     @staticmethod
-    def create_image_input(url: str = "https://example.com/test-image.jpg") -> dict[str, Any]:
+    def create_image_input(url: str = "https://picsum.photos/800/600?random=1") -> dict[str, Any]:
         """Create image input data."""
         return {"url": url}
 

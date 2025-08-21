@@ -238,7 +238,8 @@ class BaseRepository[T](ABC):
 
             # Invalidate cache for this specific item and collection
             if result.modified_count > 0:
-                self._invalidate_cache(f"find_by_id|object_id:{object_id}")
+                cache_key = self._cache_key("find_by_id", object_id=str(object_id))
+                self._invalidate_cache(cache_key)
                 self._invalidate_cache(self.collection_name)
 
         except ValidationError:

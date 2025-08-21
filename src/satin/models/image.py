@@ -1,9 +1,26 @@
 """Pydantic model for Image."""
 
-from pydantic import BaseModel, Field, field_validator
+from datetime import datetime
 
-from satin.config import config
-from satin.validators import validate_url
+from pydantic import BaseModel, Field
+
+
+class ImageDimensions(BaseModel):
+    """Image dimensions model."""
+
+    width: int = Field(..., description="Image width in pixels")
+    height: int = Field(..., description="Image height in pixels")
+
+
+class ImageMetadata(BaseModel):
+    """Image metadata model."""
+
+    filename: str = Field(..., description="Original filename")
+    size: int = Field(..., description="File size in bytes")
+    mime_type: str = Field(..., description="MIME type of the image")
+    format: str | None = Field(None, description="Image format (JPEG, PNG, etc.)")
+    uploaded_at: datetime = Field(default_factory=datetime.utcnow, description="Upload timestamp")
+    is_uploaded: bool = Field(default=False, description="Whether image was uploaded vs URL")
 
 
 class Image(BaseModel):
@@ -11,12 +28,8 @@ class Image(BaseModel):
 
     id: str = Field(..., description="Unique identifier for the image")
     url: str = Field(..., description="URL of the image (HTTP/HTTPS/data URLs)")
-
-    @field_validator("url")
-    @classmethod
-    def validate_url_field(cls, v: str) -> str:
-        """Validate URL using custom validator that allows HTTP/HTTPS/data URLs."""
-        return validate_url(v, allow_local=config.allow_local_urls)
+    dimensions: ImageDimensions | None = Field(None, description="Image dimensions")
+    metadata: ImageMetadata | None = Field(None, description="Image metadata")
 
     def __str__(self) -> str:
         """Get string representation of the Image."""
