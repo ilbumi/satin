@@ -70,7 +70,7 @@ test-frontend:
 
 .PHONY: lint-frontend
 lint-frontend:
-	cd frontend && pnpm lint
+	cd frontend && pnpm lint && pnpm check
 
 .PHONY: format-frontend
 format-frontend:
