@@ -1,17 +1,10 @@
 """Tests for repository classes."""
 
 import pytest
-from mongomock_motor import AsyncMongoMockClient, AsyncMongoMockDatabase
+from mongomock_motor import AsyncMongoMockDatabase
 
 from satin.models.image import ImageCreate, ImageStatus, ImageUpdate
 from satin.repositories.image import ImageRepository
-
-
-@pytest.fixture
-async def mock_db() -> AsyncMongoMockDatabase:
-    """Create mock database."""
-    client = AsyncMongoMockClient()
-    return client.test_db
 
 
 class TestImageRepository:

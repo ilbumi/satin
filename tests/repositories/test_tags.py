@@ -1,17 +1,9 @@
 """Tests for TagRepository with hierarchy support."""
 
-import pytest
-from mongomock_motor import AsyncMongoMockClient, AsyncMongoMockDatabase
+from mongomock_motor import AsyncMongoMockDatabase
 
 from satin.models.tag import TagCreate
 from satin.repositories.tag import TagRepository
-
-
-@pytest.fixture
-async def mock_db() -> AsyncMongoMockDatabase:
-    """Create mock database."""
-    client = AsyncMongoMockClient()
-    return client.test_db
 
 
 class TestTagRepository:
