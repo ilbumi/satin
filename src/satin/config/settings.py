@@ -11,7 +11,7 @@ class AppSettings(BaseSettings):
 
     cors: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
 
-    model_config = SettingsConfigDict(env_prefix="SATIN_", env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(env_prefix="SATIN_", env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
 def get_settings() -> AppSettings:

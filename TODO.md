@@ -23,32 +23,31 @@
 - [x] Initialize SvelteKit project with pnpm
 - [x] Install core dependencies (Konva, URQL, Tailwind CSS)
 - [x] Set up folder structure (/lib, /components, /stores, /routes)
-- [ ] Configure Vite for development
-- [ ] Set up Tailwind CSS
-- [ ] Create base layout component
+- [x] Configure Vite for development
+- [x] Set up Tailwind CSS
+- [x] Create base layout component
 - [ ] Configure URQL client
-- [ ] Add ESLint and Prettier configuration
+- [x] Add ESLint and Prettier configuration
 - [ ] Create environment variable handling
 
 ### 1.4 Docker Setup
-- [ ] Create Dockerfile for backend
-- [ ] Create Dockerfile for frontend
-- [ ] Write docker-compose.yml with three services
-- [ ] Add MongoDB container configuration
-- [ ] Set up volume mounts for development
-- [ ] Configure network for container communication
-- [ ] Create .env.example file
-- [ ] Test docker compose up
-- [ ] Add docker-compose.override.yml for local development
+- [x] Create Dockerfile for backend
+- [x] Create Dockerfile for frontend
+- [x] Write docker-compose.yml with three services
+- [x] Add MongoDB container configuration
+- [x] Set up volume mounts for development
+- [x] Configure network for container communication
+- [x] Create .env.example file
+- [x] Test docker compose up
 
 ### 1.5 Database Setup
-- [ ] Create MongoDB initialization script
-- [ ] Design database indexes
-- [ ] Create database connection module
+- [x] Create MongoDB initialization script
+- [x] Design database indexes
+- [x] Create database connection module
 - [ ] Implement connection pooling
-- [ ] Add database health check
-- [ ] Create collections with validation rules
-- [ ] Test database connectivity from backend
+- [x] Add database health check
+- [x] Create collections with validation rules
+- [x] Test database connectivity from backend
 
 ### 1.6 CI/CD Pipeline
 - [ ] Create GitHub Actions workflow file
