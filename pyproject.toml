@@ -32,82 +32,70 @@ satin = "satin:main"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-# Tool configurations
-[tool.ruff]
-target-version = "py313"
-line-length = 100
-
-[tool.ruff.lint]
-select = [
-    "E",  # pycodestyle errors
-    "W",  # pycodestyle warnings
-    "F",  # pyflakes
-    "I",  # isort
-    "UP", # pyupgrade
-    "B",  # flake8-bugbear
-    "SIM", # flake8-simplify
-]
-ignore = ["E501"]  # line too long (handled by formatter)
-
 [tool.mypy]
 python_version = "3.13"
-warn_return_any = true
 warn_unused_configs = true
-disallow_untyped_defs = true
-disallow_any_unimported = false
-no_implicit_optional = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_no_return = true
-warn_unreachable = true
-strict_equality = true
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_return_any = true
+exclude = ["tests"]
 
-[tool.isort]
-profile = "black"
-line_length = 100
-multi_line_output = 3
-include_trailing_comma = true
-force_grid_wrap = 0
-use_parentheses = true
-ensure_newline_before_comments = true
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+lint.select = [
+  "ALL", # include all the rules, including new ones
+]
+lint.ignore = [
+  "ANN",     # flake8-annotations
+  "D100",    # ignore missing docs
+  "D101",
+  "D203",    # ignore no blank lines before class docstring
+  "D213",    # multi-line docstring summary should start at the second line
+  "COM812",  # ignore missing blank line after last section
+  "FBT001",  # ignore boolean arguments
+  "FBT002",
+  "TD",      # ignore TODOs
+  "FIX002",  # ignore TODOs
+  "PLR0913", # ignore too many arguments
+]
 
-[tool.ssort]
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = [
+  "D104", # ignore missing docs
+]
+"tests/**/*.py" = [
+  "D100",    # ignore missing docs
+  "D101",
+  "D102",
+  "D103",
+  "D104",
+  "D105",
+  "D107",
+  "ANN",     # flake8-annotations
+  "S101",    # ignore asserts
+  "PLR2004", # ignore magic values
+  "PD901",   # allow df as variable name
+  "SLF001",  # private method accessed outside of class
+  "PGH003",  # allow unspecified type ignores
+]
+"docs/source/conf.py" = ["ALL"]
 
 [tool.pytest.ini_options]
-minversion = "8.0"
-addopts = [
-    "-ra",
-    "--strict-markers",
-    "--strict-config",
-    "--cov=src/satin",
-    "--cov-branch",
-    "--cov-report=term-missing:skip-covered",
-    "--cov-report=html",
-    "--cov-report=xml",
-]
-testpaths = ["tests"]
-pythonpath = ["src"]
-markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
-    "unit: marks tests as unit tests",
-]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
 
-[tool.coverage.run]
-branch = true
-source = ["src/satin"]
-
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "def __repr__",
-    "if __name__ == .__main__.:",
-    "raise AssertionError",
-    "raise NotImplementedError",
-    "if TYPE_CHECKING:",
-]
+[tool.vulture]
+exclude = ["tests/", "dir/"]
+ignore_decorators = []
+make_whitelist = true
+min_confidence = 80
+paths = ["src"]
+sort_by_size = true
 
 [dependency-groups]
 dev = [
+    "mypy>=1.17.1",
     "pre-commit>=4.3.0",
+    "ruff>=0.12.10",
 ]
