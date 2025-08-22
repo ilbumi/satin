@@ -7,6 +7,17 @@ export default defineConfig({
 	plugins: [tailwindcss(), sveltekit(), devtoolsJson()],
 	test: {
 		expect: { requireAssertions: true },
+		coverage: {
+			reporter: ['text', 'json', 'html'],
+			exclude: [
+				'node_modules/**',
+				'src/test/**',
+				'**/*.d.ts',
+				'**/*.config.*',
+				'**/build/**',
+				'**/dist/**'
+			]
+		},
 		projects: [
 			{
 				extends: './vite.config.ts',
