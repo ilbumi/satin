@@ -1,295 +1,602 @@
-# TODO.md - Satin Development Tasks
+# Image Annotation Tool - Development Plan
 
-This document breaks down the requirements from `docs/development/requirements.md` into small, implementable features. Tasks are organized by priority and dependencies.
+## Phase 1: Project Setup & Infrastructure (Week 1)
 
-## Phase 1: Foundation Setup ⚡ Priority: Critical
+### 1.1 Repository & Development Environment
+- [x] Initialize Git repository with .gitignore
+- [x] Create project folder structure (frontend/, backend/, docker/)
+- [x] Set up README.md with project description
+- [x] Create development branch strategy (main, develop)
 
-### Backend Core
-- [x] Set up FastAPI application with basic structure
-- [ ] Configure MongoDB connection with pymongo
-- [ ] Create Strawberry GraphQL schema scaffolding
-- [x] Set up CORS middleware for frontend communication
-- [ ] Add health check endpoint `/health`
-- [ ] Configure Docker container for backend
-- [ ] Set up environment variables management
+### 1.2 Backend Project Setup
+- [x] Initialize Python project with uv
+- [x] Create pyproject.toml with dependencies (FastAPI, Strawberry, pymongo, pydantic)
+- [x] Set up backend folder structure (/app, /tests, /migrations)
+- [x] Create basic FastAPI app with health endpoint
+- [x] Configure CORS middleware
+- [x] Add environment variables handling (python-dotenv)
+- [x] Create config.py for configuration management
+- [x] Set up Python logging configuration
+- [x] Add black and ruff for code formatting
 
-### Frontend Core
-- [ ] Create basic SvelteKit layout structure
-- [ ] Set up URQL GraphQL client
-- [ ] Configure Tailwind CSS properly
-- [ ] Create basic routing structure
-- [ ] Set up Docker container for frontend
-- [ ] Configure development proxy for API calls
+### 1.3 Frontend Project Setup
+- [x] Initialize SvelteKit project with pnpm
+- [x] Install core dependencies (Konva, URQL, Tailwind CSS)
+- [x] Set up folder structure (/lib, /components, /stores, /routes)
+- [ ] Configure Vite for development
+- [ ] Set up Tailwind CSS
+- [ ] Create base layout component
+- [ ] Configure URQL client
+- [ ] Add ESLint and Prettier configuration
+- [ ] Create environment variable handling
 
-### Database Schema
-- [ ] Design MongoDB collections schema
-- [ ] Create `images` collection with indexes
-- [ ] Create `annotations` collection with versioning fields
-- [ ] Create `tags` collection with hierarchy support
-- [ ] Add database migration/seed scripts
+### 1.4 Docker Setup
+- [ ] Create Dockerfile for backend
+- [ ] Create Dockerfile for frontend
+- [ ] Write docker-compose.yml with three services
+- [ ] Add MongoDB container configuration
+- [ ] Set up volume mounts for development
+- [ ] Configure network for container communication
+- [ ] Create .env.example file
+- [ ] Test docker compose up
+- [ ] Add docker-compose.override.yml for local development
 
-## Phase 2: Image Management 🖼️
+### 1.5 Database Setup
+- [ ] Create MongoDB initialization script
+- [ ] Design database indexes
+- [ ] Create database connection module
+- [ ] Implement connection pooling
+- [ ] Add database health check
+- [ ] Create collections with validation rules
+- [ ] Test database connectivity from backend
 
-### Image URL Handling (US-1.1, US-1.2)
-- [ ] Create GraphQL mutation for adding image by URL
-- [ ] Implement URL validation for JPEG/PNG
-- [ ] Add image metadata extraction (dimensions, format)
-- [ ] Create image status enum (new, annotated, needs-reannotation)
-- [ ] Build image list view component
-- [ ] Add image URL input form with validation
+### 1.6 CI/CD Pipeline
+- [ ] Create GitHub Actions workflow file
+- [ ] Configure Python test job
+- [ ] Configure Node.js test job
+- [ ] Add Docker build verification
+- [ ] Set up code coverage reporting
+- [ ] Configure branch protection rules
 
-### Image Display & Navigation
-- [ ] Create image viewer component
-- [ ] Implement image loading with error handling
-- [ ] Add next/previous image navigation
-- [ ] Display image metadata sidebar (US-1.6)
-- [ ] Handle CORS issues with image proxy
-- [ ] Add loading states and placeholders
+## Phase 2: Core Data Models & API Foundation (Week 2)
 
-### Image Filtering (US-1.5)
-- [ ] Add filter UI for annotation status
-- [ ] Implement GraphQL query with filters
-- [ ] Create pagination for image list
-- [ ] Add search by image URL/name
-- [ ] Implement sorting options (date added, status)
+### 2.1 Pydantic Models
+- [ ] Create base model with common fields
+- [ ] Implement Image model
+- [ ] Implement Annotation model
+- [ ] Implement BoundingBox model
+- [ ] Implement Tag model
+- [ ] Implement MLJob model
+- [ ] Create model validators
+- [ ] Add model serialization helpers
 
-## Phase 3: Basic Annotation Canvas 🎨
+### 2.2 Database Repositories
+- [ ] Create base repository class
+- [ ] Implement ImageRepository with CRUD operations
+- [ ] Implement AnnotationRepository with versioning
+- [ ] Implement TagRepository with hierarchy support
+- [ ] Implement MLJobRepository
+- [ ] Add repository error handling
+- [ ] Create repository tests
 
-### Canvas Setup
-- [ ] Integrate Konva.js library
-- [ ] Create annotation canvas component
-- [ ] Set up canvas layers (image, annotations, drawing)
-- [ ] Handle canvas resize on window changes
-- [ ] Add canvas coordinate system
+### 2.3 GraphQL Schema Foundation
+- [ ] Set up Strawberry GraphQL with FastAPI
+- [ ] Create GraphQL type definitions
+- [ ] Implement Image types
+- [ ] Implement Annotation types
+- [ ] Implement Tag types
+- [ ] Create input types for mutations
+- [ ] Add enum types (ImageStatus, ChangeType, etc.)
+- [ ] Configure GraphQL playground
 
-### Bounding Box Creation (US-2.1)
-- [ ] Implement click-and-drag box drawing
+### 2.4 Basic Queries
+- [ ] Implement images query with pagination
+- [ ] Implement single image query
+- [ ] Implement tags query
+- [ ] Add query resolvers
+- [ ] Implement field resolvers
+- [ ] Add query authorization placeholder
+- [ ] Create query tests
+
+### 2.5 Basic Mutations
+- [ ] Implement addImage mutation
+- [ ] Implement updateImageStatus mutation
+- [ ] Implement createTag mutation
+- [ ] Add mutation resolvers
+- [ ] Implement input validation
+- [ ] Add mutation tests
+- [ ] Create error handling for mutations
+
+## Phase 3: Frontend Foundation (Week 3)
+
+### 3.1 Layout & Navigation
+- [ ] Create main layout with header
+- [ ] Implement sidebar component structure
+- [ ] Create navigation between pages
+- [ ] Add routing for annotation page
+- [ ] Implement responsive layout
+- [ ] Create loading states
+- [ ] Add error boundary component
+
+### 3.2 Image List Page
+- [ ] Create image grid component
+- [ ] Implement image card component
+- [ ] Add status badges (new, annotated, needs reannotation)
+- [ ] Implement pagination component
+- [ ] Add image status filter
+- [ ] Create "Add Image URL" dialog
+- [ ] Implement image URL validation
+- [ ] Connect to GraphQL queries
+- [ ] Add loading and error states
+
+### 3.3 Svelte Stores
+- [ ] Create image store
+- [ ] Create annotation store
+- [ ] Create UI state store
+- [ ] Implement store persistence
+- [ ] Add store subscriptions
+- [ ] Create store actions
+- [ ] Add store tests
+
+### 3.4 GraphQL Integration
+- [ ] Set up URQL client configuration
+- [ ] Create GraphQL query definitions
+- [ ] Create GraphQL mutation definitions
+- [ ] Implement query hooks
+- [ ] Add mutation handlers
+- [ ] Set up error handling
+- [ ] Configure caching strategy
+
+## Phase 4: Canvas & Annotation UI (Week 4)
+
+### 4.1 Konva.js Canvas Setup
+- [ ] Create AnnotationCanvas component
+- [ ] Set up Konva Stage
+- [ ] Implement image layer
+- [ ] Add annotations layer
+- [ ] Create drawing layer
+- [ ] Implement UI overlay layer
+- [ ] Configure layer ordering
+- [ ] Add stage event handlers
+
+### 4.2 Image Display
+- [ ] Implement image loading
+- [ ] Add image error handling
+- [ ] Create image preloader
+- [ ] Implement zoom functionality (center on cursor)
+- [ ] Add pan functionality
+- [ ] Create zoom controls UI
+- [ ] Add fit-to-screen option
+- [ ] Implement image caching
+
+### 4.3 Bounding Box Drawing
+- [ ] Implement mouse down handler for drawing start
+- [ ] Create temporary rectangle while drawing
+- [ ] Implement mouse move handler for drawing
+- [ ] Add mouse up handler for drawing complete
+- [ ] Create minimum size validation
+- [ ] Add drawing cancel on Escape
+- [ ] Implement touch support for tablets
 - [ ] Add visual feedback during drawing
-- [ ] Create bounding box data model
-- [ ] Store box coordinates (x, y, width, height)
-- [ ] Generate unique IDs for boxes
-- [ ] Add box creation GraphQL mutation
 
-### Basic Box Interactions (US-2.4, US-2.5)
-- [ ] Implement box selection on click
-- [ ] Add resize handles to selected boxes
-- [ ] Enable moving boxes by dragging
-- [ ] Add delete box functionality
-- [ ] Implement "Clear All" annotations button
-- [ ] Add hover effects on boxes (US-2.8)
+### 4.4 Bounding Box Selection
+- [ ] Implement click detection on boxes
+- [ ] Create selection algorithm for overlapping boxes
+- [ ] Add selection visual feedback
+- [ ] Implement hover effects
+- [ ] Add Tab key navigation between boxes
+- [ ] Create selection info display
+- [ ] Implement multi-select (future)
 
-## Phase 4: Tag System 🏷️
+### 4.5 Bounding Box Editing
+- [ ] Add resize handles to selected box
+- [ ] Implement corner dragging
+- [ ] Implement edge dragging
+- [ ] Add move functionality
+- [ ] Create bounds checking
+- [ ] Add snapping guides (future)
+- [ ] Implement delete functionality
+- [ ] Add visual feedback during editing
 
-### Tag Hierarchy (US-3.1)
-- [ ] Design hierarchical tag data structure
-- [ ] Create tag management UI panel
-- [ ] Implement parent-child relationships
-- [ ] Add tag creation mutation
-- [ ] Build tag tree view component
-- [ ] Support unlimited hierarchy depth
+## Phase 5: Annotation Management (Week 5)
 
-### Tag Selection (US-2.2, US-3.2)
-- [ ] Create tag selector component for boxes
-- [ ] Add tag search with fuzzy matching
-- [ ] Display full hierarchy path (US-3.3)
-- [ ] Support multiple tags per box
-- [ ] Implement tag autocomplete (US-3.6)
-- [ ] Add recently used tags section
+### 5.1 Tag System UI
+- [ ] Create tag hierarchy component
+- [ ] Implement tree view with expand/collapse
+- [ ] Add tag search input
+- [ ] Implement fuzzy search
+- [ ] Create tag selection UI
+- [ ] Add selected tags display
+- [ ] Implement tag creation dialog
+- [ ] Add tag definition display
 
-### Tag Management
-- [ ] Add inline tag creation during annotation (US-3.4)
-- [ ] Implement bulk tag import from JSON (US-3.5)
-- [ ] Create tag usage statistics query (US-3.7)
-- [ ] Add tag edit/delete functionality
-- [ ] Build tag export functionality
+### 5.2 Annotation Sidebar
+- [ ] Create annotation list component
+- [ ] Implement annotation item component
+- [ ] Add description textarea
+- [ ] Create tag selector integration
+- [ ] Implement annotation deletion
+- [ ] Add annotation source indicator
+- [ ] Create confidence display for ML annotations
+- [ ] Add annotation counter
 
-## Phase 5: Annotation Details 📝
+### 5.3 Keyboard Shortcuts
+- [ ] Create keyboard handler service
+- [ ] Implement 'B' for new bounding box
+- [ ] Add arrow keys for image navigation
+- [ ] Implement Tab for box selection
+- [ ] Add Ctrl+Z for undo
+- [ ] Implement Delete for removal
+- [ ] Create Escape for cancel operations
+- [ ] Add keyboard shortcut help dialog
 
-### Text Descriptions (US-2.3)
-- [ ] Add description field to box model
-- [ ] Create description input UI
-- [ ] Implement description edit modal
-- [ ] Add description preview in box list
-- [ ] Support markdown in descriptions
+### 5.4 Undo/Redo System
+- [ ] Create history manager
+- [ ] Implement history stack (20 items)
+- [ ] Add undo operation
+- [ ] Add redo operation
+- [ ] Create history entry types
+- [ ] Implement batch operations
+- [ ] Add UI buttons for undo/redo
+- [ ] Create keyboard shortcut integration
 
-### Annotation List (US-2.6)
-- [ ] Create annotation list sidebar
-- [ ] Display all boxes for current image
-- [ ] Show tags and descriptions for each box
-- [ ] Add click-to-focus box from list
-- [ ] Implement box visibility toggles
-- [ ] Add box reordering in list
+## Phase 6: Data Persistence (Week 6)
 
-## Phase 6: Data Persistence 💾
+### 6.1 Version Management Backend
+- [ ] Implement version creation logic
+- [ ] Create diff calculation algorithm
+- [ ] Add snapshot generation (every 10 versions)
+- [ ] Implement version pruning (keep 120)
+- [ ] Create version reconstruction
+- [ ] Add version comparison
+- [ ] Implement rollback functionality
+- [ ] Create version tests
 
-### Auto-save System (US-7.1)
-- [ ] Implement auto-save timer (30 seconds)
-- [ ] Create dirty state tracking
-- [ ] Add save status indicator
-- [ ] Batch annotation updates
-- [ ] Handle save conflicts
-- [ ] Add manual save button
+### 6.2 Auto-save Implementation
+- [ ] Create auto-save manager
+- [ ] Implement 30-second timer
+- [ ] Add change threshold counter (5 changes)
+- [ ] Create change batching
+- [ ] Implement dirty state tracking
+- [ ] Add save status indicator UI
+- [ ] Create save error handling
+- [ ] Add retry logic
 
-### Versioning System
-- [ ] Implement annotation versioning schema
-- [ ] Create new version on each save
-- [ ] Mark previous versions as historical
-- [ ] Add version history viewer
-- [ ] Implement version restore functionality
+### 6.3 LocalStorage Backup
+- [ ] Create LocalStorage manager
+- [ ] Implement backup on changes
+- [ ] Add backup restoration
+- [ ] Create backup age checking (24h)
+- [ ] Implement old backup cleanup
+- [ ] Add corruption detection
+- [ ] Create recovery UI
+- [ ] Add backup tests
 
-### Error Recovery (US-7.3)
-- [ ] Add local storage backup
-- [ ] Implement offline queue for changes
-- [ ] Handle connection interruption gracefully
-- [ ] Create sync status indicator
-- [ ] Add retry logic for failed saves
+### 6.4 Save Annotations Mutation
+- [ ] Implement saveAnnotations resolver
+- [ ] Create change validation
+- [ ] Add version creation call
+- [ ] Implement source tracking
+- [ ] Create response formatting
+- [ ] Add optimistic updates
+- [ ] Implement conflict resolution
+- [ ] Create integration tests
 
-## Phase 7: UI Enhancements 🎮
+## Phase 7: ML Integration (Week 7)
 
-### Keyboard Shortcuts (US-6.1)
-- [ ] Define keyboard shortcut system
-- [ ] Add shortcuts for box creation (e.g., 'B')
-- [ ] Implement delete shortcut (Delete/Backspace)
-- [ ] Add save shortcut (Ctrl+S)
-- [ ] Create next/previous shortcuts (Arrow keys)
-- [ ] Build keyboard shortcut help modal
+### 7.1 ML Service Communication
+- [ ] Create ML integration service
+- [ ] Implement REST client for ML server
+- [ ] Add request timeout handling (5 minutes)
+- [ ] Create job tracking system
+- [ ] Implement async job processing
+- [ ] Add job status polling
+- [ ] Create abort functionality
+- [ ] Add connection error handling
 
-### Zoom & Pan (US-6.2)
-- [ ] Implement mouse wheel zoom
-- [ ] Add zoom controls UI (+/-, reset)
-- [ ] Enable pan with mouse drag
-- [ ] Add fit-to-screen button
-- [ ] Implement zoom to selection
-- [ ] Maintain zoom on image switch
+### 7.2 Pre-annotation UI
+- [ ] Create ML toolbar section
+- [ ] Add "Request AI Annotation" button
+- [ ] Implement ML endpoint configuration
+- [ ] Create processing indicator
+- [ ] Add progress display
+- [ ] Implement cancel button
+- [ ] Create timeout warning
+- [ ] Add retry UI for failures
 
-### Progress Tracking (US-6.4)
-- [ ] Create progress bar component
-- [ ] Track annotated vs total images
-- [ ] Add session statistics
-- [ ] Display time spent annotating
-- [ ] Show annotations per hour rate
+### 7.3 ML Results Handling
+- [ ] Create ML prediction parser
+- [ ] Implement suggestion display UI
+- [ ] Add accept/reject controls
+- [ ] Create confidence threshold filter
+- [ ] Implement partial result handling
+- [ ] Add ML annotation indicators
+- [ ] Create bulk accept functionality
+- [ ] Add ML description display
 
-### Undo/Redo (US-6.5)
-- [ ] Implement action history stack
-- [ ] Add undo functionality (Ctrl+Z)
-- [ ] Add redo functionality (Ctrl+Y)
-- [ ] Create undo/redo UI buttons
-- [ ] Limit history stack size
-
-## Phase 8: Import/Export 📤
-
-### Export Functionality (US-5.1, US-5.2)
-- [ ] Define custom JSON export format
-- [ ] Create export configuration UI
-- [ ] Implement filter options for export
-- [ ] Add export by tag selection
-- [ ] Support date range filtering
-- [ ] Generate downloadable export file
-
-### Import Functionality (US-5.3)
-- [ ] Create import UI with file upload
-- [ ] Implement JSON format validation (US-5.5)
-- [ ] Add import preview/confirmation
-- [ ] Handle duplicate detection
-- [ ] Support incremental imports
-- [ ] Show import progress and errors
-
-### API Endpoints (US-5.4)
-- [ ] Create REST endpoint for export
-- [ ] Add REST endpoint for import
-- [ ] Implement API documentation
-- [ ] Add curl examples in docs
-- [ ] Support batch operations
-
-## Phase 9: ML Integration 🤖
-
-### ML Pipeline Connection (US-4.1)
-- [ ] Design ML pipeline API interface
-- [ ] Add ML endpoint configuration
-- [ ] Create pre-annotation trigger button
-- [ ] Implement async job queue
+### 7.4 ML REST Endpoints
+- [ ] Implement /api/ml/pre-annotate endpoint
+- [ ] Create /api/ml/status endpoint
 - [ ] Add ML job status tracking
+- [ ] Implement retry endpoint
+- [ ] Create error response handling
+- [ ] Add request validation
+- [ ] Implement timeout management
+- [ ] Create endpoint tests
 
-### AI Suggestions UI (US-4.2, US-4.4)
-- [ ] Display AI-suggested boxes differently
-- [ ] Show confidence scores on suggestions
-- [ ] Add accept/reject/modify controls
-- [ ] Implement batch accept for high confidence (US-4.5)
-- [ ] Create suggestion review mode
+## Phase 8: Import/Export (Week 8)
 
-### Error Handling (US-4.6)
-- [ ] Add ML request timeout (10 seconds)
-- [ ] Implement graceful failure handling
-- [ ] Show ML service status indicator
-- [ ] Add retry mechanism for failed requests
-- [ ] Log ML pipeline errors
+### 8.1 Export Functionality
+- [ ] Create export service
+- [ ] Implement annotation aggregation
+- [ ] Format data to custom JSON structure
+- [ ] Create temporary file storage
+- [ ] Implement 24-hour TTL cleanup
+- [ ] Add download endpoint
+- [ ] Create export UI button
+- [ ] Add export progress indicator
 
-## Phase 10: Performance Optimization 🚀
+### 8.2 Import Functionality
+- [ ] Create import file parser
+- [ ] Implement JSON validation
+- [ ] Add annotation format conversion
+- [ ] Create duplicate checking
+- [ ] Implement batch image creation
+- [ ] Add import progress tracking
+- [ ] Create import error reporting
+- [ ] Build import UI with file upload
 
-### Large Dataset Support
-- [ ] Optimize for 100,000+ images (US-7.4)
-- [ ] Implement virtual scrolling for image list
-- [ ] Add lazy loading for images
-- [ ] Create database query optimization
-- [ ] Add caching layer for frequently accessed data
+### 8.3 Export/Import UI
+- [ ] Create export dialog
+- [ ] Add filter options for export
+- [ ] Implement file download trigger
+- [ ] Create import dialog
+- [ ] Add file picker
+- [ ] Create validation feedback
+- [ ] Add import summary display
+- [ ] Implement error display
 
-### Annotation Performance (US-2.7)
-- [ ] Optimize rendering for 500+ boxes per image
-- [ ] Implement canvas layer optimization
-- [ ] Add viewport culling for off-screen boxes
-- [ ] Use Web Workers for heavy computations
-- [ ] Profile and fix performance bottlenecks
+## Phase 9: Tag Management (Week 9)
 
-### UI Responsiveness (US-7.5)
-- [ ] Debounce expensive operations
-- [ ] Add loading skeletons
-- [ ] Implement optimistic UI updates
-- [ ] Reduce unnecessary re-renders
+### 9.1 Tag Hierarchy Management
+- [ ] Implement tag creation with hierarchy
+- [ ] Add parent-child relationship handling
+- [ ] Create path calculation
+- [ ] Implement depth validation (max 64)
+- [ ] Add tag moving functionality
+- [ ] Create tag reorganization
+- [ ] Implement usage counting
+- [ ] Add cascade operations
+
+### 9.2 Tag Search & Aliases
+- [ ] Create tag search index
+- [ ] Implement fuzzy search algorithm
+- [ ] Add alias support
+- [ ] Create alias search
+- [ ] Implement search suggestions
+- [ ] Add recent tags tracking
+- [ ] Create popular tags display
+- [ ] Add search tests
+
+### 9.3 Tag Management UI
+- [ ] Create tag management page
+- [ ] Add tag creation form
+- [ ] Implement tag editor
+- [ ] Create tag definition editor
+- [ ] Add alias management
+- [ ] Implement color picker
+- [ ] Create tag deletion with confirmation
+- [ ] Add tag statistics display
+
+### 9.4 Tag Cache Implementation
+- [ ] Create tag cache service
+- [ ] Implement cache refresh (10-minute TTL)
+- [ ] Add cache invalidation
+- [ ] Create memory cache structure
+- [ ] Implement cache warming
+- [ ] Add cache hit tracking
+- [ ] Create fallback to database
+- [ ] Add cache tests
+
+## Phase 10: Performance & Optimization (Week 10)
+
+### 10.1 Image Performance
+- [ ] Implement adjacent image prefetching
+- [ ] Create image cache manager
+- [ ] Add progressive image loading
+- [ ] Optimize large image handling
+- [ ] Implement viewport culling
+- [ ] Add image format detection
+- [ ] Create loading placeholders
+- [ ] Add performance monitoring
+
+### 10.2 Canvas Optimization
+- [ ] Implement requestAnimationFrame batching
+- [ ] Add layer update optimization
+- [ ] Create viewport-based rendering
+- [ ] Implement LOD for many annotations
+- [ ] Add render performance monitoring
+- [ ] Create canvas memory management
+- [ ] Optimize redraw cycles
+- [ ] Add performance tests
+
+### 10.3 Database Optimization
+- [ ] Create compound indexes
+- [ ] Implement query optimization
+- [ ] Add aggregation pipelines
+- [ ] Create database connection pooling
+- [ ] Implement cursor pagination
+- [ ] Add query performance logging
+- [ ] Create slow query detection
+- [ ] Add index usage analysis
+
+### 10.4 Frontend Bundle Optimization
+- [ ] Implement code splitting
+- [ ] Add dynamic imports
+- [ ] Create production build config
 - [ ] Optimize bundle size
+- [ ] Add tree shaking
+- [ ] Implement asset optimization
+- [ ] Create service worker (future)
+- [ ] Add lighthouse testing
 
-## Phase 11: Polish & Refinements ✨
+## Phase 11: Testing & Documentation (Week 11)
 
-### UI Polish (US-6.3, US-6.7)
-- [ ] Make UI responsive for different screens
-- [ ] Add panel resize functionality
-- [ ] Implement collapsible panels
-- [ ] Create dark mode toggle
-- [ ] Add tooltips and help text
+### 11.1 Backend Testing
+- [ ] Create unit tests for models
+- [ ] Add repository tests
+- [ ] Implement service tests
+- [ ] Create GraphQL resolver tests
+- [ ] Add version management tests
+- [ ] Implement ML integration tests
+- [ ] Create end-to-end tests
+- [ ] Add test coverage reporting
 
-### Visual Feedback
-- [ ] Enhance hover effects
-- [ ] Add smooth transitions
-- [ ] Implement selection animations
-- [ ] Create success/error notifications
-- [ ] Add confirmation dialogs
+### 11.2 Frontend Testing
+- [ ] Create component unit tests
+- [ ] Add store tests
+- [ ] Implement canvas operation tests
+- [ ] Create integration tests
+- [ ] Add keyboard shortcut tests
+- [ ] Implement auto-save tests
+- [ ] Create E2E tests with Playwright
+- [ ] Add visual regression tests
 
-### Quality of Life
-- [ ] Add annotation templates
-- [ ] Create quick actions menu
-- [ ] Implement annotation copy/paste
-- [ ] Add bulk operations support
-- [ ] Create user preferences storage
-
-## Testing & Documentation 📚
-
-### Testing
-- [ ] Write unit tests for GraphQL resolvers
-- [ ] Add integration tests for API endpoints
-- [ ] Create component tests for UI elements
-- [ ] Implement E2E tests for critical flows
-- [ ] Add performance benchmarks
-
-### Documentation
-- [ ] Create API documentation
-- [ ] Write user guide
-- [ ] Add inline code documentation
+### 11.3 Documentation
+- [ ] Create API documentation site
+- [ ] Add code documentation
+- [ ] Create user guide
+- [ ] Write deployment guide
+- [ ] Add troubleshooting guide
+- [ ] Create developer onboarding
+- [ ] Add architecture diagrams
 - [ ] Create video tutorials
-- [ ] Document deployment process
 
-## Notes
+### 11.4 Error Handling & Logging
+- [ ] Implement comprehensive error boundaries
+- [ ] Add user-friendly error messages
+- [ ] Create error reporting service
+- [ ] Implement structured logging
+- [ ] Add log aggregation
+- [ ] Create debugging utilities
+- [ ] Add performance profiling
+- [ ] Create error recovery strategies
 
-- Tasks marked with user story references (US-X.X) directly implement requirements from `requirements.md`
-- Each task is designed to be completable in 1-4 hours
-- Dependencies between tasks should be considered when planning sprints
-- Performance targets: <2s page load, <500ms save, 500+ annotations per image
-- All features assume single-user usage (multi-user is out of scope for v1)
+## Phase 12: Polish & Deployment (Week 12)
+
+### 12.1 UI/UX Polish
+- [ ] Add loading animations
+- [ ] Create smooth transitions
+- [ ] Implement tooltips
+- [ ] Add confirmation dialogs
+- [ ] Create success notifications
+- [ ] Improve responsive design
+- [ ] Add accessibility features
+- [ ] Create dark mode (future)
+
+### 12.2 Production Configuration
+- [ ] Create production environment variables
+- [ ] Configure production builds
+- [ ] Set up production database
+- [ ] Create backup strategy
+- [ ] Implement monitoring
+- [ ] Add health checks
+- [ ] Configure log rotation
+- [ ] Create deployment scripts
+
+### 12.3 Deployment
+- [ ] Create production Docker images
+- [ ] Set up Docker registry
+- [ ] Configure production docker-compose
+- [ ] Create deployment documentation
+- [ ] Set up monitoring dashboards
+- [ ] Configure alerting
+- [ ] Create rollback procedures
+- [ ] Perform load testing
+
+### 12.4 Final Testing
+- [ ] Conduct full system testing
+- [ ] Perform security audit
+- [ ] Execute performance testing
+- [ ] Run accessibility audit
+- [ ] Conduct user acceptance testing
+- [ ] Create bug tracking system
+- [ ] Fix critical issues
+- [ ] Create release notes
+
+## Future Enhancements (Post-MVP)
+
+### Multi-user Support
+- [ ] Add authentication system
+- [ ] Implement user roles
+- [ ] Create collaborative features
+- [ ] Add annotation assignment
+- [ ] Implement review workflows
+
+### Advanced Features
+- [ ] Add polygon annotations
+- [ ] Implement semantic segmentation
+- [ ] Create annotation templates
+- [ ] Add batch operations
+- [ ] Implement advanced search
+
+### Performance Scaling
+- [ ] Add Redis caching
+- [ ] Implement job queues
+- [ ] Create microservices architecture
+- [ ] Add horizontal scaling
+- [ ] Implement CDN for images
+
+## Development Guidelines
+
+### Task Completion Criteria
+- Code is written and tested
+- Unit tests pass
+- Documentation is updated
+- Code review completed (if team)
+- Feature works in Docker environment
+
+### Daily Workflow
+1. Pick tasks from current week
+2. Create feature branch
+3. Implement and test locally
+4. Test in Docker environment
+5. Commit with descriptive message
+6. Update task status
+
+### Weekly Goals
+- Complete all tasks in weekly phase
+- Review and refactor code
+- Update documentation
+- Plan next week's tasks
+- Address technical debt
+
+## Time Estimates
+
+### Phase Duration
+- **Phase 1-2**: Foundation (2 weeks)
+- **Phase 3-6**: Core Features (4 weeks)
+- **Phase 7-9**: Advanced Features (3 weeks)
+- **Phase 10-12**: Polish & Deploy (3 weeks)
+- **Total**: 12 weeks for MVP
+
+### Daily Time Allocation
+- Development: 60%
+- Testing: 20%
+- Documentation: 10%
+- Review & Refactor: 10%
+
+## Risk Mitigation
+
+### Technical Risks
+- **Large Image Handling**: Test early with 10000x10000 images
+- **ML Integration Timeout**: Implement robust timeout handling
+- **Version Storage Growth**: Monitor database size
+- **Canvas Performance**: Profile with 500+ annotations
+
+### Mitigation Strategies
+- Start with most risky features
+- Create proof of concepts
+- Regular performance testing
+- Incremental deployment
+- Maintain rollback capability
