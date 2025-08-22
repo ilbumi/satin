@@ -1,0 +1,73 @@
+
+# Local tools
+*DE.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+eggs/
+.eggs/
+parts/
+sdist/
+wheels/
+*.egg-info/
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+test-results/
+
+# Type checking
+.mypy_cache/
+.ruff_cache/
+
+# Node.js / Frontend
+node_modules/
+pnpm-debug.log*
+.pnpm-store/
+
+# SvelteKit
+frontend/.svelte-kit/
+frontend/build/
+.svelte-kit/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+*.env
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+.DS_Store?
+.Trashes
+
+# Project specific
+exports/
+temp/
+tmp/
+cache/
+.cache/
+
+# Documentation build
+docs/_build/
+docs/.doctrees/
