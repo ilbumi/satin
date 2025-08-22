@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: satin-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: satin
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    networks:
+      - satin-network
+
+  # Backend Service
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: satin-backend
+    restart: unless-stopped
+    environment:
+      - SATIN_MONGO_DSN=mongodb://mongodb:27017/satin
+      - SATIN_BACKEND_HOST=0.0.0.0
+      - SATIN_BACKEND_PORT=8000
+      - SATIN_RELOAD=false
+      - SATIN_CORS=["http://localhost:3000", "http://frontend:3000"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - export_data:/app/exports
+    depends_on:
+      - mongodb
+    networks:
+      - satin-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend Service
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: satin-frontend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - BACKEND_URL=http://backend:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - satin-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+# Named volumes for data persistence
+volumes:
+  mongodb_data:
+    driver: local
+  mongodb_config:
+    driver: local
+  export_data:
+    driver: local
+
+# Custom network for service communication
+networks:
+  satin-network:
+    driver: bridge

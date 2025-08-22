@@ -35,6 +35,9 @@ format: format-backend format-frontend
 
 .PHONY: dev-backend
 dev-backend:
+	@echo "Starting MongoDB..."
+	@docker compose up -d mongodb
+	@echo "Starting backend..."
 	uv run satin
 
 .PHONY: test-backend
@@ -84,3 +87,7 @@ clean:
 	find . -type f -name "*.pyc" -delete
 	rm -rf frontend/build frontend/.svelte-kit
 	rm -rf .pytest_cache .coverage htmlcov coverage.xml
+
+.PHONY: clean-mongo
+clean-mongo:
+	docker compose down -v mongodb
