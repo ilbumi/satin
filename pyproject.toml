@@ -95,10 +95,12 @@ sort_by_size = true
 
 [dependency-groups]
 dev = [
+    "isort>=6.0.1",
     "mypy>=1.17.1",
     "pre-commit>=4.3.0",
     "pytest>=8.4.1",
     "pytest-asyncio>=1.1.0",
     "pytest-xdist>=3.8.0",
     "ruff>=0.12.10",
+    "ssort>=0.15.0",
 ]
