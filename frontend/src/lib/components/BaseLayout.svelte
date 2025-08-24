@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Header from './Header.svelte';
+
 	interface Props {
 		title?: string;
 		children?: import('svelte').Snippet;
@@ -31,26 +33,7 @@
 
 <div class="flex min-h-screen flex-col bg-gray-50">
 	{#if showHeader}
-		<header class="border-b border-gray-200 bg-white shadow-sm">
-			<div class="mx-auto px-4 sm:px-6 lg:px-8 {maxWidthClasses[maxWidth]}">
-				<div class="flex h-16 items-center justify-between">
-					<div class="flex items-center">
-						<h1 class="text-xl font-semibold text-gray-900">Satin</h1>
-					</div>
-					<nav class="hidden space-x-8 md:flex">
-						<a href="/" class="px-3 py-2 text-sm font-medium text-gray-500 hover:text-gray-900">
-							Home
-						</a>
-						<a
-							href="/annotate"
-							class="px-3 py-2 text-sm font-medium text-gray-500 hover:text-gray-900"
-						>
-							Annotate
-						</a>
-					</nav>
-				</div>
-			</div>
-		</header>
+		<Header {maxWidth} />
 	{/if}
 
 	<main class="flex-1">
