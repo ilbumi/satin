@@ -108,4 +108,5 @@ dev = [
     "pytest-xdist>=3.8.0",
     "ruff>=0.12.10",
     "ssort>=0.15.0",
+    "vulture>=2.14",
 ]
