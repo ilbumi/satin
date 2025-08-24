@@ -46,14 +46,14 @@ test-backend:
 
 .PHONY: lint-backend
 lint-backend:
-	uv run ruff check src/
+	uv run ruff check src/ tests/
 	uv run mypy src/
 
 .PHONY: format-backend
 format-backend:
-	uv run isort src/
-	uv run ssort src/ --diff --check || ssort src/
-	uv run ruff format src/
+	uv run isort src/ tests/
+	uv run ssort src/ tests/
+	uv run ruff format src/ tests/
 
 # frontend commands
 .PHONY: install-frontend
