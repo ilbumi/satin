@@ -22,7 +22,7 @@
 			borderColor: 'border-green-200'
 		},
 		needs_reannotation: {
-			label: 'Needs Re-annotation',
+			label: 'Re-annotate',
 			icon: '⚠️',
 			bgColor: 'bg-orange-50',
 			textColor: 'text-orange-700',
