@@ -2,9 +2,10 @@
 
 from enum import StrEnum
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field
 
 from satin.models.annotation import AnnotationCreate
+from satin.utils import SerializableHttpUrl
 
 from .base import SatinBaseModel
 
@@ -22,7 +23,7 @@ class MLJobStatus(StrEnum):
 class MLJobCreate(BaseModel):
     """Schema for creating an ML job."""
 
-    image_url: HttpUrl
+    image_url: SerializableHttpUrl
     endpoint: str
     status: MLJobStatus = MLJobStatus.PENDING
 
@@ -38,7 +39,7 @@ class MLJobUpdate(BaseModel):
 class MLJob(SatinBaseModel):
     """ML job model."""
 
-    image_url: HttpUrl
+    image_url: SerializableHttpUrl
     endpoint: str
     status: MLJobStatus = MLJobStatus.PENDING
     error_message: str | None = None

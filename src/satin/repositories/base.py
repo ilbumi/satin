@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from typing import Any, TypeVar
 
 from bson import ObjectId
+from bson.errors import InvalidId
 from mongomock_motor import AsyncCommandCursor
 from pydantic import BaseModel
 from pymongo import ReturnDocument, UpdateOne
@@ -32,7 +33,7 @@ class BaseRepository[ModelType: SatinBaseModel, CreateSchemaType: BaseModel, Upd
 
         """
         self._database = database
-        self._collection: AsyncCollection = database[collection_name]
+        self._collection: AsyncCollection = database.get_collection(collection_name)
         self._model_class = model_class
 
     @property
@@ -40,13 +41,17 @@ class BaseRepository[ModelType: SatinBaseModel, CreateSchemaType: BaseModel, Upd
         """Get the MongoDB collection."""
         return self._collection
 
-    def _normalize_id(self, id_value: PyObjectId | ObjectId | str) -> ObjectId:
-        """Normalize ID to ObjectId."""
-        if isinstance(id_value, str):
-            return ObjectId(id_value)
-        if isinstance(id_value, PyObjectId):
-            return ObjectId(str(id_value))
-        return id_value
+    def _normalize_id(self, id_value: PyObjectId | ObjectId | str) -> ObjectId | None:
+        """Normalize ID to ObjectId, return None for invalid IDs."""
+        try:
+            if isinstance(id_value, str):
+                return ObjectId(id_value)
+            if isinstance(id_value, PyObjectId):
+                return ObjectId(str(id_value))
+        except InvalidId:
+            return None
+        else:
+            return id_value
 
     async def create(self, obj_in: CreateSchemaType) -> ModelType:
         """Create a new document."""
@@ -56,7 +61,7 @@ class BaseRepository[ModelType: SatinBaseModel, CreateSchemaType: BaseModel, Upd
         obj_data["updated_at"] = now
 
         model = self._model_class(**obj_data)
-        result = await self._collection.insert_one(model.model_dump(mode="json"))
+        result = await self._collection.insert_one(model.model_dump(by_alias=True, exclude_none=True))
         model.id = result.inserted_id
 
         return model
@@ -85,6 +90,8 @@ class BaseRepository[ModelType: SatinBaseModel, CreateSchemaType: BaseModel, Upd
     async def get_by_id(self, id_value: PyObjectId | ObjectId | str) -> ModelType | None:
         """Get document by ID."""
         object_id = self._normalize_id(id_value)
+        if object_id is None:
+            return None
         document = await self._collection.find_one({"_id": object_id})
 
         if document:
@@ -149,6 +156,8 @@ class BaseRepository[ModelType: SatinBaseModel, CreateSchemaType: BaseModel, Upd
     async def update_by_id(self, id_value: PyObjectId | ObjectId | str, obj_in: UpdateSchemaType) -> ModelType | None:
         """Update document by ID and return updated document."""
         object_id = self._normalize_id(id_value)
+        if object_id is None:
+            return None
         update_data = obj_in.model_dump(exclude_unset=True)
 
         if not update_data:
@@ -197,6 +206,8 @@ class BaseRepository[ModelType: SatinBaseModel, CreateSchemaType: BaseModel, Upd
     async def delete_by_id(self, id_value: PyObjectId | ObjectId | str) -> bool:
         """Delete document by ID."""
         object_id = self._normalize_id(id_value)
+        if object_id is None:
+            return False
         result = await self._collection.delete_one({"_id": object_id})
         return result.deleted_count > 0
 

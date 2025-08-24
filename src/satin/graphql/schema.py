@@ -1,7 +1,6 @@
 """GraphQL schema definition."""
 
 import strawberry
-from pydantic import HttpUrl
 
 from satin.dependencies import dependencies
 from satin.models.annotation import AnnotationCreate, AnnotationUpdate, BoundingBox
@@ -9,6 +8,7 @@ from satin.models.base import PyObjectId
 from satin.models.image import ImageCreate, ImageUpdate
 from satin.models.ml_job import MLJobCreate, MLJobStatus
 from satin.models.tag import TagCreate, TagUpdate
+from satin.utils import SerializableHttpUrl
 
 from .types import (
     Annotation,
@@ -146,7 +146,7 @@ class Mutation:
     @strawberry.mutation
     async def create_image(self, input: ImageCreateInput) -> Image:  # noqa: A002
         """Create a new image."""
-        image_create = ImageCreate(url=HttpUrl(input.url))
+        image_create = ImageCreate(url=SerializableHttpUrl(input.url))
         image = await dependencies.image_repo.create(image_create)
         return Image.from_model(image)
 
@@ -315,7 +315,7 @@ class Mutation:
     async def create_ml_job(self, input: MLJobCreateInput) -> MLJob:  # noqa: A002
         """Create a new ML job."""
         ml_job_create = MLJobCreate(
-            image_url=HttpUrl(input.image_url),
+            image_url=SerializableHttpUrl(input.image_url),
             endpoint=input.endpoint,
         )
         ml_job = await dependencies.ml_job_repo.create(ml_job_create)

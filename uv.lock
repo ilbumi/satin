@@ -691,6 +691,7 @@ dev = [
 [package.dev-dependencies]
 dev = [
     { name = "httpx" },
+    { name = "hypothesis" },
     { name = "isort" },
     { name = "mongomock-motor" },
     { name = "mypy" },
@@ -725,6 +726,7 @@ provides-extras = ["dev"]
 [package.metadata.requires-dev]
 dev = [
     { name = "httpx", specifier = ">=0.24.0" },
+    { name = "hypothesis", specifier = ">=6.138.2" },
     { name = "isort", specifier = ">=6.0.1" },
     { name = "mongomock-motor", specifier = ">=0.0.36" },
     { name = "mypy", specifier = ">=1.17.1" },

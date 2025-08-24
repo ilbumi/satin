@@ -76,6 +76,7 @@ lint.ignore = [
   "D107",
   "ANN",     # flake8-annotations
   "S101",    # ignore asserts
+  "S311",    # ignore standard PRNG usage
   "PLR2004", # ignore magic values
   "PD901",   # allow df as variable name
   "SLF001",  # private method accessed outside of class
@@ -98,6 +99,7 @@ sort_by_size = true
 [dependency-groups]
 dev = [
     "httpx>=0.24.0",
+    "hypothesis>=6.138.2",
     "isort>=6.0.1",
     "mongomock-motor>=0.0.36",
     "mypy>=1.17.1",

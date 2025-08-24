@@ -50,8 +50,11 @@ class AnnotationRepository(BaseRepository[Annotation, AnnotationCreate, Annotati
         update_dict = obj_in.model_dump(exclude_unset=True, exclude_none=True)
         updated_data.update(update_dict)
 
-        # Increment version
-        updated_data["version"] = current.version + 1
+        # Get next version number for this image (not just current annotation + 1)
+        latest = await self.get_latest_version_for_image(current.image_id)
+        next_version = (latest.version + 1) if latest else 1
+
+        updated_data["version"] = next_version
         updated_data["change_type"] = ChangeType.UPDATE
 
         return await self.create(AnnotationCreate(**updated_data))
@@ -64,7 +67,12 @@ class AnnotationRepository(BaseRepository[Annotation, AnnotationCreate, Annotati
 
         # Create delete version
         delete_data = current.model_dump(exclude={"id", "created_at", "updated_at"})
-        delete_data["version"] = current.version + 1
+
+        # Get next version number for this image (not just current annotation + 1)
+        latest = await self.get_latest_version_for_image(current.image_id)
+        next_version = (latest.version + 1) if latest else 1
+
+        delete_data["version"] = next_version
         delete_data["change_type"] = ChangeType.DELETE
 
         return await self.create(AnnotationCreate(**delete_data))

@@ -3,11 +3,12 @@
 from fastapi.testclient import TestClient
 
 from satin.models.annotation import AnnotationUpdate
+from tests.conftest import MockDependencies
 from tests.fixtures.sample_data import GRAPHQL_QUERIES, create_test_annotation, create_test_image, create_test_tag
 
 
 class TestAnnotationMutations:
-    async def test_create_annotation(self, test_client: TestClient, mock_dependencies):
+    async def test_create_annotation(self, test_client: TestClient, mock_dependencies: MockDependencies):
         """Test creating a new annotation."""
         # Create test image first
         image = await mock_dependencies.image_repo.create(create_test_image("http://test.com/image.jpg"))

@@ -41,23 +41,23 @@ db.createCollection('images', {
           description: 'Image URL - required'
         },
         width: {
-          bsonType: 'int',
+          bsonType: ['int', 'null'],
           minimum: 1,
           description: 'Image width in pixels'
         },
         height: {
-          bsonType: 'int',
+          bsonType: ['int', 'null'],
           minimum: 1,
           description: 'Image height in pixels'
         },
-        format: {
+        ext: {
           bsonType: 'string',
           enum: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-          description: 'Image format'
+          description: 'Image file extension'
         },
         status: {
           bsonType: 'string',
-          enum: ['pending', 'annotated', 'reviewed', 'archived'],
+          enum: ['new', 'annotated', 'needs_reannotation'],
           description: 'Image annotation status - required'
         },
         created_at: {

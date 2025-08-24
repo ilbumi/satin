@@ -56,6 +56,10 @@ class TagRepository(BaseRepository[Tag, TagCreate, TagUpdate]):
         if not tag:
             return
 
+        # Store old path and depth before changes
+        old_path = tag.path
+        old_depth = tag.depth
+
         # Calculate new depth and path
         new_depth = 0
         new_path = tag.name
@@ -66,19 +70,19 @@ class TagRepository(BaseRepository[Tag, TagCreate, TagUpdate]):
                 new_depth = parent.depth + 1
                 new_path = f"{parent.path}/{tag.name}"
 
-        # Update this tag
-        await self._collection.update_one(
-            {"_id": self._normalize_id(tag_id)}, {"$set": {"depth": new_depth, "path": new_path}}
-        )
-
-        # Update all descendants recursively
+        # Update all descendants first using the OLD path/depth
         async for descendant in self.get_descendants(tag_id):
-            descendant_depth = new_depth + (descendant.depth - tag.depth)
-            descendant_path = descendant.path.replace(tag.path, new_path, 1)
+            descendant_depth = new_depth + (descendant.depth - old_depth)
+            descendant_path = descendant.path.replace(old_path, new_path, 1)
 
             await self._collection.update_one(
                 {"_id": descendant.id}, {"$set": {"depth": descendant_depth, "path": descendant_path}}
             )
+
+        # Update this tag last
+        normalized_id = self._normalize_id(tag_id)
+        if normalized_id is not None:
+            await self._collection.update_one({"_id": normalized_id}, {"$set": {"depth": new_depth, "path": new_path}})
 
     async def _update_descendant_paths(self, tag_id: PyObjectId | str, new_name: str) -> None:
         """Update paths of all descendants when tag name changes."""
@@ -87,7 +91,15 @@ class TagRepository(BaseRepository[Tag, TagCreate, TagUpdate]):
             return
 
         old_path = tag.path
-        new_path = old_path.replace(tag.name, new_name)
+        # Update the path by replacing the last occurrence of the tag name
+        path_parts = old_path.split("/")
+        path_parts[-1] = new_name  # Replace the last part (tag name) with new name
+        new_path = "/".join(path_parts)
+
+        # Update the tag itself first
+        normalized_id = self._normalize_id(tag_id)
+        if normalized_id is not None:
+            await self._collection.update_one({"_id": normalized_id}, {"$set": {"path": new_path}})
 
         # Update all descendants
         async for descendant in self.get_descendants(tag_id):
@@ -101,16 +113,44 @@ class TagRepository(BaseRepository[Tag, TagCreate, TagUpdate]):
         if not current:
             return None
 
+        # Check what changes are being made
+        update_dict = obj_in.model_dump(exclude_unset=True)
+        parent_changed = "parent_id" in update_dict and obj_in.parent_id != current.parent_id
+        name_changed = "name" in update_dict and obj_in.name and obj_in.name != current.name
+
         # If parent_id is being changed, recalculate hierarchy
-        # Check if parent_id field is being updated and is different from current
-        update_dict = obj_in.model_dump(exclude_unset=False)
-        if "parent_id" in update_dict and obj_in.parent_id != current.parent_id:
+        if parent_changed:
             await self._recalculate_hierarchy_after_parent_change(tag_id, obj_in.parent_id)
 
-        # If name is being changed, update paths of all descendants
-        if obj_in.name and obj_in.name != current.name:
-            await self._update_descendant_paths(tag_id, obj_in.name)
+        # If name is being changed, update paths first, then do regular update
+        if name_changed:
+            # Calculate the new path for this tag based on its current parent
+            # name_changed ensures obj_in.name is not None
+            if obj_in.name is None:
+                msg = "name cannot be None when name_changed is True"
+                raise ValueError(msg)
+            if current.parent_id:
+                parent = await self.get_by_id(current.parent_id)
+                new_path = f"{parent.path}/{obj_in.name}" if parent else obj_in.name
+            else:
+                new_path = obj_in.name
 
+            # Store old path before any changes
+            old_path = current.path
+
+            # Update all descendants first (before updating this tag's path)
+            # Find descendants using the old path pattern
+            filter_dict = {"path": {"$regex": f"^{old_path}/"}, "_id": {"$ne": current.id}}
+            async for descendant in self.find_paginated(filter_dict):
+                descendant_new_path = descendant.path.replace(old_path, new_path, 1)
+                await self._collection.update_one({"_id": descendant.id}, {"$set": {"path": descendant_new_path}})
+
+            # Update this tag's path last
+            normalized_id = self._normalize_id(tag_id)
+            if normalized_id is not None:
+                await self._collection.update_one({"_id": normalized_id}, {"$set": {"path": new_path}})
+
+        # Now do the main update (this will update name and other fields)
         return await self.update_by_id(tag_id, obj_in)
 
     async def get_root_tags(self) -> AsyncIterator[Tag]:
@@ -227,10 +267,13 @@ class TagRepository(BaseRepository[Tag, TagCreate, TagUpdate]):
 
     async def increment_usage_count(self, tag_id: PyObjectId | str) -> bool:
         """Increment usage count for a tag."""
-        result = await self._collection.update_one({"_id": self._normalize_id(tag_id)}, {"$inc": {"usage_count": 1}})
+        normalized_id = self._normalize_id(tag_id)
+        if normalized_id is None:
+            return False
+        result = await self._collection.update_one({"_id": normalized_id}, {"$inc": {"usage_count": 1}})
         return result.modified_count > 0
 
-    async def _would_create_cycle(self, tag_id: PyObjectId | str, potential_parent_id: PyObjectId | str) -> bool:
+    async def would_create_cycle(self, tag_id: PyObjectId | str, potential_parent_id: PyObjectId | str) -> bool:
         """Check if moving tag would create a circular reference."""
         # Check if potential_parent_id is a descendant of tag_id
         async for descendant in self.get_descendants(tag_id):
@@ -241,7 +284,7 @@ class TagRepository(BaseRepository[Tag, TagCreate, TagUpdate]):
     async def move_tag(self, tag_id: PyObjectId | str, new_parent_id: PyObjectId | str | None) -> Tag | None:
         """Move a tag to a new parent."""
         # Prevent circular references
-        if new_parent_id and await self._would_create_cycle(tag_id, new_parent_id):
+        if new_parent_id and await self.would_create_cycle(tag_id, new_parent_id):
             return None
 
         update_data = TagUpdate(parent_id=new_parent_id)
@@ -251,11 +294,17 @@ class TagRepository(BaseRepository[Tag, TagCreate, TagUpdate]):
         """Delete a tag and all its descendants."""
         # Use the provided tag_id directly instead of relying on tag.id
         normalized_tag_id = self._normalize_id(tag_id)
+        if normalized_tag_id is None:
+            return 0
 
         # Find all descendants and normalize IDs
         descendant_ids = [normalized_tag_id]
         descendant_ids.extend(
-            [self._normalize_id(d.id) async for d in self.get_descendants(tag_id) if d.id is not None]
+            [
+                normalized_id
+                async for d in self.get_descendants(tag_id)
+                if d.id is not None and (normalized_id := self._normalize_id(d.id)) is not None
+            ]
         )
 
         # Delete all at once

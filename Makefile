@@ -54,6 +54,7 @@ format-backend:
 	uv run isort src/ tests/
 	uv run ssort src/ tests/
 	uv run ruff format src/ tests/
+	uv run ruff check --fix -se src/ tests/
 
 # frontend commands
 .PHONY: install-frontend

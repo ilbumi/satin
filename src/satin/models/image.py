@@ -2,7 +2,9 @@
 
 from enum import StrEnum
 
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
+
+from satin.utils import SerializableHttpUrl
 
 from .base import SatinBaseModel
 
@@ -18,7 +20,7 @@ class ImageStatus(StrEnum):
 class ImageCreate(BaseModel):
     """Schema for creating a new image."""
 
-    url: HttpUrl
+    url: SerializableHttpUrl
 
 
 class ImageUpdate(BaseModel):
@@ -30,7 +32,7 @@ class ImageUpdate(BaseModel):
 class Image(SatinBaseModel):
     """Image model."""
 
-    url: HttpUrl
+    url: SerializableHttpUrl
     width: int | None = None
     height: int | None = None
     ext: str | None = None
