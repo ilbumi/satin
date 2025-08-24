@@ -1,16 +1,25 @@
 """GraphQL types for Satin API."""
 
 from datetime import UTC, datetime
+from enum import Enum
 
 import strawberry
 
 from satin.models.annotation import Annotation as AnnotationModel
 from satin.models.annotation import BoundingBox as BoundingBoxModel
 from satin.models.image import Image as ImageModel
-from satin.models.image import ImageStatus
 from satin.models.ml_job import MLJob as MLJobModel
 from satin.models.ml_job import MLJobStatus
 from satin.models.tag import Tag as TagModel
+
+
+@strawberry.enum
+class ImageStatus(Enum):
+    """GraphQL ImageStatus enum."""
+
+    NEW = "new"
+    ANNOTATED = "annotated"
+    NEEDS_REANNOTATION = "needs_reannotation"
 
 
 @strawberry.type
@@ -35,7 +44,7 @@ class Image:
             width=image.width,
             height=image.height,
             ext=image.ext,
-            status=image.status,
+            status=ImageStatus(image.status),
             created_at=image.created_at.isoformat(),
             updated_at=image.updated_at.isoformat(),
         )
