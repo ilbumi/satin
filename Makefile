@@ -89,6 +89,6 @@ clean:
 	rm -rf frontend/build frontend/.svelte-kit
 	rm -rf .pytest_cache .coverage htmlcov coverage.xml
 
-.PHONY: clean-mongo
-clean-mongo:
+.PHONY: mongo-clean
+mongo-clean:
 	docker compose down -v mongodb
