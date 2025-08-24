@@ -20,8 +20,9 @@
 
 	const navigationItems = [
 		{ name: 'Home', href: '/', shortcut: '⌘1' },
-		{ name: 'Annotate', href: '/annotate', shortcut: '⌘2' },
-		{ name: 'Export', href: '/export', shortcut: '⌘3' }
+		{ name: 'Images', href: '/images', shortcut: '⌘2' },
+		{ name: 'Annotate', href: '/annotate', shortcut: '⌘3' },
+		{ name: 'Export', href: '/export', shortcut: '⌘4' }
 	];
 </script>
 

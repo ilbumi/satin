@@ -83,23 +83,35 @@ export function setupNavigationShortcuts() {
 	keyboardManager.addShortcut({
 		key: '2',
 		ctrlKey: true,
-		action: () => goto('/annotate')
+		action: () => goto('/images')
 	});
 
 	keyboardManager.addShortcut({
 		key: '2',
 		metaKey: true,
-		action: () => goto('/annotate')
+		action: () => goto('/images')
 	});
 
 	keyboardManager.addShortcut({
 		key: '3',
 		ctrlKey: true,
-		action: () => goto('/export')
+		action: () => goto('/annotate')
 	});
 
 	keyboardManager.addShortcut({
 		key: '3',
+		metaKey: true,
+		action: () => goto('/annotate')
+	});
+
+	keyboardManager.addShortcut({
+		key: '4',
+		ctrlKey: true,
+		action: () => goto('/export')
+	});
+
+	keyboardManager.addShortcut({
+		key: '4',
 		metaKey: true,
 		action: () => goto('/export')
 	});
