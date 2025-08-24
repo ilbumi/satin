@@ -102,7 +102,9 @@ class TagRepository(BaseRepository[Tag, TagCreate, TagUpdate]):
             return None
 
         # If parent_id is being changed, recalculate hierarchy
-        if obj_in.parent_id is not None and obj_in.parent_id != current.parent_id:
+        # Check if parent_id field is being updated and is different from current
+        update_dict = obj_in.model_dump(exclude_unset=False)
+        if "parent_id" in update_dict and obj_in.parent_id != current.parent_id:
             await self._recalculate_hierarchy_after_parent_change(tag_id, obj_in.parent_id)
 
         # If name is being changed, update paths of all descendants
@@ -205,7 +207,7 @@ class TagRepository(BaseRepository[Tag, TagCreate, TagUpdate]):
             }
         ]
 
-        cursor = await self._collection.aggregate(pipeline)
+        cursor = await self._aggregate_cursor(pipeline)
         async for result in cursor:
             return {
                 "total_tags": result["total_tags"],

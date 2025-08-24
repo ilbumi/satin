@@ -45,7 +45,9 @@ class AnnotationRepository(BaseRepository[Annotation, AnnotationCreate, Annotati
 
         # Create new version with updated data
         updated_data = current.model_dump(exclude={"id", "created_at", "updated_at"})
-        update_dict = obj_in.model_dump(exclude_unset=True)
+
+        # Only update fields that are explicitly set (not None)
+        update_dict = obj_in.model_dump(exclude_unset=True, exclude_none=True)
         updated_data.update(update_dict)
 
         # Increment version
@@ -100,7 +102,7 @@ class AnnotationRepository(BaseRepository[Annotation, AnnotationCreate, Annotati
             {"$match": {"change_type": {"$ne": "delete"}}},
         ]
 
-        cursor = await self._collection.aggregate(pipeline)
+        cursor = await self._aggregate_cursor(pipeline)
         async for document in cursor:
             yield self._model_class(**document)
 
@@ -153,7 +155,7 @@ class AnnotationRepository(BaseRepository[Annotation, AnnotationCreate, Annotati
             {"$count": "total"},
         ]
 
-        cursor = await self._collection.aggregate(pipeline)
+        cursor = await self._aggregate_cursor(pipeline)
         async for result in cursor:
             return int(result["total"])
         return 0

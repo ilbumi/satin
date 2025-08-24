@@ -24,6 +24,7 @@ class MLJobCreate(BaseModel):
 
     image_url: HttpUrl
     endpoint: str
+    status: MLJobStatus = MLJobStatus.PENDING
 
 
 class MLJobUpdate(BaseModel):

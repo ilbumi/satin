@@ -1,10 +1,12 @@
 """Base repository class for MongoDB operations with async iterators."""
 
+import asyncio
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Any, TypeVar
 
 from bson import ObjectId
+from mongomock_motor import AsyncCommandCursor
 from pydantic import BaseModel
 from pymongo import ReturnDocument, UpdateOne
 from pymongo.asynchronous.collection import AsyncCollection
@@ -126,10 +128,21 @@ class BaseRepository[ModelType: SatinBaseModel, CreateSchemaType: BaseModel, Upd
         async for document in cursor:
             yield self._model_class(**document)
 
+    async def _aggregate_cursor(self, pipeline: list[dict[str, Any]]) -> AsyncCommandCursor:
+        """Run aggregation pipeline and return cursor.
+
+        Use this instead of directly calling self._collection.aggregate.
+        """
+        res = self._collection.aggregate(pipeline)
+        if asyncio.iscoroutine(res):  # for testing
+            cursor = await res
+        else:
+            cursor = res
+        return cursor  # type: ignore[return-value]
+
     async def aggregate(self, pipeline: list[dict[str, Any]]) -> AsyncIterator[ModelType]:
         """Run aggregation pipeline and return async iterator."""
-        cursor = await self._collection.aggregate(pipeline)
-
+        cursor = await self._aggregate_cursor(pipeline)
         async for document in cursor:
             yield self._model_class(**document)
 

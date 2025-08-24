@@ -32,6 +32,8 @@ class AnnotationCreate(BaseModel):
     tags: list[PyObjectId] = Field(default_factory=list)
     description: str = ""
     confidence: float | None = None
+    version: int = 1
+    change_type: str = "create"
 
 
 class AnnotationUpdate(BaseModel):
@@ -53,3 +55,4 @@ class Annotation(SatinBaseModel):
     confidence: float | None = None
     source: str = "manual"
     version: int = 1
+    change_type: str = "create"

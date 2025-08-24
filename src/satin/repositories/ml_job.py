@@ -1,6 +1,5 @@
 """ML job repository with domain-specific methods."""
 
-import asyncio
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -107,11 +106,8 @@ class MLJobRepository(BaseRepository[MLJob, MLJobCreate, MLJobUpdate]):
         ]
 
         status_counts = {}
-        res = self._collection.aggregate(pipeline)
-        if asyncio.iscoroutine(res):  # for testing
-            cursor = await res
-        else:
-            cursor = res
+        cursor = await self._aggregate_cursor(pipeline)
+
         async for result in cursor:
             status_counts[result["_id"]] = result["count"]
 

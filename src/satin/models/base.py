@@ -43,7 +43,7 @@ class PyObjectId(str):
 class SatinBaseModel(BaseModel):
     """Base model with common fields."""
 
-    id: PyObjectId | None = None
+    id: PyObjectId | None = Field(None, alias="_id")
 
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

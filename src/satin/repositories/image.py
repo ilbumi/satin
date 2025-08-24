@@ -65,7 +65,7 @@ class ImageRepository(BaseRepository[Image, ImageCreate, ImageUpdate]):
         ]
 
         status_counts = {}
-        cursor = await self._collection.aggregate(pipeline)
+        cursor = await self._aggregate_cursor(pipeline)
         async for result in cursor:
             # aggregate returns dict-like objects, not Image models
             status_counts[result["_id"]] = result["count"]
