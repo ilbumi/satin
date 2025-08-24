@@ -33,7 +33,7 @@ class AnnotationCreate(BaseModel):
     description: str = ""
     confidence: float | None = None
     version: int = 1
-    change_type: str = "create"
+    change_type: ChangeType = ChangeType.CREATE
 
 
 class AnnotationUpdate(BaseModel):
@@ -50,9 +50,9 @@ class Annotation(SatinBaseModel):
 
     image_id: PyObjectId
     bounding_box: BoundingBox
-    tags: list[str] = Field(default_factory=list)
+    tags: list[PyObjectId] = Field(default_factory=list)
     description: str = ""
     confidence: float | None = None
     source: str = "manual"
     version: int = 1
-    change_type: str = "create"
+    change_type: ChangeType = ChangeType.CREATE

@@ -32,7 +32,7 @@ class AnnotationRepository(BaseRepository[Annotation, AnnotationCreate, Annotati
         obj_data["version"] = next_version
 
         # Store change metadata
-        obj_data["change_type"] = change_type.value
+        obj_data["change_type"] = change_type
 
         return await self.create(AnnotationCreate(**obj_data))
 
@@ -52,7 +52,7 @@ class AnnotationRepository(BaseRepository[Annotation, AnnotationCreate, Annotati
 
         # Increment version
         updated_data["version"] = current.version + 1
-        updated_data["change_type"] = ChangeType.UPDATE.value
+        updated_data["change_type"] = ChangeType.UPDATE
 
         return await self.create(AnnotationCreate(**updated_data))
 
@@ -65,7 +65,7 @@ class AnnotationRepository(BaseRepository[Annotation, AnnotationCreate, Annotati
         # Create delete version
         delete_data = current.model_dump(exclude={"id", "created_at", "updated_at"})
         delete_data["version"] = current.version + 1
-        delete_data["change_type"] = ChangeType.DELETE.value
+        delete_data["change_type"] = ChangeType.DELETE
 
         return await self.create(AnnotationCreate(**delete_data))
 
@@ -176,6 +176,6 @@ class AnnotationRepository(BaseRepository[Annotation, AnnotationCreate, Annotati
         next_version = (latest.version + 1) if latest else 1
 
         restore_data["version"] = next_version
-        restore_data["change_type"] = ChangeType.UPDATE.value
+        restore_data["change_type"] = ChangeType.UPDATE
 
         return await self.create(AnnotationCreate(**restore_data))

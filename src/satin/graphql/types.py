@@ -107,7 +107,7 @@ class Annotation:
             id=str(annotation.id) if annotation.id else "",
             image_id=str(annotation.image_id),
             bounding_box=BoundingBox.from_model(annotation.bounding_box),
-            tags=annotation.tags,
+            tags=[str(tag) for tag in annotation.tags],
             description=annotation.description,
             confidence=annotation.confidence,
             source=annotation.source,
