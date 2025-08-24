@@ -1,84 +1,39 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { queryStore, getContextClient } from '@urql/svelte';
 	import ImageGrid from '$lib/components/ImageGrid.svelte';
 	import ImageFilter from '$lib/components/ImageFilter.svelte';
 	import AddImageDialog from '$lib/components/AddImageDialog.svelte';
 	import Pagination from '$lib/components/Pagination.svelte';
-	import { showSuccess } from '$lib/stores/toast';
+	import { showSuccess, showError } from '$lib/stores/toast';
+	import {
+		GET_IMAGES,
+		UPDATE_IMAGE,
+		DELETE_IMAGE,
+		type ImageData,
+		type GetImagesQuery,
+		type ImageUpdateInput
+	} from '$lib/graphql/operations/images';
 
 	let searchQuery = $state('');
-	let selectedStatuses = $state<string[]>(['new', 'annotated', 'needs_reannotation']);
-	let sortBy = $state('created_at');
+	let selectedStatuses = $state<string[]>(['NEW', 'ANNOTATED', 'NEEDS_REANNOTATION']);
+	let sortBy = $state('createdAt');
 	let sortOrder = $state<'asc' | 'desc'>('desc');
 	let currentPage = $state(1);
 	let itemsPerPage = $state(12);
 	let showAddImageDialog = $state(false);
 
-	// Mock data for now - will be replaced with GraphQL
-	interface ImageData {
-		id: string;
-		url: string;
-		width?: number;
-		height?: number;
-		status: 'new' | 'annotated' | 'needs_reannotation';
-		created_at: string;
-	}
+	// GraphQL stores and client
+	const client = getContextClient();
+	const imagesQuery = queryStore<GetImagesQuery>({
+		query: GET_IMAGES,
+		client
+	});
 
-	let images = $state<ImageData[]>([]);
-	let totalImages = $state(0);
-	let loading = $state(true);
-
-	// Mock image data for demonstration
-	const mockImages = [
-		{
-			id: '1',
-			url: 'https://picsum.photos/400/300?random=1',
-			width: 400,
-			height: 300,
-			status: 'new' as const,
-			created_at: '2025-01-15T10:00:00Z'
-		},
-		{
-			id: '2',
-			url: 'https://picsum.photos/500/400?random=2',
-			width: 500,
-			height: 400,
-			status: 'annotated' as const,
-			created_at: '2025-01-14T15:30:00Z'
-		},
-		{
-			id: '3',
-			url: 'https://picsum.photos/600/350?random=3',
-			width: 600,
-			height: 350,
-			status: 'needs_reannotation' as const,
-			created_at: '2025-01-13T08:45:00Z'
-		},
-		{
-			id: '4',
-			url: 'https://picsum.photos/450/320?random=4',
-			width: 450,
-			height: 320,
-			status: 'new' as const,
-			created_at: '2025-01-12T14:20:00Z'
-		},
-		{
-			id: '5',
-			url: 'https://picsum.photos/380/280?random=5',
-			width: 380,
-			height: 280,
-			status: 'annotated' as const,
-			created_at: '2025-01-11T09:15:00Z'
-		},
-		{
-			id: '6',
-			url: 'https://picsum.photos/520/390?random=6',
-			width: 520,
-			height: 390,
-			status: 'new' as const,
-			created_at: '2025-01-10T16:45:00Z'
-		}
-	];
+	// Reactive data from GraphQL
+	let images = $derived($imagesQuery.data?.images || []);
+	let loading = $derived($imagesQuery.fetching);
+	let error = $derived($imagesQuery.error);
+	let totalImages = $derived(images.length);
 
 	let filteredImages = $derived(() => {
 		let filtered = [...images];
@@ -121,13 +76,11 @@
 		return filteredImages().slice(startIndex, startIndex + itemsPerPage);
 	});
 
-	onMount(() => {
-		// Simulate loading with mock data
-		setTimeout(() => {
-			images = mockImages;
-			totalImages = mockImages.length;
-			loading = false;
-		}, 1000);
+	// Handle GraphQL errors
+	$effect(() => {
+		if (error) {
+			showError(`Failed to load images: ${error.message}`);
+		}
 	});
 
 	function handleAddImage() {
@@ -152,38 +105,63 @@
 
 	function handleClearFilters() {
 		searchQuery = '';
-		selectedStatuses = ['new', 'annotated', 'needs_reannotation'];
-		sortBy = 'created_at';
+		selectedStatuses = ['NEW', 'ANNOTATED', 'NEEDS_REANNOTATION'];
+		sortBy = 'createdAt';
 		sortOrder = 'desc';
 		currentPage = 1;
 	}
 
-	function handleImageStatusChange(
+	async function handleImageStatusChange(
 		imageId: string,
-		newStatus: 'new' | 'annotated' | 'needs_reannotation'
+		newStatus: 'NEW' | 'ANNOTATED' | 'NEEDS_REANNOTATION'
 	) {
-		images = images.map((img) => (img.id === imageId ? { ...img, status: newStatus } : img));
-		showSuccess(`Image status updated to ${newStatus.replace('_', ' ')}`);
+		try {
+			const input: ImageUpdateInput = { status: newStatus };
+			const result = await client
+				.mutation(UPDATE_IMAGE, {
+					id: imageId,
+					input
+				})
+				.toPromise();
+
+			if (result.error) {
+				throw new Error(result.error.message);
+			}
+
+			// Refetch images to get updated data
+			imagesQuery.reexecute({ requestPolicy: 'network-only' });
+			showSuccess(`Image status updated to ${newStatus.replace('_', ' ')}`);
+		} catch (err) {
+			showError(
+				`Failed to update image status: ${err instanceof Error ? err.message : 'Unknown error'}`
+			);
+		}
 	}
 
-	function handleDeleteImage(imageId: string) {
-		images = images.filter((img) => img.id !== imageId);
-		totalImages = images.length;
-		showSuccess('Image deleted successfully');
+	async function handleDeleteImage(imageId: string) {
+		if (!confirm('Are you sure you want to delete this image? This action cannot be undone.')) {
+			return;
+		}
+
+		try {
+			const result = await client.mutation(DELETE_IMAGE, { id: imageId }).toPromise();
+
+			if (result.error) {
+				throw new Error(result.error.message);
+			}
+
+			// Refetch images to get updated data
+			imagesQuery.reexecute({ requestPolicy: 'network-only' });
+			showSuccess('Image deleted successfully');
+		} catch (err) {
+			showError(`Failed to delete image: ${err instanceof Error ? err.message : 'Unknown error'}`);
+		}
 	}
 
-	async function handleAddImageSubmit(imageUrl: string) {
-		const newImage = {
-			id: Date.now().toString(),
-			url: imageUrl,
-			width: undefined,
-			height: undefined,
-			status: 'new' as const,
-			created_at: new Date().toISOString()
-		};
-
-		images = [newImage, ...images];
-		totalImages = images.length;
+	function handleAddImageSubmit() {
+		// This will be called by AddImageDialog after successful image creation
+		// Refetch images to get updated data
+		imagesQuery.reexecute({ requestPolicy: 'network-only' });
 	}
 </script>
 
@@ -227,7 +205,24 @@
 	<!-- Results Summary -->
 	<div class="mb-4 text-sm text-gray-600">
 		{#if loading}
-			Loading images...
+			<div class="flex items-center">
+				<div
+					class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"
+				></div>
+				Loading images...
+			</div>
+		{:else if error}
+			<div class="flex items-center text-red-600">
+				<svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
+					/>
+				</svg>
+				Failed to load images
+			</div>
 		{:else}
 			Showing {paginatedImages().length} of {filteredImages().length} images
 			{#if filteredImages().length !== totalImages}
@@ -238,13 +233,40 @@
 
 	<!-- Images Grid -->
 	<div class="mb-6">
-		<ImageGrid
-			images={paginatedImages()}
-			{loading}
-			onStatusChange={handleImageStatusChange}
-			onDelete={handleDeleteImage}
-			onAddImage={handleAddImage}
-		/>
+		{#if error}
+			<!-- Error State -->
+			<div class="rounded-lg bg-red-50 p-8 text-center">
+				<svg
+					class="mx-auto mb-4 h-16 w-16 text-red-400"
+					fill="none"
+					viewBox="0 0 24 24"
+					stroke="currentColor"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
+					/>
+				</svg>
+				<h3 class="mb-2 text-lg font-semibold text-red-800">Unable to load images</h3>
+				<p class="mb-4 text-red-600">{error.message}</p>
+				<button
+					onclick={() => imagesQuery.reexecute({ requestPolicy: 'network-only' })}
+					class="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:outline-none"
+				>
+					Try Again
+				</button>
+			</div>
+		{:else}
+			<ImageGrid
+				images={paginatedImages()}
+				{loading}
+				onStatusChange={handleImageStatusChange}
+				onDelete={handleDeleteImage}
+				onAddImage={handleAddImage}
+			/>
+		{/if}
 	</div>
 
 	<!-- Pagination -->

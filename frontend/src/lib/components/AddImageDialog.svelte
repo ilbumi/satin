@@ -1,14 +1,19 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { getContextClient } from '@urql/svelte';
 	import { showError, showSuccess } from '$lib/stores/toast';
+	import { CREATE_IMAGE, type ImageCreateInput } from '$lib/graphql/operations/images';
 
 	interface Props {
 		open: boolean;
 		onClose: () => void;
-		onSubmit: (imageUrl: string) => Promise<void>;
+		onSubmit: () => void; // Changed to simple callback after successful creation
 	}
 
 	let { open, onClose, onSubmit }: Props = $props();
+
+	// URQL client for mutations
+	const client = getContextClient();
 
 	let imageUrl = $state('');
 	let isValidating = $state(false);
@@ -126,8 +131,17 @@
 		isSubmitting = true;
 
 		try {
-			await onSubmit(url);
+			const input: ImageCreateInput = { url };
+
+			// Execute the mutation using URQL client
+			const result = await client.mutation(CREATE_IMAGE, { input }).toPromise();
+
+			if (result.error) {
+				throw new Error(result.error.message);
+			}
+
 			showSuccess('Image added successfully!');
+			onSubmit(); // Notify parent to refetch data
 			handleClose();
 		} catch (error) {
 			showError(error instanceof Error ? error.message : 'Failed to add image');

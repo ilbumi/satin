@@ -8,15 +8,15 @@
 		url: string;
 		width?: number;
 		height?: number;
-		status: 'new' | 'annotated' | 'needs_reannotation';
-		created_at: string;
+		status: 'NEW' | 'ANNOTATED' | 'NEEDS_REANNOTATION';
+		createdAt: string;
 	}
 
 	interface Props {
 		image: ImageData;
 		onStatusChange?: (
 			imageId: string,
-			newStatus: 'new' | 'annotated' | 'needs_reannotation'
+			newStatus: 'NEW' | 'ANNOTATED' | 'NEEDS_REANNOTATION'
 		) => void;
 		onDelete?: (imageId: string) => void;
 	}
@@ -41,16 +41,13 @@
 		goto(`/annotate?imageId=${image.id}`);
 	}
 
-	function handleStatusChange(newStatus: 'new' | 'annotated' | 'needs_reannotation') {
+	function handleStatusChange(newStatus: 'NEW' | 'ANNOTATED' | 'NEEDS_REANNOTATION') {
 		onStatusChange?.(image.id, newStatus);
 		showSuccess(`Image status updated to ${newStatus.replace('_', ' ')}`);
 	}
 
 	function handleDelete() {
-		if (confirm('Are you sure you want to delete this image?')) {
-			onDelete?.(image.id);
-			showSuccess('Image deleted successfully');
-		}
+		onDelete?.(image.id);
 	}
 
 	function formatDate(dateStr: string): string {
@@ -66,7 +63,7 @@
 	tabindex="0"
 >
 	<!-- Image Container -->
-	<div class="relative aspect-video bg-gray-100">
+	<div class="relative w-full overflow-hidden bg-gray-100" style="aspect-ratio: 16/9;">
 		{#if !imageError}
 			<img
 				src={image.url}
@@ -110,44 +107,47 @@
 		</div>
 
 		<!-- Actions Overlay -->
-		{#if showActions && imageLoaded}
+		{#if showActions && (imageLoaded || imageError)}
 			<div
 				class="bg-opacity-50 absolute inset-0 bg-black opacity-0 transition-opacity duration-200 group-hover:opacity-100"
 			>
 				<div class="flex h-full items-center justify-center space-x-2">
-					<button
-						onclick={handleAnnotate}
-						class="rounded-lg bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-						title="Annotate this image"
-						aria-label="Annotate this image"
-					>
-						<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-							/>
-						</svg>
-					</button>
-
-					<!-- Status Change Dropdown -->
-					<div class="relative">
-						<select
-							onchange={(e) => {
-								const target = e.target as HTMLSelectElement;
-								handleStatusChange(target.value as 'new' | 'annotated' | 'needs_reannotation');
-							}}
-							value={image.status}
-							class="rounded-lg border bg-white px-2 py-1 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
-							title="Change status"
+					{#if imageLoaded}
+						<button
+							onclick={handleAnnotate}
+							class="rounded-lg bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+							title="Annotate this image"
+							aria-label="Annotate this image"
 						>
-							<option value="new">New</option>
-							<option value="annotated">Annotated</option>
-							<option value="needs_reannotation">Needs Re-annotation</option>
-						</select>
-					</div>
+							<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+								/>
+							</svg>
+						</button>
 
+						<!-- Status Change Dropdown -->
+						<div class="relative">
+							<select
+								onchange={(e) => {
+									const target = e.target as HTMLSelectElement;
+									handleStatusChange(target.value as 'NEW' | 'ANNOTATED' | 'NEEDS_REANNOTATION');
+								}}
+								value={image.status}
+								class="rounded-lg border bg-white px-2 py-1 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+								title="Change status"
+							>
+								<option value="NEW">New</option>
+								<option value="ANNOTATED">Annotated</option>
+								<option value="NEEDS_REANNOTATION">Needs Re-annotation</option>
+							</select>
+						</div>
+					{/if}
+
+					<!-- Delete button - always available -->
 					<button
 						onclick={handleDelete}
 						class="rounded-lg bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:outline-none"
@@ -173,7 +173,7 @@
 		<div class="mb-2 flex items-center justify-between">
 			<StatusBadge status={image.status} />
 			<span class="text-xs text-gray-500">
-				{formatDate(image.created_at)}
+				{formatDate(image.createdAt)}
 			</span>
 		</div>
 

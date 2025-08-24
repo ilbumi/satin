@@ -38,9 +38,9 @@
 	}
 
 	const statusOptions = [
-		{ value: 'new', label: 'New', icon: '🆕' },
-		{ value: 'annotated', label: 'Annotated', icon: '✅' },
-		{ value: 'needs_reannotation', label: 'Needs Re-annotation', icon: '⚠️' }
+		{ value: 'NEW', label: 'New', icon: '🆕' },
+		{ value: 'ANNOTATED', label: 'Annotated', icon: '✅' },
+		{ value: 'NEEDS_REANNOTATION', label: 'Needs Re-annotation', icon: '⚠️' }
 	];
 </script>
 
@@ -114,7 +114,7 @@
 				}}
 				class="block w-full rounded-md border-gray-300 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
 			>
-				<option value="created_at">Date Added</option>
+				<option value="createdAt">Date Added</option>
 				<option value="status">Status</option>
 				<option value="url">URL</option>
 				<option value="width">Width</option>

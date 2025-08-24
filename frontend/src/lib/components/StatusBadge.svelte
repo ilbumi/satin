@@ -1,27 +1,27 @@
 <script lang="ts">
 	interface Props {
-		status: 'new' | 'annotated' | 'needs_reannotation';
+		status: 'NEW' | 'ANNOTATED' | 'NEEDS_REANNOTATION';
 		size?: 'sm' | 'md' | 'lg';
 	}
 
 	let { status, size = 'md' }: Props = $props();
 
 	const statusConfig = {
-		new: {
+		NEW: {
 			label: 'New',
 			icon: '🆕',
 			bgColor: 'bg-blue-50',
 			textColor: 'text-blue-700',
 			borderColor: 'border-blue-200'
 		},
-		annotated: {
+		ANNOTATED: {
 			label: 'Annotated',
 			icon: '✅',
 			bgColor: 'bg-green-50',
 			textColor: 'text-green-700',
 			borderColor: 'border-green-200'
 		},
-		needs_reannotation: {
+		NEEDS_REANNOTATION: {
 			label: 'Re-annotate',
 			icon: '⚠️',
 			bgColor: 'bg-orange-50',

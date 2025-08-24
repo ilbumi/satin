@@ -19,10 +19,7 @@ describe('BaseLayout', () => {
 
 	it('renders custom title', async () => {
 		render(BaseLayout, {
-			props: {
-				title: 'Custom Title'
-			},
-			target: document.body
+			title: 'Custom Title'
 		});
 
 		await expect.poll(() => document.title).toBe('Custom Title');
@@ -30,10 +27,7 @@ describe('BaseLayout', () => {
 
 	it('hides header when showHeader is false', async () => {
 		render(BaseLayout, {
-			props: {
-				showHeader: false
-			},
-			target: document.body
+			showHeader: false
 		});
 
 		const heading = page.getByText('Satin');
@@ -42,10 +36,7 @@ describe('BaseLayout', () => {
 
 	it('shows footer when showFooter is true', async () => {
 		render(BaseLayout, {
-			props: {
-				showFooter: true
-			},
-			target: document.body
+			showFooter: true
 		});
 
 		const footer = page.getByText('© 2025 Satin - Image Annotation Tool');

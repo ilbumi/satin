@@ -7,8 +7,8 @@
 		url: string;
 		width?: number;
 		height?: number;
-		status: 'new' | 'annotated' | 'needs_reannotation';
-		created_at: string;
+		status: 'NEW' | 'ANNOTATED' | 'NEEDS_REANNOTATION';
+		createdAt: string;
 	}
 
 	interface Props {
@@ -16,7 +16,7 @@
 		loading?: boolean;
 		onStatusChange?: (
 			imageId: string,
-			newStatus: 'new' | 'annotated' | 'needs_reannotation'
+			newStatus: 'NEW' | 'ANNOTATED' | 'NEEDS_REANNOTATION'
 		) => void;
 		onDelete?: (imageId: string) => void;
 		onAddImage?: () => void;

@@ -163,7 +163,7 @@ class Mutation:
             return Image.from_model(image) if image else None
 
         # Create ImageUpdate model from update_data
-        image_update = ImageUpdate(**update_data)
+        image_update = ImageUpdate(**update_data)  # type: ignore[arg-type]
         image = await dependencies.image_repo.update_by_id(id, image_update)
         return Image.from_model(image) if image else None
 
