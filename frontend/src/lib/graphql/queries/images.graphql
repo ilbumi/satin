@@ -1,0 +1,48 @@
+query GetImages($limit: Int, $offset: Int) {
+	images(limit: $limit, offset: $offset) {
+		id
+		url
+		width
+		height
+		format
+		status
+		createdAt
+		updatedAt
+		annotationVersions {
+			id
+			version
+			createdAt
+		}
+	}
+}
+
+query GetImage($id: ID!) {
+	image(id: $id) {
+		id
+		url
+		width
+		height
+		format
+		status
+		createdAt
+		updatedAt
+		currentAnnotations {
+			id
+			x
+			y
+			width
+			height
+			tags {
+				id
+				name
+				color
+			}
+			description
+			mlDescription
+			confidence
+			source
+			createdAt
+			updatedAt
+		}
+	}
+}

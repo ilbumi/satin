@@ -1,0 +1,41 @@
+query GetTags($parentId: ID) {
+	tags(parentId: $parentId) {
+		id
+		name
+		color
+		fullPath
+		usageCount
+		parentId
+		createdAt
+		children {
+			id
+			name
+			color
+			usageCount
+		}
+	}
+}
+
+query GetTagHierarchy {
+	tagHierarchy {
+		id
+		name
+		color
+		fullPath
+		usageCount
+		children {
+			id
+			name
+			color
+			fullPath
+			usageCount
+			children {
+				id
+				name
+				color
+				fullPath
+				usageCount
+			}
+		}
+	}
+}

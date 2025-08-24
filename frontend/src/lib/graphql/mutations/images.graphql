@@ -1,0 +1,41 @@
+mutation CreateImage($input: CreateImageInput!) {
+	createImage(input: $input) {
+		id
+		url
+		width
+		height
+		format
+		status
+		createdAt
+		updatedAt
+	}
+}
+
+mutation UpdateImage($id: ID!, $input: UpdateImageInput!) {
+	updateImage(id: $id, input: $input) {
+		id
+		url
+		width
+		height
+		format
+		status
+		createdAt
+		updatedAt
+	}
+}
+
+mutation DeleteImage($id: ID!) {
+	deleteImage(id: $id) {
+		success
+		message
+	}
+}
+
+mutation RequestMLPreAnnotation($imageId: ID!, $mlServiceId: String!) {
+	requestMLPreAnnotation(imageId: $imageId, mlServiceId: $mlServiceId) {
+		jobId
+		status
+		message
+		estimatedCompletionTime
+	}
+}

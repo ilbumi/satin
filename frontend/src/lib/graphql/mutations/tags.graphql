@@ -1,0 +1,32 @@
+mutation CreateTag($input: CreateTagInput!) {
+	createTag(input: $input) {
+		id
+		name
+		color
+		fullPath
+		parentId
+		usageCount
+		createdAt
+		updatedAt
+	}
+}
+
+mutation UpdateTag($id: ID!, $input: UpdateTagInput!) {
+	updateTag(id: $id, input: $input) {
+		id
+		name
+		color
+		fullPath
+		parentId
+		usageCount
+		createdAt
+		updatedAt
+	}
+}
+
+mutation DeleteTag($id: ID!) {
+	deleteTag(id: $id) {
+		success
+		message
+	}
+}
