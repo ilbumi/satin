@@ -1,25 +1,27 @@
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from strawberry.fastapi import GraphQLRouter
 
 from satin.config import get_settings
-from satin.database import check_database_health, get_database_client
-
-settings = get_settings()
+from satin.database import check_database_health
+from satin.dependencies import dependencies
+from satin.graphql.schema import schema
 
 # Initialize FastAPI application
 app = FastAPI(title="Satin API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors,
+    allow_origins=dependencies.settings.cors,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Initialize database client
-db_client = get_database_client(str(settings.mongo_dsn))
+# Create GraphQL router
+graphql_app = GraphQLRouter(schema)
+app.include_router(graphql_app, prefix="/graphql")
 
 
 @app.get("/")
@@ -31,7 +33,7 @@ async def root() -> dict[str, str]:
 @app.get("/health")
 async def health_check() -> dict[str, str | bool]:
     """Health check endpoint."""
-    db_healthy = await check_database_health(db_client)
+    db_healthy = await check_database_health(dependencies.db_client)
     status = "healthy" if db_healthy else "unhealthy"
 
     return {

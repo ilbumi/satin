@@ -12,6 +12,7 @@ dependencies = [
     "uvicorn[standard]>=0.32.0",
     "pydantic-settings>=2.8.0",
     "pymongo>=4.10.0",
+    "strawberry-graphql[fastapi]>=0.252.0",
 ]
 
 [project.optional-dependencies]
@@ -96,6 +97,7 @@ sort_by_size = true
 
 [dependency-groups]
 dev = [
+    "httpx>=0.24.0",
     "isort>=6.0.1",
     "mongomock-motor>=0.0.36",
     "mypy>=1.17.1",
