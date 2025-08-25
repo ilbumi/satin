@@ -59,6 +59,8 @@
 	"dependencies": {
 		"@urql/svelte": "^5.0.0",
 		"graphql": "^16.11.0",
+		"konva": "^9.3.22",
+		"svelte-konva": "1.0.0-next.5",
 		"urql": "^5.0.0"
 	}
 }

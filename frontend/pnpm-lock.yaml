@@ -14,6 +14,12 @@ importers:
       graphql:
         specifier: ^16.11.0
         version: 16.11.0
+      konva:
+        specifier: ^9.3.22
+        version: 9.3.22
+      svelte-konva:
+        specifier: 1.0.0-next.5
+        version: 1.0.0-next.5(konva@9.3.22)(svelte@5.38.2)
       urql:
         specifier: ^5.0.0
         version: 5.0.0(@urql/core@6.0.1(graphql@16.11.0))(react@19.1.1)
@@ -1960,6 +1966,9 @@ packages:
   known-css-properties@0.37.0:
     resolution: {integrity: sha512-JCDrsP4Z1Sb9JwG0aJ8Eo2r7k4Ou5MwmThS/6lcIe1ICyb7UBJKGRIUUdqc2ASdE/42lgz6zFUnzAIhtXnBVrQ==}
 
+  konva@9.3.22:
+    resolution: {integrity: sha512-yQI5d1bmELlD/fowuyfOp9ff+oamg26WOCkyqUyc+nczD/lhRa3EvD2MZOoc4c1293TAubW9n34fSQLgSeEgSw==}
+
   levn@0.4.1:
     resolution: {integrity: sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ==}
     engines: {node: '>= 0.8.0'}
@@ -2644,6 +2653,12 @@ packages:
     peerDependenciesMeta:
       svelte:
         optional: true
+
+  svelte-konva@1.0.0-next.5:
+    resolution: {integrity: sha512-6YxIeKegw++U9rbtpAvjLPQ9uBQgw729cZoP9RHIbn/XMSj6LJdDBf/AaKlL/e/n2dyH07F+SBFm4INNrpd68Q==}
+    peerDependencies:
+      konva: 8 - 9
+      svelte: ^5.0.0
 
   svelte@5.38.2:
     resolution: {integrity: sha512-iAcp/oFAWauVSGILdD67n7DiwgLHXZzWZIdzl7araRxu72jUr7PFAo2Iie7gXt0IbnlYvhxCb9GT3ZJUquO3PA==}
@@ -5046,6 +5061,8 @@ snapshots:
 
   known-css-properties@0.37.0: {}
 
+  konva@9.3.22: {}
+
   levn@0.4.1:
     dependencies:
       prelude-ls: 1.2.1
@@ -5624,6 +5641,11 @@ snapshots:
       postcss-scss: 4.0.9(postcss@8.5.6)
       postcss-selector-parser: 7.1.0
     optionalDependencies:
+      svelte: 5.38.2
+
+  svelte-konva@1.0.0-next.5(konva@9.3.22)(svelte@5.38.2):
+    dependencies:
+      konva: 9.3.22
       svelte: 5.38.2
 
   svelte@5.38.2:
