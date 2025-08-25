@@ -30,54 +30,37 @@ describe('annotate/+page.svelte', () => {
 		render(AnnotatePage);
 
 		const noImageHeading = page.getByText('No Image Loaded');
-		const description = page.getByText('Load an image URL to start annotating');
+		const description = page.getByText('Upload an image to start annotating');
+		const uploadButton = page.getByRole('button', { name: 'Upload Image' });
 
 		await expect.element(noImageHeading).toBeInTheDocument();
 		await expect.element(description).toBeInTheDocument();
-
-		// The 'Open Image Loader' button only appears when left sidebar is collapsed
-		// First, toggle the left sidebar to collapse it
-		const leftToggle = page.getByRole('button', { name: 'Toggle left sidebar' });
-		await leftToggle.click();
-
-		// Now the button should be visible
-		const openImageLoaderButton = page.getByRole('button', { name: 'Open Image Loader' });
-		await expect.element(openImageLoaderButton).toBeInTheDocument();
+		await expect.element(uploadButton).toBeInTheDocument();
 	});
 
 	it('renders sidebar with annotation tools', async () => {
 		render(AnnotatePage);
 
-		// Wait for component to mount and render
-		await new Promise((resolve) => setTimeout(resolve, 500));
-
-		const toolsHeading = page.getByText('Tools');
-		// Use title attribute instead of aria-label since the button uses title
-		const selectTool = page.getByTitle('Select (V)');
-		const boundingBoxTool = page.getByTitle('Bounding Box (B)');
-		const panTool = page.getByTitle('Pan (H)');
+		const toolsHeading = page.getByText('Annotation Tools');
+		const boundingBoxTool = page.getByText('🔲 Bounding Box');
 
 		await expect.element(toolsHeading).toBeInTheDocument();
-		await expect.element(selectTool).toBeInTheDocument();
 		await expect.element(boundingBoxTool).toBeInTheDocument();
-		await expect.element(panTool).toBeInTheDocument();
 	});
 
-	it('renders view options in tools panel', async () => {
+	it('renders labels section', async () => {
 		render(AnnotatePage);
 
 		// Wait for component to mount and render
 		await new Promise((resolve) => setTimeout(resolve, 500));
 
-		const viewOptionsHeading = page.getByText('View Options');
-		const showAnnotations = page.getByText('Show Annotations');
-		const showLabels = page.getByText('Show Labels');
-		const showConfidence = page.getByText('Show Confidence');
+		const labelsHeading = page.getByRole('heading', { name: 'Labels' });
+		const noLabelsText = page.getByText('No labels defined');
+		const addLabelButton = page.getByText('+ Add Label');
 
-		await expect.element(viewOptionsHeading).toBeInTheDocument();
-		await expect.element(showAnnotations).toBeInTheDocument();
-		await expect.element(showLabels).toBeInTheDocument();
-		await expect.element(showConfidence).toBeInTheDocument();
+		await expect.element(labelsHeading).toBeInTheDocument();
+		await expect.element(noLabelsText).toBeInTheDocument();
+		await expect.element(addLabelButton).toBeInTheDocument();
 	});
 
 	it('renders annotations section', async () => {
@@ -86,86 +69,73 @@ describe('annotate/+page.svelte', () => {
 		// Wait for component to mount and render
 		await new Promise((resolve) => setTimeout(resolve, 500));
 
-		const annotationsHeading = page.getByText('Annotations (0)');
-		const noAnnotationsText = page.getByText('No annotations yet. Draw a bounding box to start.');
+		const annotationsHeading = page.getByRole('heading', { name: 'Annotations' });
+		const noAnnotationsText = page.getByText('No annotations yet');
 
 		await expect.element(annotationsHeading).toBeInTheDocument();
 		await expect.element(noAnnotationsText).toBeInTheDocument();
 	});
 
-	it('shows sidebar toggle buttons', async () => {
+	it('shows mobile sidebar toggle on mobile', async () => {
+		// Set mobile viewport
+		Object.defineProperty(window, 'innerWidth', {
+			value: 500
+		});
+
 		render(AnnotatePage);
 
-		const leftSidebarToggle = page.getByRole('button', { name: 'Toggle left sidebar' });
-		const rightSidebarToggle = page.getByRole('button', { name: 'Toggle right sidebar' });
-
-		await expect.element(leftSidebarToggle).toBeInTheDocument();
-		await expect.element(rightSidebarToggle).toBeInTheDocument();
+		const mobileToggle = page.getByRole('button', { name: 'Toggle sidebar' });
+		await expect.element(mobileToggle).toBeInTheDocument();
 	});
 
-	it('shows keyboard shortcuts panel', async () => {
+	it('handles upload button click with loading state', async () => {
 		render(AnnotatePage);
 
-		// Wait for component to mount and render
-		await new Promise((resolve) => setTimeout(resolve, 500));
+		const uploadButton = page.getByRole('button', { name: 'Upload Image' });
+		await uploadButton.click();
 
-		const shortcutsHeading = page.getByText('Keyboard Shortcuts');
-		const selectShortcut = page.getByText('Select tool');
-		const bboxShortcut = page.getByText('Bounding box tool');
-		const panShortcut = page.getByText('Pan tool');
+		// Button should show loading state
+		const loadingButton = page.getByText('Loading...');
+		await expect.element(loadingButton).toBeInTheDocument();
 
-		await expect.element(shortcutsHeading).toBeInTheDocument();
-		await expect.element(selectShortcut).toBeInTheDocument();
-		await expect.element(bboxShortcut).toBeInTheDocument();
-		await expect.element(panShortcut).toBeInTheDocument();
+		// Wait for loading to finish (simulated 2 second delay)
+		await new Promise((resolve) => setTimeout(resolve, 2100));
+
+		// Button should be back to normal
+		const normalButton = page.getByRole('button', { name: 'Upload Image' });
+		await expect.element(normalButton).toBeInTheDocument();
 	});
 
 	it('sidebar can be toggled', async () => {
 		render(AnnotatePage);
 
-		// Find the right sidebar by looking for the annotations panel container
-		const rightSidebarContainer = document.querySelector('.border-l.bg-gray-50')?.parentElement;
-		expect(rightSidebarContainer).toBeInTheDocument();
-		expect(rightSidebarContainer).toHaveClass('w-80');
+		// Find the sidebar toggle button (the one within the Sidebar component)
+		const sidebar = document.querySelector('.z-50.flex.flex-col');
+		expect(sidebar).toBeInTheDocument();
+		expect(sidebar).toHaveClass(/w-80/);
 
-		// Click the right sidebar toggle button
-		const toggleButton = page.getByRole('button', { name: 'Toggle right sidebar' });
+		// Click the sidebar toggle button
+		const toggleButton = page.getByRole('button', { name: 'Collapse sidebar' });
 		await toggleButton.click();
 
 		// Sidebar should be collapsed
-		expect(rightSidebarContainer).toHaveClass('w-0');
+		expect(sidebar).toHaveClass(/w-12/);
 	});
 
-	it('renders select tool as active by default', async () => {
+	it('renders bounding box tool as active', async () => {
 		render(AnnotatePage);
 
-		// Wait for component to mount and render
-		await new Promise((resolve) => setTimeout(resolve, 500));
-
-		const selectTool = page.getByTitle('Select (V)');
-		const boundingBoxTool = page.getByTitle('Bounding Box (B)');
-
-		// Select tool should be active by default
-		await expect.element(selectTool).toBeInTheDocument();
-		await expect.element(selectTool).toHaveClass(/bg-blue-500/);
-
-		// Bounding box tool should not be active
+		const boundingBoxTool = page.getByRole('button', { name: '🔲 Bounding Box' });
 		await expect.element(boundingBoxTool).toBeInTheDocument();
-		await expect.element(boundingBoxTool).toHaveClass(/bg-gray-100/);
+		await expect.element(boundingBoxTool).toHaveClass(/bg-blue-50/);
 	});
 
-	it('shows zoom controls', async () => {
+	it('shows future tools message', async () => {
 		render(AnnotatePage);
 
-		// Wait for component to mount and render
-		await new Promise((resolve) => setTimeout(resolve, 500));
-
-		const zoomHeading = page.getByRole('heading', { name: 'Zoom' });
-		const zoomPercentage = page.getByText('100%');
-		const resetZoomButton = page.getByRole('button', { name: 'Reset Zoom' });
-
-		await expect.element(zoomHeading).toBeInTheDocument();
-		await expect.element(zoomPercentage).toBeInTheDocument();
-		await expect.element(resetZoomButton).toBeInTheDocument();
+		const futureToolsMessage = page.getByText(
+			'Additional tools (points, polygons) coming in future updates'
+		);
+		await expect.element(futureToolsMessage).toBeInTheDocument();
 	});
 });

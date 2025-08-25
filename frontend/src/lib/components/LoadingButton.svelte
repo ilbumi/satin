@@ -9,7 +9,6 @@
 		children?: import('svelte').Snippet;
 		onclick?: () => void;
 		type?: 'button' | 'submit';
-		class?: string;
 	}
 
 	let {
@@ -19,8 +18,7 @@
 		size = 'md',
 		children,
 		onclick,
-		type = 'button',
-		class: className = ''
+		type = 'button'
 	}: Props = $props();
 
 	const baseClasses =
@@ -52,7 +50,7 @@
 	{type}
 	{onclick}
 	disabled={isDisabled}
-	class="{baseClasses} {variantClasses[variant]} {sizeClasses[size]} {className}"
+	class="{baseClasses} {variantClasses[variant]} {sizeClasses[size]}"
 >
 	{#if loading}
 		<LoadingSpinner size={spinnerSizes[size]} color="white" />
