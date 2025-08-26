@@ -16,7 +16,7 @@ class TestAppSettings:
         settings = get_settings()
         assert settings.backend_host == "localhost"
         assert settings.backend_port == 8000
-        assert settings.reload
+        assert not settings.reload
         assert settings.cors == ["http://localhost:5173"]
 
     def test_environment_overrides(self):
