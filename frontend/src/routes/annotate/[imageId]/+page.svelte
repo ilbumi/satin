@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import AnnotationCanvas from '$lib/components/AnnotationCanvas.svelte';
+	import AnnotationEditForm from '$lib/components/AnnotationEditForm.svelte';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { queryStore, getContextClient } from '@urql/svelte';
@@ -18,6 +19,8 @@
 		width: number;
 		height: number;
 		description?: string;
+		tags: string[];
+		confidence?: number;
 		createdAt: string;
 		updatedAt: string;
 	}
@@ -26,6 +29,7 @@
 	let isMobile = $state(false);
 	let annotations = $state<BoundingBox[]>([]);
 	let selectedAnnotationId = $state<string | null>(null);
+	let editingAnnotationId = $state<string | null>(null);
 	let canvasRef: AnnotationCanvas | undefined = $state();
 	let saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
@@ -77,9 +81,11 @@
 
 		checkMobile();
 		window.addEventListener('resize', checkMobile);
+		window.addEventListener('keydown', handleKeydown);
 
 		return () => {
 			window.removeEventListener('resize', checkMobile);
+			window.removeEventListener('keydown', handleKeydown);
 		};
 	});
 
@@ -102,7 +108,67 @@
 
 	function deleteAnnotation(annotationId: string) {
 		canvasRef?.deleteAnnotationById(annotationId);
+		// Close edit mode if we're deleting the annotation being edited
+		if (editingAnnotationId === annotationId) {
+			editingAnnotationId = null;
+		}
 		// Annotations will be updated via the change callback
+	}
+
+	function startEditingAnnotation(annotationId: string) {
+		editingAnnotationId = annotationId;
+		selectedAnnotationId = annotationId;
+		canvasRef?.selectAnnotationById(annotationId);
+	}
+
+	function stopEditingAnnotation() {
+		editingAnnotationId = null;
+	}
+
+	function handleAnnotationSave(updatedAnnotation: BoundingBox) {
+		// Update the local annotations array with the saved data
+		annotations = annotations.map((ann) =>
+			ann.id === updatedAnnotation.id ? updatedAnnotation : ann
+		);
+		editingAnnotationId = null;
+	}
+
+	function handleDoubleClickAnnotation(annotationId: string) {
+		startEditingAnnotation(annotationId);
+	}
+
+	// Keyboard shortcuts
+	function handleKeydown(event: KeyboardEvent) {
+		// Don't trigger shortcuts when typing in inputs
+		if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+			return;
+		}
+
+		switch (event.key.toLowerCase()) {
+			case 'e':
+				if (selectedAnnotationId && editingAnnotationId !== selectedAnnotationId) {
+					startEditingAnnotation(selectedAnnotationId);
+				}
+				break;
+			case 'escape':
+				if (editingAnnotationId) {
+					stopEditingAnnotation();
+				} else if (selectedAnnotationId) {
+					selectedAnnotationId = null;
+					canvasRef?.selectAnnotationById(''); // Clear selection
+				}
+				break;
+			case 'tab':
+				event.preventDefault();
+				if (annotations.length > 0) {
+					const currentIndex = selectedAnnotationId
+						? annotations.findIndex((ann) => ann.id === selectedAnnotationId)
+						: -1;
+					const nextIndex = (currentIndex + 1) % annotations.length;
+					selectAnnotation(annotations[nextIndex].id);
+				}
+				break;
+		}
 	}
 </script>
 
@@ -278,6 +344,7 @@
 					initialAnnotations={backendAnnotations}
 					onAnnotationsChange={handleAnnotationsChange}
 					onSaveStatusChange={handleSaveStatusChange}
+					onDoubleClickAnnotation={handleDoubleClickAnnotation}
 				/>
 			</div>
 
@@ -313,39 +380,96 @@
 						{:else}
 							<div class="space-y-2">
 								{#each annotations as annotation (annotation.id)}
-									<div
-										class="cursor-pointer rounded border p-3 transition-colors {selectedAnnotationId ===
-										annotation.id
-											? 'border-blue-500 bg-blue-50'
-											: 'border-gray-200 hover:border-gray-300'}"
-										onclick={() => selectAnnotation(annotation.id)}
-										onkeydown={(e) => e.key === 'Enter' && selectAnnotation(annotation.id)}
-										role="button"
-										tabindex="0"
-									>
-										<div class="mb-2 flex items-center justify-between">
-											<span class="text-sm font-medium">
-												{annotation.description || 'No description'}
-											</span>
-											<button
-												onclick={(e) => {
-													e.stopPropagation();
-													deleteAnnotation(annotation.id);
-												}}
-												class="text-xs text-red-500 hover:text-red-700"
-												title="Delete annotation"
-											>
-												🗑️
-											</button>
+									{#if editingAnnotationId === annotation.id}
+										<!-- Edit Form -->
+										<AnnotationEditForm
+											{annotation}
+											onSave={handleAnnotationSave}
+											onCancel={stopEditingAnnotation}
+										/>
+									{:else}
+										<!-- Normal Annotation Display -->
+										<div
+											class="cursor-pointer rounded border p-3 transition-colors {selectedAnnotationId ===
+											annotation.id
+												? 'border-blue-500 bg-blue-50'
+												: 'border-gray-200 hover:border-gray-300'}"
+											onclick={() => selectAnnotation(annotation.id)}
+											onkeydown={(e) => e.key === 'Enter' && selectAnnotation(annotation.id)}
+											role="button"
+											tabindex="0"
+										>
+											<div class="mb-2 flex items-center justify-between">
+												<span class="text-sm font-medium">
+													{annotation.description || 'No description'}
+												</span>
+												<div class="flex gap-1">
+													<button
+														onclick={(e) => {
+															e.stopPropagation();
+															startEditingAnnotation(annotation.id);
+														}}
+														class="text-xs text-blue-500 hover:text-blue-700"
+														title="Edit annotation (E)"
+													>
+														✏️
+													</button>
+													<button
+														onclick={(e) => {
+															e.stopPropagation();
+															deleteAnnotation(annotation.id);
+														}}
+														class="text-xs text-red-500 hover:text-red-700"
+														title="Delete annotation (Delete)"
+													>
+														🗑️
+													</button>
+												</div>
+											</div>
+
+											{#if annotation.tags && annotation.tags.length > 0}
+												<div class="mb-1 flex flex-wrap gap-1">
+													{#each annotation.tags as tag (tag)}
+														<span
+															class="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600"
+														>
+															{tag}
+														</span>
+													{/each}
+												</div>
+											{/if}
+
+											<div class="text-xs text-gray-600">
+												{Math.round(annotation.width)}×{Math.round(annotation.height)}
+												at ({Math.round(annotation.x)}, {Math.round(annotation.y)})
+												{#if annotation.confidence}
+													• {Math.round(annotation.confidence * 100)}%
+												{/if}
+											</div>
 										</div>
-										<div class="text-xs text-gray-600">
-											{Math.round(annotation.width)}×{Math.round(annotation.height)}
-											at ({Math.round(annotation.x)}, {Math.round(annotation.y)})
-										</div>
-									</div>
+									{/if}
 								{/each}
 							</div>
 						{/if}
+					</div>
+
+					<!-- Keyboard Shortcuts -->
+					<div>
+						<h3 class="mb-4 text-lg font-semibold">Keyboard Shortcuts</h3>
+						<div class="space-y-1 text-xs text-gray-600">
+							<div>
+								<kbd class="rounded bg-gray-100 px-1">S</kbd> /
+								<kbd class="rounded bg-gray-100 px-1">D</kbd> - Select / Draw mode
+							</div>
+							<div><kbd class="rounded bg-gray-100 px-1">E</kbd> - Edit selected annotation</div>
+							<div><kbd class="rounded bg-gray-100 px-1">Tab</kbd> - Navigate annotations</div>
+							<div>
+								<kbd class="rounded bg-gray-100 px-1">Esc</kbd> - Cancel edit / Clear selection
+							</div>
+							<div>
+								<kbd class="rounded bg-gray-100 px-1">Del</kbd> - Delete selected annotation
+							</div>
+						</div>
 					</div>
 				</div>
 			</Sidebar>

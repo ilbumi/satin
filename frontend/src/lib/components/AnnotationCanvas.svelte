@@ -19,6 +19,7 @@
 		height?: number;
 		onAnnotationsChange?: (annotations: BoundingBox[]) => void;
 		onSaveStatusChange?: (status: 'idle' | 'saving' | 'saved' | 'error') => void;
+		onDoubleClickAnnotation?: (annotationId: string) => void;
 	}
 
 	interface BoundingBox {
@@ -28,6 +29,7 @@
 		width: number;
 		height: number;
 		description?: string;
+		tags: string[];
 		confidence?: number;
 		source?: string;
 		createdAt: string;
@@ -45,7 +47,8 @@
 		width = 800,
 		height = 600,
 		onAnnotationsChange,
-		onSaveStatusChange
+		onSaveStatusChange,
+		onDoubleClickAnnotation
 	}: Props = $props();
 
 	// GraphQL client for backend operations
@@ -77,6 +80,10 @@
 	// Save state
 	let saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
+	// Double-click tracking
+	let lastClickTime = 0;
+	let lastClickedBoxId: string | null = null;
+
 	// Convert backend annotation to frontend bounding box
 	function annotationToBoundingBox(annotation: AnnotationData): BoundingBox {
 		return {
@@ -86,6 +93,7 @@
 			width: annotation.boundingBox.width,
 			height: annotation.boundingBox.height,
 			description: annotation.description,
+			tags: annotation.tags,
 			confidence: annotation.confidence,
 			source: annotation.source,
 			createdAt: annotation.createdAt,
@@ -586,7 +594,15 @@
 		if (mode === 'select') {
 			// Select mode: handle selection, move, and resize
 			const clickedBox = findBoxAtPoint(canvasX, canvasY);
+			const currentTime = Date.now();
+
 			if (clickedBox && clickedBox.id === selectedBoxId) {
+				// Check for double-click (within 300ms of last click on same box)
+				if (lastClickedBoxId === clickedBox.id && currentTime - lastClickTime < 300) {
+					onDoubleClickAnnotation?.(clickedBox.id);
+					return;
+				}
+
 				// Check if clicking on a resize handle
 				const handle = getHandleAtPoint(canvasX, canvasY, clickedBox);
 				if (handle) {
@@ -607,10 +623,13 @@
 					x: canvasX - boxCanvasCoords.x,
 					y: canvasY - boxCanvasCoords.y
 				};
-				return;
 			}
 
 			if (clickedBox) {
+				// Update click tracking
+				lastClickTime = currentTime;
+				lastClickedBoxId = clickedBox.id;
+
 				selectedBoxId = clickedBox.id;
 				drawCanvas();
 				return;
@@ -771,6 +790,7 @@
 						width: clampedWidth,
 						height: clampedHeight,
 						description: '',
+						tags: [],
 						createdAt: now,
 						updatedAt: now,
 						_isNew: true,
