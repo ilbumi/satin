@@ -41,7 +41,7 @@ jobs:
 
       - name: Run tests with coverage
         working-directory: frontend
-        run: pnpm test --coverage
+        run: pnpm test -- --coverage
 
       - name: Upload frontend coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -57,6 +57,12 @@ jobs:
   backend:
     name: Backend CI
     runs-on: ubuntu-latest
+
+    env:
+      SATIN_MONGO_DSN: mongodb://test-user:test-password@localhost:27017/test
+      SATIN_BACKEND_HOST: localhost
+      SATIN_BACKEND_PORT: 8000
+      SATIN_RELOAD: false
 
     steps:
       - name: Checkout code
