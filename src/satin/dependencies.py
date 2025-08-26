@@ -9,7 +9,6 @@ from satin.database import get_database_client
 from satin.repositories.annotation import AnnotationRepository
 from satin.repositories.image import ImageRepository
 from satin.repositories.ml_job import MLJobRepository
-from satin.repositories.tag import TagRepository
 
 
 class Dependencies:
@@ -34,7 +33,6 @@ class Dependencies:
         # Initialize repositories once
         self.image_repo = ImageRepository(self.db)
         self.annotation_repo = AnnotationRepository(self.db)
-        self.tag_repo = TagRepository(self.db)
         self.ml_job_repo = MLJobRepository(self.db)
 
 

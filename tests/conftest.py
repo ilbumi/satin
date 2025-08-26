@@ -13,7 +13,6 @@ from satin.dependencies import dependencies
 from satin.repositories.annotation import AnnotationRepository
 from satin.repositories.image import ImageRepository
 from satin.repositories.ml_job import MLJobRepository
-from satin.repositories.tag import TagRepository
 
 
 class MockDependencies:
@@ -22,7 +21,6 @@ class MockDependencies:
     def __init__(self, mock_db: AsyncMongoMockDatabase):
         self.image_repo = ImageRepository(mock_db)
         self.annotation_repo = AnnotationRepository(mock_db)
-        self.tag_repo = TagRepository(mock_db)
         self.ml_job_repo = MLJobRepository(mock_db)
 
 
@@ -46,7 +44,6 @@ def test_client(mock_dependencies: MockDependencies) -> TestClient:
     # Override the global dependencies
     dependencies.image_repo = mock_dependencies.image_repo
     dependencies.annotation_repo = mock_dependencies.annotation_repo
-    dependencies.tag_repo = mock_dependencies.tag_repo
     dependencies.ml_job_repo = mock_dependencies.ml_job_repo
 
     return TestClient(app)

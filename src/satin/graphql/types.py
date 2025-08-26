@@ -10,7 +10,6 @@ from satin.models.annotation import BoundingBox as BoundingBoxModel
 from satin.models.image import Image as ImageModel
 from satin.models.ml_job import MLJob as MLJobModel
 from satin.models.ml_job import MLJobStatus
-from satin.models.tag import Tag as TagModel
 
 
 @strawberry.enum
@@ -146,58 +145,6 @@ class AnnotationUpdateInput:
 
 
 @strawberry.type
-class Tag:
-    """GraphQL Tag type."""
-
-    id: str
-    name: str
-    description: str
-    parent_id: str | None
-    path: str
-    depth: int
-    color: str | None
-    usage_count: int
-    created_at: str
-    updated_at: str
-
-    @classmethod
-    def from_model(cls, tag: TagModel) -> "Tag":
-        """Create GraphQL Tag from model."""
-        return cls(
-            id=str(tag.id) if tag.id else "",
-            name=tag.name,
-            description=tag.description,
-            parent_id=tag.parent_id,
-            path=tag.path,
-            depth=tag.depth,
-            color=tag.color,
-            usage_count=tag.usage_count,
-            created_at=tag.created_at.isoformat(),
-            updated_at=tag.updated_at.isoformat(),
-        )
-
-
-@strawberry.input
-class TagCreateInput:
-    """Input for creating a tag."""
-
-    name: str
-    description: str = ""
-    parent_id: str | None = None
-    color: str | None = None
-
-
-@strawberry.input
-class TagUpdateInput:
-    """Input for updating a tag."""
-
-    name: str | None = None
-    description: str | None = None
-    parent_id: str | None = None
-    color: str | None = None
-
-
-@strawberry.type
 class MLJob:
     """GraphQL MLJob type."""
 
@@ -223,9 +170,7 @@ class MLJob:
             annotation_dict["created_at"] = datetime.now(UTC)
             annotation_dict["updated_at"] = datetime.now(UTC)
 
-            # Convert PyObjectId to string for tags
-            if "tags" in annotation_dict:
-                annotation_dict["tags"] = [str(tag) for tag in annotation_dict["tags"]]
+            # Tags are already strings, no conversion needed
 
             temp_annotation = AnnotationModel(**annotation_dict)
             prediction_annotations.append(Annotation.from_model(temp_annotation))

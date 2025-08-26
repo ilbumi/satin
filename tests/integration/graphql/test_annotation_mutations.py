@@ -3,7 +3,7 @@
 from fastapi.testclient import TestClient
 
 from tests.conftest import MockDependencies
-from tests.fixtures.sample_data import GRAPHQL_QUERIES, create_test_annotation, create_test_image, create_test_tag
+from tests.fixtures.sample_data import GRAPHQL_QUERIES, create_test_annotation, create_test_image
 
 
 class TestAnnotationMutations:
@@ -12,14 +12,11 @@ class TestAnnotationMutations:
         # Create test image first
         image = await mock_dependencies.image_repo.create(create_test_image("http://test.com/image.jpg"))
 
-        # Create test tag first
-        tag = await mock_dependencies.tag_repo.create_hierarchical(create_test_tag(name="test_tag"))
-
         annotation_input = {
             "imageId": str(image.id),
             "boundingBox": {"x": 10.0, "y": 20.0, "width": 100.0, "height": 50.0},
             "description": "Test annotation",
-            "tags": [str(tag.id)],
+            "tags": ["test_tag", "object"],
             "confidence": 0.95,
         }
 

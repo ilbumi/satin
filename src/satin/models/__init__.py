@@ -4,7 +4,6 @@ from .annotation import Annotation, AnnotationCreate, AnnotationUpdate, Bounding
 from .base import BaseModel, PyObjectId
 from .image import Image, ImageCreate, ImageStatus, ImageUpdate
 from .ml_job import MLJob, MLJobCreate, MLJobStatus, MLJobUpdate
-from .tag import Tag, TagCreate, TagUpdate
 
 __all__ = [
     "Annotation",
@@ -21,7 +20,4 @@ __all__ = [
     "MLJobStatus",
     "MLJobUpdate",
     "PyObjectId",
-    "Tag",
-    "TagCreate",
-    "TagUpdate",
 ]

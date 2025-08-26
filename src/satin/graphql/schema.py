@@ -9,7 +9,6 @@ from satin.models.annotation import AnnotationCreate, AnnotationUpdate, Bounding
 from satin.models.base import PyObjectId
 from satin.models.image import ImageCreate, ImageStatus, ImageUpdate
 from satin.models.ml_job import MLJobCreate, MLJobStatus
-from satin.models.tag import TagCreate, TagUpdate
 from satin.utils import SerializableHttpUrl
 
 from .types import (
@@ -21,9 +20,6 @@ from .types import (
     ImageUpdateInput,
     MLJob,
     MLJobCreateInput,
-    Tag,
-    TagCreateInput,
-    TagUpdateInput,
 )
 
 
@@ -76,43 +72,6 @@ class Query:
         """Get all annotations for an image."""
         annotations = [ann async for ann in dependencies.annotation_repo.find_by_image(image_id)]
         return [Annotation.from_model(ann) for ann in annotations]
-
-    # Tag queries
-    @strawberry.field
-    async def tags(self) -> list[Tag]:
-        """Get all tags."""
-        tags = [tag async for tag in dependencies.tag_repo.find()]
-        return [Tag.from_model(tag) for tag in tags]
-
-    @strawberry.field
-    async def tag(self, id: str) -> Tag | None:  # noqa: A002
-        """Get tag by ID."""
-        tag = await dependencies.tag_repo.get_by_id(id)
-        return Tag.from_model(tag) if tag else None
-
-    @strawberry.field
-    async def root_tags(self) -> list[Tag]:
-        """Get all root tags (tags without parents)."""
-        tags = [tag async for tag in dependencies.tag_repo.get_root_tags()]
-        return [Tag.from_model(tag) for tag in tags]
-
-    @strawberry.field
-    async def tag_children(self, parent_id: str) -> list[Tag]:
-        """Get direct children of a tag."""
-        tags = [tag async for tag in dependencies.tag_repo.get_children(parent_id)]
-        return [Tag.from_model(tag) for tag in tags]
-
-    @strawberry.field
-    async def tag_tree(self, root_id: str | None = None) -> list[Tag]:
-        """Get complete tag tree starting from root or all roots."""
-        tags = [tag async for tag in dependencies.tag_repo.get_tree_from_root(root_id)]
-        return [Tag.from_model(tag) for tag in tags]
-
-    @strawberry.field
-    async def search_tags(self, name_pattern: str) -> list[Tag]:
-        """Search tags by name pattern."""
-        tags = [tag async for tag in dependencies.tag_repo.search_by_name(name_pattern)]
-        return [Tag.from_model(tag) for tag in tags]
 
     # ML Job queries
     @strawberry.field
@@ -194,13 +153,10 @@ class Mutation:
                 height=input.bounding_box.height,
             )
 
-            # Convert string tag IDs to PyObjectId
-            tag_ids = [PyObjectId(tag_id) for tag_id in input.tags]
-
             annotation_create = AnnotationCreate(
                 image_id=PyObjectId(input.image_id),
                 bounding_box=bbox,
-                tags=tag_ids,
+                tags=input.tags,
                 description=input.description,
                 confidence=input.confidence,
             )
@@ -225,7 +181,7 @@ class Mutation:
             )
 
         if input.tags is not None:
-            update_kwargs["tags"] = [PyObjectId(tag_id) for tag_id in input.tags]
+            update_kwargs["tags"] = input.tags
 
         if input.description is not None:
             update_kwargs["description"] = input.description
@@ -247,67 +203,6 @@ class Mutation:
     async def delete_annotation(self, id: str) -> bool:  # noqa: A002
         """Delete an annotation."""
         return await dependencies.annotation_repo.delete_by_id(id)
-
-    # Tag mutations
-    @strawberry.mutation
-    async def create_tag(self, input: TagCreateInput) -> Tag:  # noqa: A002
-        """Create a new tag."""
-        try:
-            tag_create = TagCreate(
-                name=input.name,
-                description=input.description,
-                parent_id=input.parent_id,
-                color=input.color,
-            )
-            tag = await dependencies.tag_repo.create_hierarchical(tag_create)
-            return Tag.from_model(tag)
-        except Exception:  # noqa: BLE001
-            # If parent_id is invalid, create as root tag
-            tag_create = TagCreate(
-                name=input.name,
-                description=input.description,
-                parent_id=None,
-                color=input.color,
-            )
-            tag = await dependencies.tag_repo.create_hierarchical(tag_create)
-            return Tag.from_model(tag)
-
-    @strawberry.mutation
-    async def update_tag(self, id: str, input: TagUpdateInput) -> Tag | None:  # noqa: A002
-        """Update an existing tag."""
-        update_data = {}
-
-        if input.name is not None:
-            update_data["name"] = input.name
-        if input.description is not None:
-            update_data["description"] = input.description
-        if input.parent_id is not None:
-            update_data["parent_id"] = input.parent_id
-        if input.color is not None:
-            update_data["color"] = input.color
-
-        if not update_data:
-            # If no updates, return current tag
-            tag = await dependencies.tag_repo.get_by_id(id)
-            return Tag.from_model(tag) if tag else None
-
-        tag_update = TagUpdate(**update_data)
-        tag = await dependencies.tag_repo.update_hierarchical(id, tag_update)
-        return Tag.from_model(tag) if tag else None
-
-    @strawberry.mutation
-    async def delete_tag(self, id: str) -> int:  # noqa: A002
-        """Delete a tag and all its descendants."""
-        try:
-            return await dependencies.tag_repo.delete_with_descendants(id)
-        except Exception:  # noqa: BLE001
-            return 0
-
-    @strawberry.mutation
-    async def move_tag(self, tag_id: str, new_parent_id: str | None) -> Tag | None:
-        """Move a tag to a new parent."""
-        tag = await dependencies.tag_repo.move_tag(tag_id, new_parent_id)
-        return Tag.from_model(tag) if tag else None
 
     # ML Job mutations
     @strawberry.mutation

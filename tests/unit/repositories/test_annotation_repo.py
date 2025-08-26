@@ -63,16 +63,16 @@ class TestAnnotationRepositoryMethods:
     """Test previously untested annotation repository methods."""
 
     async def test_find_by_tags(self, mock_db: AsyncMongoMockDatabase):
-        """Test finding annotations by tag IDs."""
+        """Test finding annotations by tag names."""
         repo = AnnotationRepository(mock_db)
         image_id = ObjectId()
-        tag1_id = ObjectId()
-        tag2_id = ObjectId()
+        tag1_name = "cat"
+        tag2_name = "dog"
 
         # Create annotations with different tags
-        annotation1 = create_test_annotation(image_id=image_id, tags=[tag1_id], description="Has tag1")
-        annotation2 = create_test_annotation(image_id=image_id, tags=[tag2_id], description="Has tag2")
-        annotation3 = create_test_annotation(image_id=image_id, tags=[tag1_id, tag2_id], description="Has both")
+        annotation1 = create_test_annotation(image_id=image_id, tags=[tag1_name], description="Has tag1")
+        annotation2 = create_test_annotation(image_id=image_id, tags=[tag2_name], description="Has tag2")
+        annotation3 = create_test_annotation(image_id=image_id, tags=[tag1_name, tag2_name], description="Has both")
         annotation4 = create_test_annotation(image_id=image_id, tags=[], description="Has none")
 
         await repo.create(annotation1)
@@ -81,7 +81,7 @@ class TestAnnotationRepositoryMethods:
         await repo.create(annotation4)
 
         # Find by tag1
-        results_tag1 = [ann async for ann in repo.find_by_tags([tag1_id])]
+        results_tag1 = [ann async for ann in repo.find_by_tags([tag1_name])]
         descriptions_tag1 = [ann.description for ann in results_tag1]
 
         assert len(results_tag1) == 2
@@ -89,7 +89,7 @@ class TestAnnotationRepositoryMethods:
         assert "Has both" in descriptions_tag1
 
         # Find by both tags
-        results_both = [ann async for ann in repo.find_by_tags([tag1_id, tag2_id])]
+        results_both = [ann async for ann in repo.find_by_tags([tag1_name, tag2_name])]
         assert len(results_both) >= 3  # Should find annotations with either tag
 
     async def test_find_by_confidence_range(self, mock_db: AsyncMongoMockDatabase):

@@ -19,7 +19,7 @@ class AnnotationCreate(BaseModel):
 
     image_id: PyObjectId
     bounding_box: BoundingBox
-    tags: list[PyObjectId] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
     description: str = ""
     confidence: float | None = None
 
@@ -28,7 +28,7 @@ class AnnotationUpdate(BaseModel):
     """Schema for updating an annotation."""
 
     bounding_box: BoundingBox | None = None
-    tags: list[PyObjectId] | None = None
+    tags: list[str] | None = None
     description: str | None = None
     confidence: float | None = None
 
@@ -38,7 +38,7 @@ class Annotation(SatinBaseModel):
 
     image_id: PyObjectId
     bounding_box: BoundingBox
-    tags: list[PyObjectId] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
     description: str = ""
     confidence: float | None = None
     source: str = "manual"

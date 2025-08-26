@@ -6,7 +6,6 @@ from satin.models.annotation import AnnotationCreate, BoundingBox
 from satin.models.base import PyObjectId
 from satin.models.image import ImageCreate, ImageStatus
 from satin.models.ml_job import MLJobCreate, MLJobStatus
-from satin.models.tag import TagCreate
 
 
 def create_test_image(
@@ -37,12 +36,6 @@ def create_test_ml_job(
     """Create test ML job data."""
     data = {"image_url": image_url, "endpoint": endpoint, "status": status, **kwargs}
     return MLJobCreate(**data)
-
-
-def create_test_tag(name: str = "test_tag", **kwargs) -> TagCreate:
-    """Create test tag data."""
-    data = {"name": name, **kwargs}
-    return TagCreate(**data)
 
 
 def create_multiple_images(count: int = 3) -> list[ImageCreate]:
@@ -199,111 +192,6 @@ GRAPHQL_QUERIES = {
     "delete_annotation": """
         mutation DeleteAnnotation($id: String!) {
             deleteAnnotation(id: $id)
-        }
-    """,
-    # Tag queries
-    "list_tags": """
-        query {
-            tags {
-                id
-                name
-                description
-                parentId
-                path
-                depth
-                color
-                usageCount
-                createdAt
-                updatedAt
-            }
-        }
-    """,
-    "get_tag": """
-        query GetTag($id: String!) {
-            tag(id: $id) {
-                id
-                name
-                description
-                parentId
-                path
-                depth
-                color
-            }
-        }
-    """,
-    "root_tags": """
-        query {
-            rootTags {
-                id
-                name
-                path
-                depth
-            }
-        }
-    """,
-    "tag_children": """
-        query TagChildren($parentId: String!) {
-            tagChildren(parentId: $parentId) {
-                id
-                name
-                depth
-            }
-        }
-    """,
-    "tag_tree": """
-        query TagTree($rootId: String) {
-            tagTree(rootId: $rootId) {
-                id
-                name
-                path
-                depth
-            }
-        }
-    """,
-    "search_tags": """
-        query SearchTags($namePattern: String!) {
-            searchTags(namePattern: $namePattern) {
-                id
-                name
-                path
-            }
-        }
-    """,
-    "create_tag": """
-        mutation CreateTag($input: TagCreateInput!) {
-            createTag(input: $input) {
-                id
-                name
-                description
-                parentId
-                path
-                depth
-            }
-        }
-    """,
-    "update_tag": """
-        mutation UpdateTag($id: String!, $input: TagUpdateInput!) {
-            updateTag(id: $id, input: $input) {
-                id
-                name
-                description
-                parentId
-            }
-        }
-    """,
-    "delete_tag": """
-        mutation DeleteTag($id: String!) {
-            deleteTag(id: $id)
-        }
-    """,
-    "move_tag": """
-        mutation MoveTag($tagId: String!, $newParentId: String) {
-            moveTag(tagId: $tagId, newParentId: $newParentId) {
-                id
-                parentId
-                path
-                depth
-            }
         }
     """,
     # ML Job queries
