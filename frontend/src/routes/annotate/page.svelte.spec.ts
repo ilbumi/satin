@@ -129,13 +129,4 @@ describe('annotate/+page.svelte', () => {
 		await expect.element(boundingBoxTool).toBeInTheDocument();
 		await expect.element(boundingBoxTool).toHaveClass(/bg-blue-50/);
 	});
-
-	it('shows future tools message', async () => {
-		render(AnnotatePage);
-
-		const futureToolsMessage = page.getByText(
-			'Additional tools (points, polygons) coming in future updates'
-		);
-		await expect.element(futureToolsMessage).toBeInTheDocument();
-	});
 });

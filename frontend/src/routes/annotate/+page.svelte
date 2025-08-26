@@ -1,11 +1,24 @@
 <script lang="ts">
 	import Sidebar from '$lib/components/Sidebar.svelte';
-	import LoadingButton from '$lib/components/LoadingButton.svelte';
+	import AnnotationCanvas from '$lib/components/AnnotationCanvas.svelte';
 	import { onMount } from 'svelte';
+
+	interface BoundingBox {
+		id: string;
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+		label?: string;
+		createdAt: string;
+		updatedAt: string;
+	}
 
 	let sidebarCollapsed = $state(false);
 	let isMobile = $state(false);
-	let imageUploading = $state(false);
+	let annotations = $state<BoundingBox[]>([]);
+	let selectedAnnotationId = $state<string | null>(null);
+	let canvasRef: AnnotationCanvas | undefined = $state();
 
 	onMount(() => {
 		const checkMobile = () => {
@@ -28,12 +41,18 @@
 		sidebarCollapsed = !sidebarCollapsed;
 	}
 
-	function handleUploadImage() {
-		imageUploading = true;
-		// Simulate upload delay
-		setTimeout(() => {
-			imageUploading = false;
-		}, 2000);
+	function handleAnnotationsChange(newAnnotations: BoundingBox[]) {
+		annotations = newAnnotations;
+	}
+
+	function selectAnnotation(annotationId: string) {
+		selectedAnnotationId = annotationId;
+		canvasRef?.selectAnnotationById(annotationId);
+	}
+
+	function deleteAnnotation(annotationId: string) {
+		canvasRef?.deleteAnnotationById(annotationId);
+		// Annotations will be updated via the change callback
 	}
 </script>
 
@@ -65,32 +84,11 @@
 	<div class="flex gap-6">
 		<!-- Main Canvas Area -->
 		<div class="flex-1">
-			<div class="aspect-video rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8">
-				<div class="flex h-full items-center justify-center text-center">
-					<div>
-						<svg
-							class="mx-auto mb-4 h-16 w-16 text-gray-400"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-							/>
-						</svg>
-						<h3 class="mb-2 text-lg font-semibold text-gray-700">No Image Loaded</h3>
-						<p class="text-gray-500">Upload an image to start annotating</p>
-						<div class="mt-4">
-							<LoadingButton loading={imageUploading} onclick={handleUploadImage}>
-								Upload Image
-							</LoadingButton>
-						</div>
-					</div>
-				</div>
-			</div>
+			<AnnotationCanvas
+				bind:this={canvasRef}
+				imageUrl="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop"
+				onAnnotationsChange={handleAnnotationsChange}
+			/>
 		</div>
 
 		<!-- Sidebar -->
@@ -105,9 +103,6 @@
 						>
 							🔲 Bounding Box
 						</button>
-						<div class="mt-2 text-xs text-gray-400">
-							Additional tools (points, polygons) coming in future updates
-						</div>
 					</div>
 				</div>
 
@@ -122,8 +117,45 @@
 
 				<!-- Annotations List -->
 				<div>
-					<h3 class="mb-4 text-lg font-semibold">Annotations</h3>
-					<div class="text-sm text-gray-500">No annotations yet</div>
+					<h3 class="mb-4 text-lg font-semibold">Annotations ({annotations.length})</h3>
+					{#if annotations.length === 0}
+						<div class="text-sm text-gray-500">No annotations yet</div>
+					{:else}
+						<div class="space-y-2">
+							{#each annotations as annotation (annotation.id)}
+								<div
+									class="cursor-pointer rounded border p-3 transition-colors {selectedAnnotationId ===
+									annotation.id
+										? 'border-blue-500 bg-blue-50'
+										: 'border-gray-200 hover:border-gray-300'}"
+									onclick={() => selectAnnotation(annotation.id)}
+									onkeydown={(e) => e.key === 'Enter' && selectAnnotation(annotation.id)}
+									role="button"
+									tabindex="0"
+								>
+									<div class="mb-2 flex items-center justify-between">
+										<span class="text-sm font-medium">
+											{annotation.label || 'Unlabeled'}
+										</span>
+										<button
+											onclick={(e) => {
+												e.stopPropagation();
+												deleteAnnotation(annotation.id);
+											}}
+											class="text-xs text-red-500 hover:text-red-700"
+											title="Delete annotation"
+										>
+											🗑️
+										</button>
+									</div>
+									<div class="text-xs text-gray-600">
+										{Math.round(annotation.width)}×{Math.round(annotation.height)}
+										at ({Math.round(annotation.x)}, {Math.round(annotation.y)})
+									</div>
+								</div>
+							{/each}
+						</div>
+					{/if}
 				</div>
 			</div>
 		</Sidebar>
