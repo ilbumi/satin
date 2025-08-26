@@ -29,7 +29,9 @@ jobs:
 
       - name: Install dependencies
         working-directory: frontend
-        run: pnpm install --frozen-lockfile
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps
 
       - name: Type check
         working-directory: frontend
@@ -60,9 +62,6 @@ jobs:
 
     env:
       SATIN_MONGO_DSN: mongodb://test-user:test-password@localhost:27017/test
-      SATIN_BACKEND_HOST: localhost
-      SATIN_BACKEND_PORT: 8000
-      SATIN_RELOAD: false
 
     steps:
       - name: Checkout code
