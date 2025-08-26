@@ -55,6 +55,13 @@
 	let ctx: CanvasRenderingContext2D | null = null;
 	let image: HTMLImageElement | null = null;
 
+	// Image scaling and positioning for aspect ratio preservation
+	let imageScale = $state(1);
+	let imageOffsetX = $state(0);
+	let imageOffsetY = $state(0);
+	let scaledImageWidth = $state(0);
+	let scaledImageHeight = $state(0);
+
 	let isDrawing = $state(false);
 	let isResizing = $state(false);
 	let isDragging = $state(false);
@@ -233,6 +240,82 @@
 		}
 	}
 
+	// Calculate optimal scaling and positioning to preserve aspect ratio
+	function fitImageToCanvas() {
+		if (!image || !canvasElement || !image.complete || image.naturalWidth === 0) {
+			imageScale = 1;
+			imageOffsetX = 0;
+			imageOffsetY = 0;
+			scaledImageWidth = 0;
+			scaledImageHeight = 0;
+			return;
+		}
+
+		const canvasWidth = canvasElement.width;
+		const canvasHeight = canvasElement.height;
+		const imageWidth = image.naturalWidth;
+		const imageHeight = image.naturalHeight;
+
+		// Calculate scale to fit image within canvas while preserving aspect ratio
+		const scaleX = canvasWidth / imageWidth;
+		const scaleY = canvasHeight / imageHeight;
+		const newScale = Math.min(scaleX, scaleY);
+
+		// Calculate scaled dimensions
+		const newScaledWidth = imageWidth * newScale;
+		const newScaledHeight = imageHeight * newScale;
+
+		// Center the image in the canvas
+		const newOffsetX = (canvasWidth - newScaledWidth) / 2;
+		const newOffsetY = (canvasHeight - newScaledHeight) / 2;
+
+		// Only update if values have actually changed to prevent infinite loops
+		if (
+			Math.abs(imageScale - newScale) > 0.001 ||
+			Math.abs(imageOffsetX - newOffsetX) > 0.1 ||
+			Math.abs(imageOffsetY - newOffsetY) > 0.1
+		) {
+			imageScale = newScale;
+			imageOffsetX = newOffsetX;
+			imageOffsetY = newOffsetY;
+			scaledImageWidth = newScaledWidth;
+			scaledImageHeight = newScaledHeight;
+		}
+	}
+
+	// Convert canvas coordinates to image coordinates (for saving annotations)
+	function canvasToImageCoords(canvasX: number, canvasY: number): { x: number; y: number } {
+		if (!image) return { x: canvasX, y: canvasY };
+
+		// Translate to image space
+		const imageX = (canvasX - imageOffsetX) / imageScale;
+		const imageY = (canvasY - imageOffsetY) / imageScale;
+
+		// Clamp to image bounds
+		return {
+			x: Math.max(0, Math.min(image.naturalWidth, imageX)),
+			y: Math.max(0, Math.min(image.naturalHeight, imageY))
+		};
+	}
+
+	// Convert image coordinates to canvas coordinates (for displaying annotations)
+	function imageToCanvasCoords(imageX: number, imageY: number): { x: number; y: number } {
+		return {
+			x: imageX * imageScale + imageOffsetX,
+			y: imageY * imageScale + imageOffsetY
+		};
+	}
+
+	// Check if a point is within the visible image area
+	function isPointInImageArea(canvasX: number, canvasY: number): boolean {
+		return (
+			canvasX >= imageOffsetX &&
+			canvasX <= imageOffsetX + scaledImageWidth &&
+			canvasY >= imageOffsetY &&
+			canvasY <= imageOffsetY + scaledImageHeight
+		);
+	}
+
 	// Export functions for external control
 	export function deleteAnnotationById(id: string) {
 		const box = boundingBoxes.find((b) => b.id === id);
@@ -287,6 +370,7 @@
 		image = new Image();
 		image.crossOrigin = 'anonymous';
 		image.onload = () => {
+			fitImageToCanvas();
 			drawCanvas();
 		};
 		image.onerror = () => {
@@ -320,16 +404,31 @@
 	function drawCanvas() {
 		if (!ctx || !canvasElement) return;
 
-		// Clear canvas
-		ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+		// Clear canvas with background pattern
+		ctx.fillStyle = '#f8f9fa';
+		ctx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+
+		// Draw checkerboard pattern for areas outside image
+		drawCheckerboardPattern();
 
 		// Draw image if loaded successfully, otherwise show placeholder
 		if (image && image.complete && image.naturalWidth > 0) {
-			ctx.drawImage(image, 0, 0, canvasElement.width, canvasElement.height);
+			// Draw image with preserved aspect ratio
+			ctx.drawImage(image, imageOffsetX, imageOffsetY, scaledImageWidth, scaledImageHeight);
+
+			// Draw subtle border around image
+			ctx.strokeStyle = '#e5e7eb';
+			ctx.lineWidth = 1;
+			ctx.strokeRect(
+				imageOffsetX - 0.5,
+				imageOffsetY - 0.5,
+				scaledImageWidth + 1,
+				scaledImageHeight + 1
+			);
 		} else {
-			// Draw placeholder background
+			// Draw placeholder in center
 			ctx.fillStyle = '#f3f4f6';
-			ctx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+			ctx.fillRect(imageOffsetX, imageOffsetY, scaledImageWidth || 400, scaledImageHeight || 300);
 
 			// Draw placeholder text
 			ctx.fillStyle = '#9ca3af';
@@ -339,26 +438,35 @@
 			ctx.textAlign = 'left';
 		}
 
-		// Draw saved bounding boxes
+		// Draw saved bounding boxes (convert from image to canvas coordinates)
 		boundingBoxes.forEach((box) => {
+			// Convert image coordinates to canvas coordinates for display
+			const topLeft = imageToCanvasCoords(box.x, box.y);
+			const bottomRight = imageToCanvasCoords(box.x + box.width, box.y + box.height);
+
+			const canvasX = topLeft.x;
+			const canvasY = topLeft.y;
+			const canvasWidth = bottomRight.x - topLeft.x;
+			const canvasHeight = bottomRight.y - topLeft.y;
+
 			const isSelected = box.id === selectedBoxId;
 			ctx!.strokeStyle = isSelected ? '#f59e0b' : '#3b82f6';
 			ctx!.lineWidth = isSelected ? 3 : 2;
-			ctx!.strokeRect(box.x, box.y, box.width, box.height);
+			ctx!.strokeRect(canvasX, canvasY, canvasWidth, canvasHeight);
 
 			// Draw selection handles for selected box
 			if (isSelected) {
-				const handleSize = 8; // Make handles larger for easier clicking
+				const handleSize = 8;
 				ctx!.fillStyle = '#f59e0b';
 				ctx!.strokeStyle = '#fff';
 				ctx!.lineWidth = 1;
 
 				// Corner handles with white border for visibility
 				const handles = [
-					{ x: box.x, y: box.y }, // top-left
-					{ x: box.x + box.width, y: box.y }, // top-right
-					{ x: box.x, y: box.y + box.height }, // bottom-left
-					{ x: box.x + box.width, y: box.y + box.height } // bottom-right
+					{ x: canvasX, y: canvasY }, // top-left
+					{ x: canvasX + canvasWidth, y: canvasY }, // top-right
+					{ x: canvasX, y: canvasY + canvasHeight }, // bottom-left
+					{ x: canvasX + canvasWidth, y: canvasY + canvasHeight } // bottom-right
 				];
 
 				handles.forEach((handle) => {
@@ -379,13 +487,48 @@
 		});
 	}
 
-	function isPointInBox(x: number, y: number, box: BoundingBox): boolean {
-		return x >= box.x && x <= box.x + box.width && y >= box.y && y <= box.y + box.height;
+	// Draw checkerboard pattern for areas outside image
+	function drawCheckerboardPattern() {
+		if (!ctx || !canvasElement) return;
+
+		const squareSize = 16;
+		const lightColor = '#ffffff';
+		const darkColor = '#f5f5f5';
+
+		for (let x = 0; x < canvasElement.width; x += squareSize) {
+			for (let y = 0; y < canvasElement.height; y += squareSize) {
+				// Skip if this square is within the image area
+				if (
+					x + squareSize > imageOffsetX &&
+					x < imageOffsetX + scaledImageWidth &&
+					y + squareSize > imageOffsetY &&
+					y < imageOffsetY + scaledImageHeight
+				) {
+					continue;
+				}
+
+				const isEvenSquare = (x / squareSize + y / squareSize) % 2 === 0;
+				ctx.fillStyle = isEvenSquare ? lightColor : darkColor;
+				ctx.fillRect(x, y, squareSize, squareSize);
+			}
+		}
 	}
 
-	function findBoxAtPoint(x: number, y: number): BoundingBox | null {
+	function isPointInBox(imageX: number, imageY: number, box: BoundingBox): boolean {
+		return (
+			imageX >= box.x &&
+			imageX <= box.x + box.width &&
+			imageY >= box.y &&
+			imageY <= box.y + box.height
+		);
+	}
+
+	function findBoxAtPoint(canvasX: number, canvasY: number): BoundingBox | null {
+		// Convert canvas coordinates to image coordinates
+		const imageCoords = canvasToImageCoords(canvasX, canvasY);
+
 		for (let i = boundingBoxes.length - 1; i >= 0; i--) {
-			if (isPointInBox(x, y, boundingBoxes[i])) {
+			if (isPointInBox(imageCoords.x, imageCoords.y, boundingBoxes[i])) {
 				return boundingBoxes[i];
 			}
 		}
@@ -393,25 +536,29 @@
 	}
 
 	function getHandleAtPoint(
-		x: number,
-		y: number,
+		canvasX: number,
+		canvasY: number,
 		box: BoundingBox
 	): 'tl' | 'tr' | 'bl' | 'br' | null {
-		const tolerance = 15; // Much larger tolerance for easier clicking
+		const tolerance = 15; // Tolerance in canvas pixels
 
-		// Calculate distances to all corners
+		// Convert box corners from image to canvas coordinates
+		const topLeft = imageToCanvasCoords(box.x, box.y);
+		const bottomRight = imageToCanvasCoords(box.x + box.width, box.y + box.height);
+
+		// Calculate distances to all corners in canvas space
 		const corners = [
-			{ handle: 'tl', x: box.x, y: box.y },
-			{ handle: 'tr', x: box.x + box.width, y: box.y },
-			{ handle: 'bl', x: box.x, y: box.y + box.height },
-			{ handle: 'br', x: box.x + box.width, y: box.y + box.height }
+			{ handle: 'tl', x: topLeft.x, y: topLeft.y },
+			{ handle: 'tr', x: bottomRight.x, y: topLeft.y },
+			{ handle: 'bl', x: topLeft.x, y: bottomRight.y },
+			{ handle: 'br', x: bottomRight.x, y: bottomRight.y }
 		] as const;
 
 		let closestHandle = null;
 		let minDistance = tolerance;
 
 		for (const corner of corners) {
-			const distance = Math.sqrt(Math.pow(x - corner.x, 2) + Math.pow(y - corner.y, 2));
+			const distance = Math.sqrt(Math.pow(canvasX - corner.x, 2) + Math.pow(canvasY - corner.y, 2));
 
 			if (distance <= minDistance) {
 				minDistance = distance;
@@ -426,31 +573,39 @@
 		if (!canvasElement) return;
 
 		const rect = canvasElement.getBoundingClientRect();
-		const clickX = event.clientX - rect.left;
-		const clickY = event.clientY - rect.top;
+		const canvasX = event.clientX - rect.left;
+		const canvasY = event.clientY - rect.top;
+
+		// Only allow interactions within the image area
+		if (!isPointInImageArea(canvasX, canvasY)) {
+			selectedBoxId = null;
+			drawCanvas();
+			return;
+		}
 
 		if (mode === 'select') {
 			// Select mode: handle selection, move, and resize
-			const clickedBox = findBoxAtPoint(clickX, clickY);
+			const clickedBox = findBoxAtPoint(canvasX, canvasY);
 			if (clickedBox && clickedBox.id === selectedBoxId) {
 				// Check if clicking on a resize handle
-				const handle = getHandleAtPoint(clickX, clickY, clickedBox);
+				const handle = getHandleAtPoint(canvasX, canvasY, clickedBox);
 				if (handle) {
 					isResizing = true;
 					dragHandle = handle;
-					startX = clickX;
-					startY = clickY;
+					startX = canvasX;
+					startY = canvasY;
 					originalBox = { ...clickedBox }; // Store original dimensions
 					return;
 				}
 
 				// Start dragging the box
 				isDragging = true;
-				startX = clickX;
-				startY = clickY;
+				startX = canvasX;
+				startY = canvasY;
+				const boxCanvasCoords = imageToCanvasCoords(clickedBox.x, clickedBox.y);
 				dragOffset = {
-					x: clickX - clickedBox.x,
-					y: clickY - clickedBox.y
+					x: canvasX - boxCanvasCoords.x,
+					y: canvasY - boxCanvasCoords.y
 				};
 				return;
 			}
@@ -467,8 +622,8 @@
 		} else if (mode === 'draw') {
 			// Draw mode: only create new boxes
 			selectedBoxId = null;
-			startX = clickX;
-			startY = clickY;
+			startX = canvasX;
+			startY = canvasY;
 			isDrawing = true;
 		}
 	}
@@ -477,70 +632,106 @@
 		if (!ctx || !canvasElement) return;
 
 		const rect = canvasElement.getBoundingClientRect();
-		const currentX = event.clientX - rect.left;
-		const currentY = event.clientY - rect.top;
+		const canvasX = event.clientX - rect.left;
+		const canvasY = event.clientY - rect.top;
 
 		if (isResizing && selectedBoxId && dragHandle && originalBox) {
-			// Handle box resizing
+			// Handle box resizing - work in canvas coordinates but convert deltas to image space
 			const selectedBox = boundingBoxes.find((box) => box.id === selectedBoxId);
 			if (selectedBox) {
-				const deltaX = currentX - startX;
-				const deltaY = currentY - startY;
+				// Calculate canvas deltas
+				const canvasDeltaX = canvasX - startX;
+				const canvasDeltaY = canvasY - startY;
+
+				// Convert deltas to image space
+				const imageDeltaX = canvasDeltaX / imageScale;
+				const imageDeltaY = canvasDeltaY / imageScale;
+
+				const minSize = 10; // Minimum size in image pixels
 
 				switch (dragHandle) {
 					case 'tl':
 						selectedBox.x = Math.min(
-							originalBox.x + deltaX,
-							originalBox.x + originalBox.width - 10
+							originalBox.x + imageDeltaX,
+							originalBox.x + originalBox.width - minSize
 						);
 						selectedBox.y = Math.min(
-							originalBox.y + deltaY,
-							originalBox.y + originalBox.height - 10
+							originalBox.y + imageDeltaY,
+							originalBox.y + originalBox.height - minSize
 						);
-						selectedBox.width = Math.max(10, originalBox.width - deltaX);
-						selectedBox.height = Math.max(10, originalBox.height - deltaY);
+						selectedBox.width = Math.max(minSize, originalBox.width - imageDeltaX);
+						selectedBox.height = Math.max(minSize, originalBox.height - imageDeltaY);
 						break;
 					case 'tr':
 						selectedBox.y = Math.min(
-							originalBox.y + deltaY,
-							originalBox.y + originalBox.height - 10
+							originalBox.y + imageDeltaY,
+							originalBox.y + originalBox.height - minSize
 						);
-						selectedBox.width = Math.max(10, originalBox.width + deltaX);
-						selectedBox.height = Math.max(10, originalBox.height - deltaY);
+						selectedBox.width = Math.max(minSize, originalBox.width + imageDeltaX);
+						selectedBox.height = Math.max(minSize, originalBox.height - imageDeltaY);
 						break;
 					case 'bl':
 						selectedBox.x = Math.min(
-							originalBox.x + deltaX,
-							originalBox.x + originalBox.width - 10
+							originalBox.x + imageDeltaX,
+							originalBox.x + originalBox.width - minSize
 						);
-						selectedBox.width = Math.max(10, originalBox.width - deltaX);
-						selectedBox.height = Math.max(10, originalBox.height + deltaY);
+						selectedBox.width = Math.max(minSize, originalBox.width - imageDeltaX);
+						selectedBox.height = Math.max(minSize, originalBox.height + imageDeltaY);
 						break;
 					case 'br':
-						selectedBox.width = Math.max(10, originalBox.width + deltaX);
-						selectedBox.height = Math.max(10, originalBox.height + deltaY);
+						selectedBox.width = Math.max(minSize, originalBox.width + imageDeltaX);
+						selectedBox.height = Math.max(minSize, originalBox.height + imageDeltaY);
 						break;
+				}
+
+				// Clamp to image bounds
+				if (image) {
+					selectedBox.x = Math.max(
+						0,
+						Math.min(selectedBox.x, image.naturalWidth - selectedBox.width)
+					);
+					selectedBox.y = Math.max(
+						0,
+						Math.min(selectedBox.y, image.naturalHeight - selectedBox.height)
+					);
+					selectedBox.width = Math.min(selectedBox.width, image.naturalWidth - selectedBox.x);
+					selectedBox.height = Math.min(selectedBox.height, image.naturalHeight - selectedBox.y);
 				}
 
 				drawCanvas();
 			}
 		} else if (isDragging && selectedBoxId) {
-			// Handle box moving
+			// Handle box moving - convert canvas coordinates to image coordinates
 			const selectedBox = boundingBoxes.find((box) => box.id === selectedBoxId);
 			if (selectedBox) {
-				selectedBox.x = currentX - dragOffset.x;
-				selectedBox.y = currentY - dragOffset.y;
+				const imageCoords = canvasToImageCoords(canvasX - dragOffset.x, canvasY - dragOffset.y);
+
+				// Clamp to image bounds
+				if (image) {
+					selectedBox.x = Math.max(
+						0,
+						Math.min(imageCoords.x, image.naturalWidth - selectedBox.width)
+					);
+					selectedBox.y = Math.max(
+						0,
+						Math.min(imageCoords.y, image.naturalHeight - selectedBox.height)
+					);
+				} else {
+					selectedBox.x = imageCoords.x;
+					selectedBox.y = imageCoords.y;
+				}
+
 				drawCanvas();
 			}
 		} else if (isDrawing) {
-			// Handle new box drawing
+			// Handle new box drawing - draw in canvas coordinates but will be converted when saved
 			drawCanvas();
 
-			// Draw current box being drawn
+			// Draw current box being drawn in canvas coordinates
 			ctx.strokeStyle = '#ef4444';
 			ctx.lineWidth = 2;
 			ctx.setLineDash([5, 5]);
-			ctx.strokeRect(startX, startY, currentX - startX, currentY - startY);
+			ctx.strokeRect(startX, startY, canvasX - startX, canvasY - startY);
 			ctx.setLineDash([]);
 		}
 	}
@@ -548,30 +739,47 @@
 	function handleMouseUp(event: MouseEvent) {
 		if (isDrawing && canvasElement) {
 			const rect = canvasElement.getBoundingClientRect();
-			const endX = event.clientX - rect.left;
-			const endY = event.clientY - rect.top;
+			const canvasEndX = event.clientX - rect.left;
+			const canvasEndY = event.clientY - rect.top;
 
-			const boxWidth = endX - startX;
-			const boxHeight = endY - startY;
+			const canvasWidth = canvasEndX - startX;
+			const canvasHeight = canvasEndY - startY;
 
-			// Only add box if it has meaningful size
-			if (Math.abs(boxWidth) > 10 && Math.abs(boxHeight) > 10) {
-				const now = new Date().toISOString();
-				const newBox: BoundingBox = {
-					id: `temp_${crypto.randomUUID()}`, // Temporary ID until saved to backend
-					x: Math.min(startX, endX),
-					y: Math.min(startY, endY),
-					width: Math.abs(boxWidth),
-					height: Math.abs(boxHeight),
-					description: '',
-					createdAt: now,
-					updatedAt: now,
-					_isNew: true,
-					_isDirty: true
-				};
-				boundingBoxes.push(newBox);
-				selectedBoxId = newBox.id;
-				saveAnnotations(); // Save immediately on creation
+			// Only add box if it has meaningful size in canvas coordinates
+			if (Math.abs(canvasWidth) > 10 && Math.abs(canvasHeight) > 10) {
+				// Convert canvas coordinates to image coordinates
+				const startImageCoords = canvasToImageCoords(startX, startY);
+				const endImageCoords = canvasToImageCoords(canvasEndX, canvasEndY);
+
+				const imageX = Math.min(startImageCoords.x, endImageCoords.x);
+				const imageY = Math.min(startImageCoords.y, endImageCoords.y);
+				const imageWidth = Math.abs(endImageCoords.x - startImageCoords.x);
+				const imageHeight = Math.abs(endImageCoords.y - startImageCoords.y);
+
+				// Only create if the box is within image bounds and has meaningful size
+				if (imageWidth > 5 && imageHeight > 5 && image) {
+					const clampedX = Math.max(0, Math.min(imageX, image.naturalWidth - imageWidth));
+					const clampedY = Math.max(0, Math.min(imageY, image.naturalHeight - imageHeight));
+					const clampedWidth = Math.min(imageWidth, image.naturalWidth - clampedX);
+					const clampedHeight = Math.min(imageHeight, image.naturalHeight - clampedY);
+
+					const now = new Date().toISOString();
+					const newBox: BoundingBox = {
+						id: `temp_${crypto.randomUUID()}`, // Temporary ID until saved to backend
+						x: clampedX,
+						y: clampedY,
+						width: clampedWidth,
+						height: clampedHeight,
+						description: '',
+						createdAt: now,
+						updatedAt: now,
+						_isNew: true,
+						_isDirty: true
+					};
+					boundingBoxes.push(newBox);
+					selectedBoxId = newBox.id;
+					saveAnnotations(); // Save immediately on creation
+				}
 			}
 		}
 

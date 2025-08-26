@@ -32,6 +32,22 @@ export const GET_IMAGE = gql`
 	}
 `;
 
+// Query to fetch images by status
+export const GET_IMAGES_BY_STATUS = gql`
+	query ImagesByStatus($statuses: [String!]!) {
+		imagesByStatus(statuses: $statuses) {
+			id
+			url
+			width
+			height
+			ext
+			status
+			createdAt
+			updatedAt
+		}
+	}
+`;
+
 // Mutation to create a new image
 export const CREATE_IMAGE = gql`
 	mutation CreateImage($input: ImageCreateInput!) {
@@ -89,6 +105,10 @@ export interface GetImagesQuery {
 
 export interface GetImageQuery {
 	image: ImageData | null;
+}
+
+export interface GetImagesByStatusQuery {
+	imagesByStatus: ImageData[];
 }
 
 export interface CreateImageMutation {

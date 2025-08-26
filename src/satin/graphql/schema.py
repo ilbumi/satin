@@ -7,7 +7,7 @@ import strawberry
 from satin.dependencies import dependencies
 from satin.models.annotation import AnnotationCreate, AnnotationUpdate, BoundingBox
 from satin.models.base import PyObjectId
-from satin.models.image import ImageCreate, ImageUpdate
+from satin.models.image import ImageCreate, ImageStatus, ImageUpdate
 from satin.models.ml_job import MLJobCreate, MLJobStatus
 from satin.models.tag import TagCreate, TagUpdate
 from satin.utils import SerializableHttpUrl
@@ -42,6 +42,21 @@ class Query:
         """Get image by ID."""
         image = await dependencies.image_repo.get_by_id(id)
         return Image.from_model(image) if image else None
+
+    @strawberry.field
+    async def images_by_status(self, statuses: list[str]) -> list[Image]:
+        """Get images by status."""
+        images = []
+        for status_str in statuses:
+            try:
+                status = ImageStatus(status_str)
+                status_images = [img async for img in dependencies.image_repo.find_by_status(status)]
+                images.extend(status_images)
+            except ValueError:
+                # Skip invalid statuses
+                continue
+
+        return [Image.from_model(img) for img in images]
 
     # Annotation queries
     @strawberry.field

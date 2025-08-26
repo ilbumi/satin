@@ -42,8 +42,9 @@
 				{#each navigationItems as item (item.href)}
 					<a
 						href={item.href}
-						class="group px-3 py-2 text-sm font-medium transition-colors duration-200 {$page.url
-							.pathname === item.href
+						class="group px-3 py-2 text-sm font-medium transition-colors duration-200 {$page.url.pathname.startsWith(
+							item.href
+						) && (item.href === '/' ? $page.url.pathname === '/' : true)
 							? 'text-blue-600'
 							: 'text-gray-500 hover:text-gray-900'}"
 						title="Navigate to {item.name} ({item.shortcut})"
@@ -106,8 +107,9 @@
 				{#each navigationItems as item (item.href)}
 					<a
 						href={item.href}
-						class="block px-3 py-2 text-base font-medium transition-colors duration-200 {$page.url
-							.pathname === item.href
+						class="block px-3 py-2 text-base font-medium transition-colors duration-200 {$page.url.pathname.startsWith(
+							item.href
+						) && (item.href === '/' ? $page.url.pathname === '/' : true)
 							? 'text-blue-600'
 							: 'text-gray-500 hover:text-gray-900'}"
 						onclick={() => (mobileMenuOpen = false)}
