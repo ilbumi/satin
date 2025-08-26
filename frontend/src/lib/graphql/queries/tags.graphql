@@ -1,41 +1,29 @@
-query GetTags($parentId: ID) {
-	tags(parentId: $parentId) {
+query GetTags {
+	tags {
 		id
 		name
-		color
-		fullPath
-		usageCount
+		description
 		parentId
+		path
+		depth
+		color
+		usageCount
 		createdAt
-		children {
-			id
-			name
-			color
-			usageCount
-		}
+		updatedAt
 	}
 }
 
-query GetTagHierarchy {
-	tagHierarchy {
+query GetTagTree($rootId: String) {
+	tagTree(rootId: $rootId) {
 		id
 		name
+		description
+		parentId
+		path
+		depth
 		color
-		fullPath
 		usageCount
-		children {
-			id
-			name
-			color
-			fullPath
-			usageCount
-			children {
-				id
-				name
-				color
-				fullPath
-				usageCount
-			}
-		}
+		createdAt
+		updatedAt
 	}
 }
