@@ -1,4 +1,4 @@
-"""Tests for AnnotationRepository with versioning."""
+"""Tests for AnnotationRepository without versioning."""
 
 from bson import ObjectId
 from mongomock_motor import AsyncMongoMockDatabase
@@ -8,82 +8,58 @@ from satin.repositories.annotation import AnnotationRepository
 from tests.fixtures.sample_data import create_test_annotation
 
 
-class TestAnnotationRepositoryVersioning:
-    async def test_create_versioned(self, mock_db: AsyncMongoMockDatabase):
+class TestAnnotationRepositoryCRUD:
+    async def test_create(self, mock_db: AsyncMongoMockDatabase):
         repo = AnnotationRepository(mock_db)
         image_id = ObjectId()
         annotation_data = create_test_annotation(image_id=image_id, description="Test annotation")
 
-        result = await repo.create_versioned(annotation_data)
+        result = await repo.create(annotation_data)
 
-        assert result.version == 1
         assert str(result.image_id) == str(image_id)
         assert result.description == "Test annotation"
 
-    async def test_update_versioned(self, mock_db: AsyncMongoMockDatabase):
+    async def test_update(self, mock_db: AsyncMongoMockDatabase):
         repo = AnnotationRepository(mock_db)
         image_id = ObjectId()
 
         # Create initial annotation
-        initial = await repo.create_versioned(create_test_annotation(image_id=image_id, description="Initial"))
+        initial = await repo.create(create_test_annotation(image_id=image_id, description="Initial"))
 
         # Update annotation
         update_data = AnnotationUpdate(description="Updated")
-        updated = await repo.update_versioned(initial.id, update_data)
+        updated = await repo.update_by_id(initial.id, update_data)
 
         assert updated is not None
         assert updated.description == "Updated"
 
-    async def test_soft_delete_versioned(self, mock_db: AsyncMongoMockDatabase):
+    async def test_delete(self, mock_db: AsyncMongoMockDatabase):
         repo = AnnotationRepository(mock_db)
         image_id = ObjectId()
 
         # Create annotation
-        created = await repo.create_versioned(create_test_annotation(image_id=image_id, description="To be deleted"))
+        created = await repo.create(create_test_annotation(image_id=image_id, description="To be deleted"))
 
-        # Soft delete
-        deleted = await repo.soft_delete_versioned(created.id)
+        # Delete
+        deleted = await repo.delete_by_id(created.id)
 
-        assert deleted is not None
+        assert deleted is True
 
 
 class TestAnnotationRepositoryQueries:
-    async def test_get_latest_version_for_image(self, mock_db: AsyncMongoMockDatabase):
-        repo = AnnotationRepository(mock_db)
-        image_id = ObjectId()
-
-        # Create annotation
-        await repo.create_versioned(create_test_annotation(image_id=image_id, description="test"))
-
-        latest = await repo.get_latest_version_for_image(image_id)
-
-        assert latest is not None
-        assert latest.description == "test"
-
-    async def test_get_version_history(self, mock_db: AsyncMongoMockDatabase):
-        repo = AnnotationRepository(mock_db)
-        image_id = ObjectId()
-
-        # Create annotation
-        await repo.create_versioned(create_test_annotation(image_id=image_id, description="v1"))
-
-        history = [ann async for ann in repo.get_version_history(image_id)]
-
-        assert len(history) >= 1
-
     async def test_find_by_image(self, mock_db: AsyncMongoMockDatabase):
         repo = AnnotationRepository(mock_db)
         image_id = ObjectId()
 
         # Create annotation
-        await repo.create_versioned(create_test_annotation(image_id=image_id))
+        await repo.create(create_test_annotation(image_id=image_id))
 
         results = [ann async for ann in repo.find_by_image(image_id)]
 
         assert len(results) >= 1
 
 
-class TestAnnotationRepositoryMissingMethods:
+class TestAnnotationRepositoryMethods:
     """Test previously untested annotation repository methods."""
 
     async def test_find_by_tags(self, mock_db: AsyncMongoMockDatabase):
@@ -99,10 +75,10 @@ class TestAnnotationRepositoryMissingMethods:
         annotation3 = create_test_annotation(image_id=image_id, tags=[tag1_id, tag2_id], description="Has both")
         annotation4 = create_test_annotation(image_id=image_id, tags=[], description="Has none")
 
-        await repo.create_versioned(annotation1)
-        await repo.create_versioned(annotation2)
-        await repo.create_versioned(annotation3)
-        await repo.create_versioned(annotation4)
+        await repo.create(annotation1)
+        await repo.create(annotation2)
+        await repo.create(annotation3)
+        await repo.create(annotation4)
 
         # Find by tag1
         results_tag1 = [ann async for ann in repo.find_by_tags([tag1_id])]
@@ -125,7 +101,7 @@ class TestAnnotationRepositoryMissingMethods:
         confidences = [0.1, 0.3, 0.5, 0.7, 0.9, None]
         for _i, conf in enumerate(confidences):
             annotation = create_test_annotation(image_id=image_id, confidence=conf, description=f"conf_{conf}")
-            await repo.create_versioned(annotation)
+            await repo.create(annotation)
 
         # Test range filtering
         results_low = [ann async for ann in repo.find_by_confidence_range(min_confidence=0.2)]
@@ -151,11 +127,11 @@ class TestAnnotationRepositoryMissingMethods:
 
         # Create annotations - they'll have default source "manual"
         manual_annotation = create_test_annotation(image_id=image_id, description="Manual annotation")
-        await repo.create_versioned(manual_annotation)
+        await repo.create(manual_annotation)
 
         # Update source in database to simulate ML annotation
         ml_annotation = create_test_annotation(image_id=image_id, description="ML annotation")
-        created_ml = await repo.create_versioned(ml_annotation)
+        created_ml = await repo.create(ml_annotation)
         await repo._collection.update_one({"_id": created_ml.id}, {"$set": {"source": "ml"}})
 
         # Find by source
@@ -172,7 +148,7 @@ class TestAnnotationRepositoryMissingMethods:
             assert ann.source == "ml"
 
     async def test_get_annotation_count_by_image(self, mock_db: AsyncMongoMockDatabase):
-        """Test counting active annotations for an image."""
+        """Test counting annotations for an image."""
         repo = AnnotationRepository(mock_db)
         image_id = ObjectId()
 
@@ -184,83 +160,19 @@ class TestAnnotationRepositoryMissingMethods:
                 description=f"annotation_{i}",
                 bounding_box=BoundingBox(x=i * 10, y=i * 10, width=100, height=50),
             )
-            created = await repo.create_versioned(annotation)
+            created = await repo.create(annotation)
             annotations.append(created)
 
         # Initial count should be 3
         count = await repo.get_annotation_count_by_image(image_id)
         assert count == 3
 
-        # Soft delete one annotation
-        await repo.soft_delete_versioned(annotations[0].id)
+        # Delete one annotation
+        await repo.delete_by_id(annotations[0].id)
 
         # Count should now be 2
         count_after_delete = await repo.get_annotation_count_by_image(image_id)
         assert count_after_delete == 2
-
-    async def test_restore_version(self, mock_db: AsyncMongoMockDatabase):
-        """Test restoring annotation to a specific version."""
-        repo = AnnotationRepository(mock_db)
-        image_id = ObjectId()
-
-        # Create initial annotation
-        initial = await repo.create_versioned(create_test_annotation(image_id=image_id, description="Version 1"))
-
-        # Update to version 2
-        updated = await repo.update_versioned(initial.id, AnnotationUpdate(description="Version 2"))
-
-        # Update to version 3
-        await repo.update_versioned(updated.id, AnnotationUpdate(description="Version 3"))
-
-        # Restore to version 1
-        restored = await repo.restore_version(image_id, 1)
-
-        assert restored is not None
-        assert restored.description == "Version 1"
-        assert restored.version == 4  # New version number
-        assert restored.image_id == image_id
-
-        # Test restoring non-existent version
-        nonexistent = await repo.restore_version(image_id, 999)
-        assert nonexistent is None
-
-        # Test restoring for non-existent image
-        fake_image_id = ObjectId()
-        nonexistent_image = await repo.restore_version(fake_image_id, 1)
-        assert nonexistent_image is None
-
-    async def test_get_active_annotations_for_image(self, mock_db: AsyncMongoMockDatabase):
-        """Test getting active (non-deleted) annotations for an image."""
-        repo = AnnotationRepository(mock_db)
-        image_id = ObjectId()
-
-        # Create multiple annotations with different bounding boxes
-        bbox1 = BoundingBox(x=10, y=10, width=100, height=50)
-        bbox2 = BoundingBox(x=200, y=200, width=150, height=75)
-        bbox3 = BoundingBox(x=400, y=400, width=80, height=60)
-
-        await repo.create_versioned(
-            create_test_annotation(image_id=image_id, bounding_box=bbox1, description="Active 1")
-        )
-        await repo.create_versioned(
-            create_test_annotation(image_id=image_id, bounding_box=bbox2, description="Active 2")
-        )
-        ann3 = await repo.create_versioned(
-            create_test_annotation(image_id=image_id, bounding_box=bbox3, description="To be deleted")
-        )
-
-        # Soft delete one annotation
-        await repo.soft_delete_versioned(ann3.id)
-
-        # Get active annotations
-        active = [ann async for ann in repo.get_active_annotations_for_image(image_id)]
-
-        # Should only get non-deleted annotations
-        assert len(active) == 2
-        descriptions = [ann.description for ann in active]
-        assert "Active 1" in descriptions
-        assert "Active 2" in descriptions
-        assert "To be deleted" not in descriptions
 
 
 class TestAnnotationRepositoryErrorHandling:
@@ -274,40 +186,9 @@ class TestAnnotationRepositoryErrorHandling:
         invalid_id = "invalid-object-id"
 
         # These should handle gracefully and return None/empty results
-        assert await repo.update_versioned(invalid_id, AnnotationUpdate(description="test")) is None
-        assert await repo.soft_delete_versioned(invalid_id) is None
+        assert await repo.update_by_id(invalid_id, AnnotationUpdate(description="test")) is None
+        assert await repo.delete_by_id(invalid_id) is False
 
-        # These should return empty iterators
-        history = [ann async for ann in repo.get_version_history(invalid_id)]
-        assert len(history) == 0
-
-        active = [ann async for ann in repo.get_active_annotations_for_image(invalid_id)]
-        assert len(active) == 0
-
+        # This should return empty iterators
         by_image = [ann async for ann in repo.find_by_image(invalid_id)]
         assert len(by_image) == 0
-
-    async def test_concurrent_version_creation(self, mock_db: AsyncMongoMockDatabase):
-        """Test behavior when multiple versions are created concurrently."""
-        repo = AnnotationRepository(mock_db)
-        image_id = ObjectId()
-
-        # Create base annotation
-        base_annotation = create_test_annotation(image_id=image_id, description="Base")
-        created = await repo.create_versioned(base_annotation)
-
-        # Simulate concurrent updates by creating multiple update operations
-        # Note: This is a simplified test since we can't easily test true concurrency with mock
-        update1 = AnnotationUpdate(description="Update 1")
-        update2 = AnnotationUpdate(description="Update 2")
-
-        result1 = await repo.update_versioned(created.id, update1)
-        result2 = await repo.update_versioned(created.id, update2)
-
-        assert result1 is not None
-        assert result2 is not None
-        assert result1.version != result2.version  # Should have different versions
-
-        # Both updates should be based on the original version
-        assert result1.version > created.version
-        assert result2.version > created.version

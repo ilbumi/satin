@@ -1,18 +1,8 @@
 """Annotation models."""
 
-from enum import StrEnum
-
 from pydantic import BaseModel, Field
 
 from satin.models.base import PyObjectId, SatinBaseModel
-
-
-class ChangeType(StrEnum):
-    """Type of change for versioning."""
-
-    CREATE = "create"
-    UPDATE = "update"
-    DELETE = "delete"
 
 
 class BoundingBox(BaseModel):
@@ -32,8 +22,6 @@ class AnnotationCreate(BaseModel):
     tags: list[PyObjectId] = Field(default_factory=list)
     description: str = ""
     confidence: float | None = None
-    version: int = 1
-    change_type: ChangeType = ChangeType.CREATE
 
 
 class AnnotationUpdate(BaseModel):
@@ -54,5 +42,3 @@ class Annotation(SatinBaseModel):
     description: str = ""
     confidence: float | None = None
     source: str = "manual"
-    version: int = 1
-    change_type: ChangeType = ChangeType.CREATE

@@ -13,7 +13,7 @@ class TestCompleteAnnotationWorkflow:
     """Test complete annotation workflows from start to finish."""
 
     async def test_complete_image_annotation_lifecycle(self, mock_dependencies: MockDependencies):
-        """Test complete workflow: create image -> create tags -> annotate -> version -> export."""
+        """Test complete workflow: create image -> create tags -> annotate -> update -> export."""
         # Step 1: Create image
         image = await mock_dependencies.image_repo.create(create_test_image("https://example.com/test-image.jpg"))
         assert image.status.value == "new"
@@ -48,10 +48,9 @@ class TestCompleteAnnotationWorkflow:
             tags=[breed_tag.id, size_tag.id],
             confidence=0.95,
         )
-        created_annotation = await mock_dependencies.annotation_repo.create_versioned(annotation1)
+        created_annotation = await mock_dependencies.annotation_repo.create(annotation1)
 
         # Verify annotation
-        assert created_annotation.version == 1
         assert len(created_annotation.tags) == 2
         assert created_annotation.confidence == 0.95
 
@@ -59,13 +58,12 @@ class TestCompleteAnnotationWorkflow:
         await mock_dependencies.tag_repo.increment_usage_count(breed_tag.id)
         await mock_dependencies.tag_repo.increment_usage_count(size_tag.id)
 
-        # Step 4: Update annotation (creates version 2)
-        updated_annotation = await mock_dependencies.annotation_repo.update_versioned(
+        # Step 4: Update annotation
+        updated_annotation = await mock_dependencies.annotation_repo.update_by_id(
             created_annotation.id,
             AnnotationUpdate(description="Main golden retriever in center of image", confidence=0.98),
         )
 
-        assert updated_annotation.version == 2
         assert updated_annotation.description == "Main golden retriever in center of image"
         assert updated_annotation.confidence == 0.98
 
@@ -74,16 +72,14 @@ class TestCompleteAnnotationWorkflow:
         annotation2 = create_test_annotation(
             image_id=image.id, bounding_box=bbox2, description="Toy in background", confidence=0.75
         )
-        await mock_dependencies.annotation_repo.create_versioned(annotation2)
+        await mock_dependencies.annotation_repo.create(annotation2)
 
-        # Step 6: Get active annotations for image
-        active_annotations = [
-            ann async for ann in mock_dependencies.annotation_repo.get_active_annotations_for_image(image.id)
-        ]
+        # Step 6: Get annotations for image
+        image_annotations = [ann async for ann in mock_dependencies.annotation_repo.find_by_image(image.id)]
 
-        # Should have 2 active annotations
-        assert len(active_annotations) == 2
-        descriptions = [ann.description for ann in active_annotations]
+        # Should have 2 annotations
+        assert len(image_annotations) == 2
+        descriptions = [ann.description for ann in image_annotations]
         assert "Main golden retriever in center of image" in descriptions
         assert "Toy in background" in descriptions
 
@@ -91,22 +87,10 @@ class TestCompleteAnnotationWorkflow:
         updated_image = await mock_dependencies.image_repo.mark_as_annotated(str(image.id))
         assert updated_image.status.value == "annotated"
 
-        # Step 8: Test version history
-        version_history = [ann async for ann in mock_dependencies.annotation_repo.get_version_history(image.id)]
-
-        # Should have 3 versions total (1 original, 1 update, 1 new annotation)
-        assert len(version_history) >= 2
-
-        # Step 9: Test tag statistics
+        # Step 8: Test tag statistics
         stats = await mock_dependencies.tag_repo.get_tag_statistics()
         assert stats["total_tags"] == 4  # Animals, Dogs, Golden Retriever, Large
         assert stats["total_usage"] >= 2  # At least 2 increments
-
-        # Step 10: Test restoration scenario
-        restored = await mock_dependencies.annotation_repo.restore_version(image.id, 1)
-        assert restored is not None
-        assert restored.version == 4  # New version created (1 original, 1 update, 1 second annotation, 1 restore)
-        assert restored.description == "Main dog in image"  # Original description
 
     async def test_complex_tag_hierarchy_operations(self, mock_dependencies: MockDependencies):
         """Test complex tag hierarchy manipulations."""
@@ -178,7 +162,7 @@ class TestCompleteAnnotationWorkflow:
         ml_annotation = create_test_annotation(
             image_id=image.id, bounding_box=bbox_overlap, description="ML detected object", confidence=0.6
         )
-        created_ml = await mock_dependencies.annotation_repo.create_versioned(ml_annotation)
+        created_ml = await mock_dependencies.annotation_repo.create(ml_annotation)
 
         # Update source to ML
         await mock_dependencies.annotation_repo._collection.update_one(
@@ -190,7 +174,7 @@ class TestCompleteAnnotationWorkflow:
         manual_annotation = create_test_annotation(
             image_id=image.id, bounding_box=bbox_manual, description="Manually verified object", confidence=0.95
         )
-        await mock_dependencies.annotation_repo.create_versioned(manual_annotation)
+        await mock_dependencies.annotation_repo.create(manual_annotation)
 
         # Test finding by source
         ml_annotations = [ann async for ann in mock_dependencies.annotation_repo.find_by_source("ml")]
@@ -208,16 +192,16 @@ class TestCompleteAnnotationWorkflow:
         assert high_confidence[0].source == "manual"
         assert low_confidence[0].source == "ml"
 
-        # Simulate conflict resolution: soft delete ML annotation, keep manual
-        deleted_ml = await mock_dependencies.annotation_repo.soft_delete_versioned(created_ml.id)
-        assert deleted_ml.change_type.value == "delete"
+        # Simulate conflict resolution: delete ML annotation, keep manual
+        deleted_ml = await mock_dependencies.annotation_repo.delete_by_id(created_ml.id)
+        assert deleted_ml is True
 
-        # Verify only manual annotation is active
-        active = [ann async for ann in mock_dependencies.annotation_repo.get_active_annotations_for_image(image.id)]
+        # Verify only manual annotation remains
+        remaining = [ann async for ann in mock_dependencies.annotation_repo.find_by_image(image.id)]
 
-        assert len(active) == 1
-        assert active[0].source == "manual"
-        assert active[0].confidence == 0.95
+        assert len(remaining) == 1
+        assert remaining[0].source == "manual"
+        assert remaining[0].confidence == 0.95
 
 
 class TestGraphQLWorkflowIntegration:
@@ -283,31 +267,7 @@ class TestGraphQLWorkflowIntegration:
 
         assert update_annotation_response.status_code == 200
         updated_data = update_annotation_response.json()["data"]["updateAnnotation"]
-        assert updated_data["version"] == 2
-
-        # Step 5: Query version history
-        history_response = test_client.post(
-            "/graphql",
-            json={"query": GRAPHQL_QUERIES["annotation_version_history"], "variables": {"imageId": image_id}},
-        )
-
-        assert history_response.status_code == 200
-        history_data = history_response.json()["data"]["annotationVersionHistory"]
-        assert len(history_data) >= 2  # Original and updated versions
-
-        # Step 6: Restore version
-        restore_response = test_client.post(
-            "/graphql",
-            json={
-                "query": GRAPHQL_QUERIES["restore_annotation_version"],
-                "variables": {"imageId": image_id, "version": 1},
-            },
-        )
-
-        assert restore_response.status_code == 200
-        restored_data = restore_response.json()["data"]["restoreAnnotationVersion"]
-        assert restored_data["version"] == 3
-        assert restored_data["description"] == "Test annotation via GraphQL"
+        assert updated_data["description"] == "Updated annotation via GraphQL"
 
     async def test_graphql_error_handling_workflow(self, test_client: TestClient):
         """Test error handling in GraphQL workflows."""
@@ -357,7 +317,7 @@ class TestDataConsistencyScenarios:
                 description=f"Annotation {i + 1}",
                 bounding_box=BoundingBox(x=i * 50, y=i * 50, width=100, height=100),
             )
-            created = await mock_dependencies.annotation_repo.create_versioned(annotation)
+            created = await mock_dependencies.annotation_repo.create(annotation)
             annotations.append(created)
 
         # Delete image
@@ -369,14 +329,9 @@ class TestDataConsistencyScenarios:
             existing = await mock_dependencies.annotation_repo.get_by_id(annotation.id)
             assert existing is not None
 
-        # But queries by image_id should return empty
+        # Queries by image_id should still return the orphaned annotations
         by_image = [ann async for ann in mock_dependencies.annotation_repo.find_by_image(image.id)]
         assert len(by_image) == 3  # Still exist but are orphaned
-
-        active_by_image = [
-            ann async for ann in mock_dependencies.annotation_repo.get_active_annotations_for_image(image.id)
-        ]
-        assert len(active_by_image) == 3  # Still considered active
 
     async def test_tag_annotation_consistency(self, mock_dependencies: MockDependencies):
         """Test consistency between tags and annotations that reference them."""
@@ -386,7 +341,7 @@ class TestDataConsistencyScenarios:
 
         # Create annotation with tag
         annotation = create_test_annotation(image_id=image.id, tags=[tag.id], description="Tagged annotation")
-        created_annotation = await mock_dependencies.annotation_repo.create_versioned(annotation)
+        created_annotation = await mock_dependencies.annotation_repo.create(annotation)
 
         # Increment tag usage
         await mock_dependencies.tag_repo.increment_usage_count(tag.id)

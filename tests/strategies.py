@@ -6,7 +6,7 @@ from typing import Any
 from bson import ObjectId
 from hypothesis import strategies as st
 
-from satin.models.annotation import AnnotationCreate, BoundingBox, ChangeType
+from satin.models.annotation import AnnotationCreate, BoundingBox
 from satin.models.base import PyObjectId
 from satin.models.image import ImageCreate, ImageStatus
 from satin.models.ml_job import MLJobCreate, MLJobStatus
@@ -164,8 +164,6 @@ def annotation_creates(draw, image_id: PyObjectId | None = None) -> AnnotationCr
     tags = draw(st.lists(py_object_ids(), max_size=5))
     description = draw(safe_strings(max_size=500))
     confidence = draw(st.one_of(st.none(), confidence_scores()))
-    version = draw(st.integers(min_value=1, max_value=1000))
-    change_type = draw(st.sampled_from(list(ChangeType)))
 
     return AnnotationCreate(
         image_id=image_id,
@@ -173,8 +171,6 @@ def annotation_creates(draw, image_id: PyObjectId | None = None) -> AnnotationCr
         tags=tags,
         description=description,
         confidence=confidence,
-        version=version,
-        change_type=change_type,
     )
 
 

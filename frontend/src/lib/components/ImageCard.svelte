@@ -38,7 +38,7 @@
 	}
 
 	function handleAnnotate() {
-		goto(`/annotate?imageId=${image.id}`);
+		goto(`/annotate/${image.id}`);
 	}
 
 	function handleStatusChange(newStatus: 'NEW' | 'ANNOTATED' | 'NEEDS_REANNOTATION') {

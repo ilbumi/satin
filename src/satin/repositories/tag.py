@@ -1,5 +1,6 @@
 """Tag repository with hierarchy support."""
 
+import re
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Any
@@ -227,7 +228,8 @@ class TagRepository(BaseRepository[Tag, TagCreate, TagUpdate]):
 
     async def search_by_name(self, name_pattern: str) -> AsyncIterator[Tag]:
         """Search tags by name pattern (case-insensitive)."""
-        filter_dict = {"name": {"$regex": name_pattern, "$options": "i"}}
+        escaped_pattern = re.escape(name_pattern)
+        filter_dict = {"name": {"$regex": escaped_pattern, "$options": "i"}}
         sort = [("depth", ASCENDING), ("name", ASCENDING)]
 
         async for tag in self.find_paginated(filter_dict, sort=sort):

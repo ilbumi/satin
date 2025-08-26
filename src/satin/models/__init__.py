@@ -1,6 +1,6 @@
 """Pydantic models for the Satin application."""
 
-from .annotation import Annotation, AnnotationCreate, AnnotationUpdate, BoundingBox, ChangeType
+from .annotation import Annotation, AnnotationCreate, AnnotationUpdate, BoundingBox
 from .base import BaseModel, PyObjectId
 from .image import Image, ImageCreate, ImageStatus, ImageUpdate
 from .ml_job import MLJob, MLJobCreate, MLJobStatus, MLJobUpdate
@@ -12,7 +12,6 @@ __all__ = [
     "AnnotationUpdate",
     "BaseModel",
     "BoundingBox",
-    "ChangeType",
     "Image",
     "ImageCreate",
     "ImageStatus",

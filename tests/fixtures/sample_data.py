@@ -147,7 +147,6 @@ GRAPHQL_QUERIES = {
                 description
                 confidence
                 source
-                version
                 createdAt
                 updatedAt
             }
@@ -168,7 +167,6 @@ GRAPHQL_QUERIES = {
                 description
                 confidence
                 source
-                version
             }
         }
     """,
@@ -177,27 +175,7 @@ GRAPHQL_QUERIES = {
             annotationsByImage(imageId: $imageId) {
                 id
                 description
-                version
                 source
-            }
-        }
-    """,
-    "active_annotations_by_image": """
-        query ActiveAnnotationsByImage($imageId: String!) {
-            activeAnnotationsByImage(imageId: $imageId) {
-                id
-                description
-                version
-            }
-        }
-    """,
-    "annotation_version_history": """
-        query AnnotationVersionHistory($imageId: String!) {
-            annotationVersionHistory(imageId: $imageId) {
-                id
-                version
-                description
-                createdAt
             }
         }
     """,
@@ -207,7 +185,6 @@ GRAPHQL_QUERIES = {
                 id
                 imageId
                 description
-                version
             }
         }
     """,
@@ -216,25 +193,12 @@ GRAPHQL_QUERIES = {
             updateAnnotation(id: $id, input: $input) {
                 id
                 description
-                version
             }
         }
     """,
     "delete_annotation": """
         mutation DeleteAnnotation($id: String!) {
-            deleteAnnotation(id: $id) {
-                id
-                version
-            }
-        }
-    """,
-    "restore_annotation_version": """
-        mutation RestoreAnnotationVersion($imageId: String!, $version: Int!) {
-            restoreAnnotationVersion(imageId: $imageId, version: $version) {
-                id
-                version
-                description
-            }
+            deleteAnnotation(id: $id)
         }
     """,
     # Tag queries

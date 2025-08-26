@@ -1,11 +1,24 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { getContextClient } from '@urql/svelte';
+	import {
+		CREATE_ANNOTATION,
+		UPDATE_ANNOTATION,
+		DELETE_ANNOTATION,
+		GET_ANNOTATIONS_BY_IMAGE,
+		type AnnotationData,
+		type AnnotationCreateInput,
+		type AnnotationUpdateInput
+	} from '$lib/graphql/operations/annotations';
 
 	interface Props {
 		imageUrl: string;
+		imageId?: string;
+		initialAnnotations?: AnnotationData[];
 		width?: number;
 		height?: number;
 		onAnnotationsChange?: (annotations: BoundingBox[]) => void;
+		onSaveStatusChange?: (status: 'idle' | 'saving' | 'saved' | 'error') => void;
 	}
 
 	interface BoundingBox {
@@ -14,12 +27,29 @@
 		y: number;
 		width: number;
 		height: number;
-		label?: string;
+		description?: string;
+		confidence?: number;
+		source?: string;
 		createdAt: string;
 		updatedAt: string;
+		// For tracking changes
+		_isNew?: boolean;
+		_isDirty?: boolean;
+		_isDeleted?: boolean;
 	}
 
-	let { imageUrl, width = 800, height = 600, onAnnotationsChange }: Props = $props();
+	let {
+		imageUrl,
+		imageId,
+		initialAnnotations = [],
+		width = 800,
+		height = 600,
+		onAnnotationsChange,
+		onSaveStatusChange
+	}: Props = $props();
+
+	// GraphQL client for backend operations
+	const client = getContextClient();
 
 	let canvasElement: HTMLCanvasElement | undefined = $state();
 	let ctx: CanvasRenderingContext2D | null = null;
@@ -37,45 +67,188 @@
 	let selectedBoxId = $state<string | null>(null);
 	let mode = $state<'select' | 'draw'>('select');
 
+	// Save state
+	let saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+	// Convert backend annotation to frontend bounding box
+	function annotationToBoundingBox(annotation: AnnotationData): BoundingBox {
+		return {
+			id: annotation.id,
+			x: annotation.boundingBox.x,
+			y: annotation.boundingBox.y,
+			width: annotation.boundingBox.width,
+			height: annotation.boundingBox.height,
+			description: annotation.description,
+			confidence: annotation.confidence,
+			source: annotation.source,
+			createdAt: annotation.createdAt,
+			updatedAt: annotation.updatedAt,
+			// Backend annotations are not new, not dirty, and not deleted
+			_isNew: false,
+			_isDirty: false,
+			_isDeleted: false
+		};
+	}
+
+	// Convert frontend bounding box to backend annotation input
+	function boundingBoxToAnnotationInput(
+		box: BoundingBox
+	): AnnotationCreateInput | AnnotationUpdateInput {
+		const baseInput = {
+			boundingBox: {
+				x: box.x,
+				y: box.y,
+				width: box.width,
+				height: box.height
+			},
+			description: box.description || '',
+			confidence: box.confidence
+		};
+
+		if (box._isNew) {
+			return {
+				...baseInput,
+				imageId: imageId!,
+				tags: []
+			} as AnnotationCreateInput;
+		}
+
+		return baseInput as AnnotationUpdateInput;
+	}
+
+	// Save annotations to backend
+	async function saveAnnotations() {
+		if (!imageId || saveStatus === 'saving') return;
+
+		try {
+			saveStatus = 'saving';
+			onSaveStatusChange?.(saveStatus);
+
+			// Process new annotations
+			const newBoxes = boundingBoxes.filter((box) => box._isNew && !box._isDeleted);
+			for (const box of newBoxes) {
+				const input = boundingBoxToAnnotationInput(box) as AnnotationCreateInput;
+				const result = await client.mutation(CREATE_ANNOTATION, { input }).toPromise();
+
+				if (result.error) {
+					console.error('Failed to create annotation:', result.error);
+					throw new Error(`Failed to create annotation: ${result.error.message}`);
+				}
+
+				if (result.data?.createAnnotation) {
+					// Update local box with backend data
+					const backendAnnotation = result.data.createAnnotation;
+					Object.assign(box, annotationToBoundingBox(backendAnnotation));
+					box._isNew = false;
+					box._isDirty = false;
+					console.log('Successfully created annotation:', backendAnnotation.id);
+				} else {
+					throw new Error('Create annotation returned no data');
+				}
+			}
+
+			// Process updated annotations
+			const updatedBoxes = boundingBoxes.filter(
+				(box) => box._isDirty && !box._isNew && !box._isDeleted
+			);
+			console.log('Updated boxes to save:', updatedBoxes.length, updatedBoxes);
+			for (const box of updatedBoxes) {
+				const input = boundingBoxToAnnotationInput(box) as AnnotationUpdateInput;
+				const result = await client
+					.mutation(UPDATE_ANNOTATION, {
+						id: box.id,
+						input
+					})
+					.toPromise();
+
+				if (result.error) {
+					console.error('Failed to update annotation:', result.error);
+					throw new Error(`Failed to update annotation: ${result.error.message}`);
+				}
+
+				if (result.data?.updateAnnotation) {
+					// Update local box with backend data
+					const backendAnnotation = result.data.updateAnnotation;
+					Object.assign(box, annotationToBoundingBox(backendAnnotation));
+					box._isDirty = false;
+					console.log('Successfully updated annotation:', backendAnnotation.id);
+				} else {
+					throw new Error('Update annotation returned no data');
+				}
+			}
+
+			// Process deleted annotations
+			const deletedBoxes = boundingBoxes.filter((box) => box._isDeleted);
+			for (const box of deletedBoxes) {
+				if (!box._isNew) {
+					const result = await client.mutation(DELETE_ANNOTATION, { id: box.id }).toPromise();
+
+					if (result.error) {
+						console.error('Failed to delete annotation:', result.error);
+						throw new Error(`Failed to delete annotation: ${result.error.message}`);
+					}
+
+					if (!result.data?.deleteAnnotation) {
+						throw new Error('Delete annotation failed');
+					}
+
+					console.log('Successfully deleted annotation:', box.id);
+				}
+			}
+
+			// Remove deleted boxes from local state
+			boundingBoxes = boundingBoxes.filter((box) => !box._isDeleted);
+
+			saveStatus = 'saved';
+			onSaveStatusChange?.(saveStatus);
+			onAnnotationsChange?.(boundingBoxes);
+
+			// Invalidate annotations query cache to ensure fresh data on refresh
+			if (imageId) {
+				// Force cache invalidation by making a network-only query
+				client
+					.query(GET_ANNOTATIONS_BY_IMAGE, { imageId: imageId }, { requestPolicy: 'network-only' })
+					.toPromise();
+			}
+
+			// Auto-clear saved status after 2 seconds
+			setTimeout(() => {
+				if (saveStatus === 'saved') {
+					saveStatus = 'idle';
+					onSaveStatusChange?.(saveStatus);
+				}
+			}, 2000);
+		} catch (error) {
+			console.error('Failed to save annotations:', error);
+			saveStatus = 'error';
+			onSaveStatusChange?.(saveStatus);
+
+			// Keep error status longer so user can see it
+			setTimeout(() => {
+				if (saveStatus === 'error') {
+					saveStatus = 'idle';
+					onSaveStatusChange?.(saveStatus);
+				}
+			}, 5000);
+		}
+	}
+
 	// Export functions for external control
 	export function deleteAnnotationById(id: string) {
-		boundingBoxes = boundingBoxes.filter((box) => box.id !== id);
+		const box = boundingBoxes.find((b) => b.id === id);
+		if (box) {
+			box._isDeleted = true;
+			saveAnnotations(); // Save immediately on deletion
+		}
 		if (selectedBoxId === id) {
 			selectedBoxId = null;
 		}
-		saveAnnotations();
 		drawCanvas();
 	}
 
 	export function selectAnnotationById(id: string) {
 		selectedBoxId = id;
 		drawCanvas();
-	}
-
-	// Storage key based on image URL
-	const storageKey = `annotations_${btoa(imageUrl).replace(/[^a-zA-Z0-9]/g, '')}`;
-
-	// Load saved annotations
-	function loadAnnotations() {
-		try {
-			const saved = localStorage.getItem(storageKey);
-			if (saved) {
-				boundingBoxes = JSON.parse(saved);
-				onAnnotationsChange?.(boundingBoxes); // Notify parent of loaded annotations
-			}
-		} catch (error) {
-			console.warn('Failed to load annotations:', error);
-		}
-	}
-
-	// Save annotations
-	function saveAnnotations() {
-		try {
-			localStorage.setItem(storageKey, JSON.stringify(boundingBoxes));
-			onAnnotationsChange?.(boundingBoxes);
-		} catch (error) {
-			console.warn('Failed to save annotations:', error);
-		}
 	}
 
 	function handleKeyDown(event: KeyboardEvent) {
@@ -97,7 +270,6 @@
 	onMount(() => {
 		if (canvasElement) {
 			ctx = canvasElement.getContext('2d');
-			loadAnnotations(); // Load saved annotations first
 			loadImage();
 		}
 
@@ -386,17 +558,32 @@
 			if (Math.abs(boxWidth) > 10 && Math.abs(boxHeight) > 10) {
 				const now = new Date().toISOString();
 				const newBox: BoundingBox = {
-					id: crypto.randomUUID(),
+					id: `temp_${crypto.randomUUID()}`, // Temporary ID until saved to backend
 					x: Math.min(startX, endX),
 					y: Math.min(startY, endY),
 					width: Math.abs(boxWidth),
 					height: Math.abs(boxHeight),
+					description: '',
 					createdAt: now,
-					updatedAt: now
+					updatedAt: now,
+					_isNew: true,
+					_isDirty: true
 				};
 				boundingBoxes.push(newBox);
 				selectedBoxId = newBox.id;
-				saveAnnotations(); // Save after creating new box
+				saveAnnotations(); // Save immediately on creation
+			}
+		}
+
+		// Mark annotations as dirty after any modification and save immediately (before resetting flags)
+		if (isResizing || isDragging) {
+			// Update timestamp and mark as dirty for modified box
+			const modifiedBox = boundingBoxes.find((box) => box.id === selectedBoxId);
+			if (modifiedBox) {
+				console.log('Marking annotation as dirty:', modifiedBox.id, '_isNew:', modifiedBox._isNew);
+				modifiedBox.updatedAt = new Date().toISOString();
+				modifiedBox._isDirty = true;
+				saveAnnotations(); // Save immediately on modification
 			}
 		}
 
@@ -407,24 +594,41 @@
 		dragHandle = null;
 		originalBox = null;
 
-		// Save annotations after any modification
-		if (isResizing || isDragging) {
-			// Update timestamp for modified box
-			const modifiedBox = boundingBoxes.find((box) => box.id === selectedBoxId);
-			if (modifiedBox) {
-				modifiedBox.updatedAt = new Date().toISOString();
-			}
-			saveAnnotations();
-		}
-
 		drawCanvas();
 	}
+
+	// Track if initial annotations have been loaded to prevent infinite loops
+	let hasLoadedInitial = false;
+
+	// Load initial annotations when they change
+	$effect(() => {
+		const newAnnotations = initialAnnotations.map(annotationToBoundingBox);
+
+		// Skip update if we're currently saving (to avoid conflicts)
+		if (saveStatus === 'saving') {
+			return;
+		}
+
+		// Only update if the content is actually different
+		const hasChanged =
+			!hasLoadedInitial ||
+			newAnnotations.length !== boundingBoxes.length ||
+			newAnnotations.some((ann, i) => !boundingBoxes[i] || ann.id !== boundingBoxes[i].id);
+
+		if (hasChanged) {
+			boundingBoxes = newAnnotations;
+			onAnnotationsChange?.(boundingBoxes);
+			hasLoadedInitial = true;
+		}
+	});
 
 	$effect(() => {
 		if (imageUrl && ctx) {
 			loadImage();
 		}
 	});
+
+	// Cleanup on unmount - no longer needed since we save immediately
 </script>
 
 <div class="relative">

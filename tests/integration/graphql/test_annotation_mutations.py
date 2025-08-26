@@ -2,7 +2,6 @@
 
 from fastapi.testclient import TestClient
 
-from satin.models.annotation import AnnotationUpdate
 from tests.conftest import MockDependencies
 from tests.fixtures.sample_data import GRAPHQL_QUERIES, create_test_annotation, create_test_image, create_test_tag
 
@@ -38,7 +37,6 @@ class TestAnnotationMutations:
         annotation = data["data"]["createAnnotation"]
         assert annotation["imageId"] == str(image.id)
         assert annotation["description"] == "Test annotation"
-        assert annotation["version"] == 1
         assert annotation["id"] is not None
 
     async def test_create_annotation_minimal(self, test_client: TestClient, mock_dependencies):
@@ -63,7 +61,6 @@ class TestAnnotationMutations:
         assert "data" in data
         annotation = data["data"]["createAnnotation"]
         assert annotation["imageId"] == str(image.id)
-        assert annotation["version"] == 1
 
     def test_create_annotation_invalid_image_id(self, test_client: TestClient):
         """Test creating annotation with invalid image ID."""
@@ -92,7 +89,7 @@ class TestAnnotationMutations:
         image = await mock_dependencies.image_repo.create(create_test_image("http://test.com/image.jpg"))
 
         annotation_data = create_test_annotation(image_id=image.id, description="Original description")
-        created = await mock_dependencies.annotation_repo.create_versioned(annotation_data)
+        created = await mock_dependencies.annotation_repo.create(annotation_data)
 
         update_input = {
             "description": "Updated description",
@@ -112,14 +109,13 @@ class TestAnnotationMutations:
         assert "data" in data
         annotation = data["data"]["updateAnnotation"]
         assert annotation["description"] == "Updated description"
-        assert annotation["version"] == 2  # Should create new version
 
     async def test_update_annotation_bounding_box(self, test_client: TestClient, mock_dependencies):
         """Test updating annotation's bounding box."""
         image = await mock_dependencies.image_repo.create(create_test_image("http://test.com/image.jpg"))
 
         annotation_data = create_test_annotation(image_id=image.id, description="Test")
-        created = await mock_dependencies.annotation_repo.create_versioned(annotation_data)
+        created = await mock_dependencies.annotation_repo.create(annotation_data)
 
         update_input = {
             "boundingBox": {"x": 50.0, "y": 60.0, "width": 200.0, "height": 100.0},
@@ -136,15 +132,14 @@ class TestAnnotationMutations:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        annotation = data["data"]["updateAnnotation"]
-        assert annotation["version"] == 2
+        assert data["data"]["updateAnnotation"] is not None
 
     async def test_update_annotation_no_changes(self, test_client: TestClient, mock_dependencies):
         """Test updating annotation with no changes."""
         image = await mock_dependencies.image_repo.create(create_test_image("http://test.com/image.jpg"))
 
         annotation_data = create_test_annotation(image_id=image.id, description="Test")
-        created = await mock_dependencies.annotation_repo.create_versioned(annotation_data)
+        created = await mock_dependencies.annotation_repo.create(annotation_data)
 
         response = test_client.post(
             "/graphql",
@@ -157,8 +152,7 @@ class TestAnnotationMutations:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        annotation = data["data"]["updateAnnotation"]
-        assert annotation["version"] == 1  # Should not create new version
+        assert data["data"]["updateAnnotation"] is not None
 
     def test_update_nonexistent_annotation(self, test_client: TestClient):
         """Test updating non-existent annotation."""
@@ -180,7 +174,7 @@ class TestAnnotationMutations:
         image = await mock_dependencies.image_repo.create(create_test_image("http://test.com/image.jpg"))
 
         annotation_data = create_test_annotation(image_id=image.id, description="To be deleted")
-        created = await mock_dependencies.annotation_repo.create_versioned(annotation_data)
+        created = await mock_dependencies.annotation_repo.create(annotation_data)
 
         response = test_client.post(
             "/graphql",
@@ -194,12 +188,11 @@ class TestAnnotationMutations:
         data = response.json()
         assert "data" in data
         deleted = data["data"]["deleteAnnotation"]
-        assert deleted is not None
-        assert deleted["version"] == 2  # Should create delete version
+        assert deleted is True
 
-        # Verify the annotation is soft-deleted (still exists but marked as deleted)
+        # Verify the annotation is deleted
         original = await mock_dependencies.annotation_repo.get_by_id(created.id)
-        assert original is not None  # Original version still exists
+        assert original is None  # Annotation should be deleted
 
     def test_delete_nonexistent_annotation(self, test_client: TestClient):
         """Test deleting non-existent annotation."""
@@ -214,53 +207,7 @@ class TestAnnotationMutations:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        assert data["data"]["deleteAnnotation"] is None
-
-    async def test_restore_annotation_version(self, test_client: TestClient, mock_dependencies):
-        """Test restoring annotation to a previous version."""
-        image = await mock_dependencies.image_repo.create(create_test_image("http://test.com/image.jpg"))
-
-        # Create initial annotation
-        annotation_data = create_test_annotation(image_id=image.id, description="Version 1")
-        created = await mock_dependencies.annotation_repo.create_versioned(annotation_data)
-
-        # Update to version 2
-        update_data = AnnotationUpdate(description="Version 2")
-        await mock_dependencies.annotation_repo.update_versioned(created.id, update_data)
-
-        # Restore to version 1
-        response = test_client.post(
-            "/graphql",
-            json={
-                "query": GRAPHQL_QUERIES["restore_annotation_version"],
-                "variables": {"imageId": str(image.id), "version": 1},
-            },
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert "data" in data
-        restored = data["data"]["restoreAnnotationVersion"]
-        assert restored is not None
-        assert restored["description"] == "Version 1"
-        assert restored["version"] == 3  # Should be a new version
-
-    async def test_restore_nonexistent_version(self, test_client: TestClient, mock_dependencies):
-        """Test restoring non-existent version."""
-        image = await mock_dependencies.image_repo.create(create_test_image("http://test.com/image.jpg"))
-
-        response = test_client.post(
-            "/graphql",
-            json={
-                "query": GRAPHQL_QUERIES["restore_annotation_version"],
-                "variables": {"imageId": str(image.id), "version": 999},
-            },
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert "data" in data
-        assert data["data"]["restoreAnnotationVersion"] is None
+        assert data["data"]["deleteAnnotation"] is False
 
 
 class TestAnnotationMutationErrorHandling:

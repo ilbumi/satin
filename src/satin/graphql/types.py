@@ -105,7 +105,6 @@ class Annotation:
     description: str
     confidence: float | None
     source: str
-    version: int
     created_at: str
     updated_at: str
 
@@ -120,7 +119,6 @@ class Annotation:
             description=annotation.description,
             confidence=annotation.confidence,
             source=annotation.source,
-            version=annotation.version,
             created_at=annotation.created_at.isoformat(),
             updated_at=annotation.updated_at.isoformat(),
         )
@@ -222,7 +220,6 @@ class MLJob:
             annotation_dict = pred.model_dump()
             # Add required fields that might be missing
             annotation_dict["source"] = "ml"
-            annotation_dict["version"] = 1
             annotation_dict["created_at"] = datetime.now(UTC)
             annotation_dict["updated_at"] = datetime.now(UTC)
 

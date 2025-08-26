@@ -1,71 +1,41 @@
-mutation CreateAnnotation($input: CreateAnnotationInput!) {
+mutation CreateAnnotation($input: AnnotationCreateInput!) {
 	createAnnotation(input: $input) {
 		id
-		x
-		y
-		width
-		height
-		tags {
-			id
-			name
-			color
-		}
-		description
-		mlDescription
-		confidence
-		source
 		imageId
-		createdAt
-		updatedAt
-	}
-}
-
-mutation UpdateAnnotation($id: ID!, $input: UpdateAnnotationInput!) {
-	updateAnnotation(id: $id, input: $input) {
-		id
-		x
-		y
-		width
-		height
-		tags {
-			id
-			name
-			color
-		}
-		description
-		mlDescription
-		confidence
-		source
-		imageId
-		createdAt
-		updatedAt
-	}
-}
-
-mutation DeleteAnnotation($id: ID!) {
-	deleteAnnotation(id: $id) {
-		success
-		message
-	}
-}
-
-mutation BatchSaveAnnotations($imageId: ID!, $annotations: [AnnotationInput!]!) {
-	batchSaveAnnotations(imageId: $imageId, annotations: $annotations) {
-		id
-		version
-		annotations {
-			id
+		boundingBox {
 			x
 			y
 			width
 			height
-			tags {
-				id
-				name
-				color
-			}
-			description
 		}
+		tags
+		description
+		confidence
+		source
 		createdAt
+		updatedAt
 	}
+}
+
+mutation UpdateAnnotation($id: String!, $input: AnnotationUpdateInput!) {
+	updateAnnotation(id: $id, input: $input) {
+		id
+		imageId
+		boundingBox {
+			x
+			y
+			width
+			height
+		}
+		tags
+		description
+		confidence
+		source
+		createdAt
+		updatedAt
+	}
+}
+
+mutation DeleteAnnotation($id: String!) {
+	deleteAnnotation(id: $id)
 }

@@ -1,5 +1,7 @@
 """GraphQL schema definition."""
 
+from typing import Any
+
 import strawberry
 
 from satin.dependencies import dependencies
@@ -58,18 +60,6 @@ class Query:
     async def annotations_by_image(self, image_id: str) -> list[Annotation]:
         """Get all annotations for an image."""
         annotations = [ann async for ann in dependencies.annotation_repo.find_by_image(image_id)]
-        return [Annotation.from_model(ann) for ann in annotations]
-
-    @strawberry.field
-    async def active_annotations_by_image(self, image_id: str) -> list[Annotation]:
-        """Get active (non-deleted) annotations for an image."""
-        annotations = [ann async for ann in dependencies.annotation_repo.get_active_annotations_for_image(image_id)]
-        return [Annotation.from_model(ann) for ann in annotations]
-
-    @strawberry.field
-    async def annotation_version_history(self, image_id: str) -> list[Annotation]:
-        """Get version history for annotations on an image."""
-        annotations = [ann async for ann in dependencies.annotation_repo.get_version_history(image_id)]
         return [Annotation.from_model(ann) for ann in annotations]
 
     # Tag queries
@@ -199,7 +189,7 @@ class Mutation:
                 description=input.description,
                 confidence=input.confidence,
             )
-            annotation = await dependencies.annotation_repo.create_versioned(annotation_create)
+            annotation = await dependencies.annotation_repo.create(annotation_create)
             return Annotation.from_model(annotation)
         except Exception:  # noqa: BLE001
             # Return None if invalid ObjectId or other validation error
@@ -207,47 +197,41 @@ class Mutation:
 
     @strawberry.mutation
     async def update_annotation(self, id: str, input: AnnotationUpdateInput) -> Annotation | None:  # noqa: A002
-        """Update an existing annotation (creates new version)."""
-        # Build update data with proper types
-        bounding_box = None
+        """Update an existing annotation."""
+        # Build update data with only fields that are provided
+        update_kwargs: dict[str, Any] = {}
+
         if input.bounding_box is not None:
-            bounding_box = BoundingBox(
+            update_kwargs["bounding_box"] = BoundingBox(
                 x=input.bounding_box.x,
                 y=input.bounding_box.y,
                 width=input.bounding_box.width,
                 height=input.bounding_box.height,
             )
 
-        tags = None
         if input.tags is not None:
-            tags = [PyObjectId(tag_id) for tag_id in input.tags]
+            update_kwargs["tags"] = [PyObjectId(tag_id) for tag_id in input.tags]
+
+        if input.description is not None:
+            update_kwargs["description"] = input.description
+
+        if input.confidence is not None:
+            update_kwargs["confidence"] = input.confidence
 
         # Check if there are any updates
-        if bounding_box is None and tags is None and input.description is None and input.confidence is None:
+        if not update_kwargs:
             # If no updates, return current annotation
             annotation = await dependencies.annotation_repo.get_by_id(id)
             return Annotation.from_model(annotation) if annotation else None
 
-        annotation_update = AnnotationUpdate(
-            bounding_box=bounding_box,
-            tags=tags,
-            description=input.description,
-            confidence=input.confidence,
-        )
-        annotation = await dependencies.annotation_repo.update_versioned(id, annotation_update)
+        annotation_update = AnnotationUpdate(**update_kwargs)
+        annotation = await dependencies.annotation_repo.update_by_id(id, annotation_update)
         return Annotation.from_model(annotation) if annotation else None
 
     @strawberry.mutation
-    async def delete_annotation(self, id: str) -> Annotation | None:  # noqa: A002
-        """Soft delete an annotation (creates delete version)."""
-        annotation = await dependencies.annotation_repo.soft_delete_versioned(id)
-        return Annotation.from_model(annotation) if annotation else None
-
-    @strawberry.mutation
-    async def restore_annotation_version(self, image_id: str, version: int) -> Annotation | None:
-        """Restore annotation to a specific version."""
-        annotation = await dependencies.annotation_repo.restore_version(image_id, version)
-        return Annotation.from_model(annotation) if annotation else None
+    async def delete_annotation(self, id: str) -> bool:  # noqa: A002
+        """Delete an annotation."""
+        return await dependencies.annotation_repo.delete_by_id(id)
 
     # Tag mutations
     @strawberry.mutation
