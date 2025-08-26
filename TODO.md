@@ -26,9 +26,9 @@
 - [x] Configure Vite for development
 - [x] Set up Tailwind CSS
 - [x] Create base layout component
-- [ ] Configure URQL client
+- [x] Configure URQL client
 - [x] Add ESLint and Prettier configuration
-- [ ] Create environment variable handling
+- [x] Create environment variable handling
 
 ### 1.4 Docker Setup
 - [x] Create Dockerfile for backend
@@ -44,89 +44,89 @@
 - [x] Create MongoDB initialization script
 - [x] Design database indexes
 - [x] Create database connection module
-- [ ] Implement connection pooling
+- [x] Implement connection pooling
 - [x] Add database health check
 - [x] Create collections with validation rules
 - [x] Test database connectivity from backend
 
 ### 1.6 CI/CD Pipeline
-- [ ] Create GitHub Actions workflow file
-- [ ] Configure Python test job
-- [ ] Configure Node.js test job
-- [ ] Add Docker build verification
-- [ ] Set up code coverage reporting
-- [ ] Configure branch protection rules
+- [x] Create GitHub Actions workflow file
+- [x] Configure Python test job
+- [x] Configure Node.js test job
+- [x] Add Docker build verification
+- [x] Set up code coverage reporting
+- [x] Configure branch protection rules
 
 ## Phase 2: Core Data Models & API Foundation (Week 2)
 
 ### 2.1 Pydantic Models
-- [ ] Create base model with common fields
-- [ ] Implement Image model
-- [ ] Implement Annotation model
-- [ ] Implement BoundingBox model
-- [ ] Implement Tag model
-- [ ] Implement MLJob model
+- [x] Create base model with common fields
+- [x] Implement Image model
+- [x] Implement Annotation model
+- [x] Implement BoundingBox model
+- [x] Implement Tag model
+- [x] Implement MLJob model
 - [ ] Create model validators
 - [ ] Add model serialization helpers
 
 ### 2.2 Database Repositories
-- [ ] Create base repository class
-- [ ] Implement ImageRepository with CRUD operations
-- [ ] Implement AnnotationRepository with versioning
-- [ ] Implement TagRepository with hierarchy support
-- [ ] Implement MLJobRepository
-- [ ] Add repository error handling
-- [ ] Create repository tests
+- [x] Create base repository class
+- [x] Implement ImageRepository with CRUD operations
+- [x] Implement AnnotationRepository with versioning
+- [x] Implement TagRepository with hierarchy support
+- [x] Implement MLJobRepository
+- [x] Add repository error handling
+- [x] Create repository tests
 
 ### 2.3 GraphQL Schema Foundation
-- [ ] Set up Strawberry GraphQL with FastAPI
-- [ ] Create GraphQL type definitions
-- [ ] Implement Image types
-- [ ] Implement Annotation types
-- [ ] Implement Tag types
-- [ ] Create input types for mutations
-- [ ] Add enum types (ImageStatus, ChangeType, etc.)
-- [ ] Configure GraphQL playground
+- [x] Set up Strawberry GraphQL with FastAPI
+- [x] Create GraphQL type definitions
+- [x] Implement Image types
+- [x] Implement Annotation types
+- [x] Implement Tag types
+- [x] Create input types for mutations
+- [x] Add enum types (ImageStatus, ChangeType, etc.)
+- [x] Configure GraphQL playground
 
 ### 2.4 Basic Queries
 - [ ] Implement images query with pagination
-- [ ] Implement single image query
-- [ ] Implement tags query
-- [ ] Add query resolvers
-- [ ] Implement field resolvers
+- [x] Implement single image query
+- [x] Implement tags query
+- [x] Add query resolvers
+- [x] Implement field resolvers
 - [ ] Add query authorization placeholder
-- [ ] Create query tests
+- [x] Create query tests
 
 ### 2.5 Basic Mutations
-- [ ] Implement addImage mutation
-- [ ] Implement updateImageStatus mutation
-- [ ] Implement createTag mutation
-- [ ] Add mutation resolvers
-- [ ] Implement input validation
-- [ ] Add mutation tests
+- [x] Implement addImage mutation
+- [x] Implement updateImageStatus mutation
+- [x] Implement createTag mutation
+- [x] Add mutation resolvers
+- [x] Implement input validation
+- [x] Add mutation tests
 - [ ] Create error handling for mutations
 
 ## Phase 3: Frontend Foundation (Week 3)
 
 ### 3.1 Layout & Navigation
-- [ ] Create main layout with header
-- [ ] Implement sidebar component structure
-- [ ] Create navigation between pages
-- [ ] Add routing for annotation page
-- [ ] Implement responsive layout
-- [ ] Create loading states
-- [ ] Add error boundary component
+- [x] Create main layout with header
+- [x] Implement sidebar component structure
+- [x] Create navigation between pages
+- [x] Add routing for annotation page
+- [x] Implement responsive layout
+- [x] Create loading states
+- [x] Add error boundary component
 
 ### 3.2 Image List Page
-- [ ] Create image grid component
-- [ ] Implement image card component
-- [ ] Add status badges (new, annotated, needs reannotation)
-- [ ] Implement pagination component
-- [ ] Add image status filter
-- [ ] Create "Add Image URL" dialog
-- [ ] Implement image URL validation
-- [ ] Connect to GraphQL queries
-- [ ] Add loading and error states
+- [x] Create image grid component
+- [x] Implement image card component
+- [x] Add status badges (new, annotated, needs reannotation)
+- [x] Implement pagination component
+- [x] Add image status filter
+- [x] Create "Add Image URL" dialog
+- [x] Implement image URL validation
+- [x] Connect to GraphQL queries
+- [x] Add loading and error states
 
 ### 3.3 Svelte Stores
 - [ ] Create image store
@@ -138,69 +138,60 @@
 - [ ] Add store tests
 
 ### 3.4 GraphQL Integration
-- [ ] Set up URQL client configuration
-- [ ] Create GraphQL query definitions
-- [ ] Create GraphQL mutation definitions
-- [ ] Implement query hooks
-- [ ] Add mutation handlers
-- [ ] Set up error handling
-- [ ] Configure caching strategy
+- [x] Set up URQL client configuration
+- [x] Create GraphQL query definitions
+- [x] Create GraphQL mutation definitions
+- [x] Implement query hooks
+- [x] Add mutation handlers
+- [x] Set up error handling
+- [x] Configure caching strategy
 
 ## Phase 4: Canvas & Annotation UI (Week 4)
 
 ### 4.1 Konva.js Canvas Setup
-- [ ] Create AnnotationCanvas component
+- [x] Create AnnotationCanvas component
 - [ ] Set up Konva Stage
-- [ ] Implement image layer
-- [ ] Add annotations layer
-- [ ] Create drawing layer
-- [ ] Implement UI overlay layer
-- [ ] Configure layer ordering
-- [ ] Add stage event handlers
+- [x] Implement image layer
+- [x] Add annotations layer
+- [x] Implement UI overlay layer
+- [x] Configure layer ordering
+- [x] Add stage event handlers
 
 ### 4.2 Image Display
-- [ ] Implement image loading
+- [x] Implement image loading
 - [ ] Add image error handling
 - [ ] Create image preloader
-- [ ] Implement zoom functionality (center on cursor)
-- [ ] Add pan functionality
-- [ ] Create zoom controls UI
-- [ ] Add fit-to-screen option
 - [ ] Implement image caching
 
 ### 4.3 Bounding Box Drawing
-- [ ] Implement mouse down handler for drawing start
-- [ ] Create temporary rectangle while drawing
-- [ ] Implement mouse move handler for drawing
-- [ ] Add mouse up handler for drawing complete
-- [ ] Create minimum size validation
-- [ ] Add drawing cancel on Escape
-- [ ] Implement touch support for tablets
-- [ ] Add visual feedback during drawing
+- [x] Implement mouse down handler for drawing start
+- [x] Create temporary rectangle while drawing
+- [x] Implement mouse move handler for drawing
+- [x] Add mouse up handler for drawing complete
+- [x] Create minimum size validation
+- [x] Add drawing cancel on Escape
+- [x] Add visual feedback during drawing
 
 ### 4.4 Bounding Box Selection
-- [ ] Implement click detection on boxes
-- [ ] Create selection algorithm for overlapping boxes
-- [ ] Add selection visual feedback
+- [x] Implement click detection on boxes
+- [x] Create selection algorithm for overlapping boxes
+- [x] Add selection visual feedback
 - [ ] Implement hover effects
 - [ ] Add Tab key navigation between boxes
 - [ ] Create selection info display
-- [ ] Implement multi-select (future)
 
 ### 4.5 Bounding Box Editing
-- [ ] Add resize handles to selected box
-- [ ] Implement corner dragging
-- [ ] Implement edge dragging
-- [ ] Add move functionality
-- [ ] Create bounds checking
-- [ ] Add snapping guides (future)
-- [ ] Implement delete functionality
-- [ ] Add visual feedback during editing
+- [x] Add resize handles to selected box
+- [x] Implement corner dragging
+- [x] Add move functionality
+- [x] Create bounds checking
+- [x] Implement delete functionality
+- [x] Add visual feedback during editing
 
 ## Phase 5: Annotation Management (Week 5)
 
 ### 5.1 Tag System UI
-- [ ] Create tag hierarchy component
+- [x] Create tag hierarchy component
 - [ ] Implement tree view with expand/collapse
 - [ ] Add tag search input
 - [ ] Implement fuzzy search
