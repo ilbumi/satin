@@ -7,7 +7,6 @@ from typing import Any, TypeVar
 
 from bson import ObjectId
 from bson.errors import InvalidId
-from mongomock_motor import AsyncCommandCursor
 from pydantic import BaseModel
 from pymongo import ReturnDocument, UpdateOne
 from pymongo.asynchronous.collection import AsyncCollection
@@ -135,7 +134,7 @@ class BaseRepository[ModelType: SatinBaseModel, CreateSchemaType: BaseModel, Upd
         async for document in cursor:
             yield self._model_class(**document)
 
-    async def _aggregate_cursor(self, pipeline: list[dict[str, Any]]) -> AsyncCommandCursor:
+    async def _aggregate_cursor(self, pipeline: list[dict[str, Any]]) -> AsyncIterator[dict[str, Any]]:
         """Run aggregation pipeline and return cursor.
 
         Use this instead of directly calling self._collection.aggregate.

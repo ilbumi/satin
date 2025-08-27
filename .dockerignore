@@ -3,8 +3,9 @@
 .gitignore
 
 # Documentation
-*.md
 docs/
+TODo.md
+
 
 # Environment files
 .env*
