@@ -11,15 +11,22 @@ from satin.models.image import ImageCreate, ImageStatus, ImageUpdate
 from satin.models.ml_job import MLJobCreate, MLJobStatus
 from satin.utils import SerializableHttpUrl
 
+from .pagination import PageInfo, PaginationInput, SortInput, encode_cursor
 from .types import (
     Annotation,
+    AnnotationConnection,
     AnnotationCreateInput,
+    AnnotationFilterInput,
     AnnotationUpdateInput,
     Image,
+    ImageConnection,
     ImageCreateInput,
+    ImageFilterInput,
     ImageUpdateInput,
     MLJob,
+    MLJobConnection,
     MLJobCreateInput,
+    MLJobFilterInput,
 )
 
 
@@ -27,11 +34,56 @@ from .types import (
 class Query:
     """GraphQL queries."""
 
+    # Paginated queries
     @strawberry.field
-    async def images(self) -> list[Image]:
-        """Get all images."""
-        images = [img async for img in dependencies.image_repo.find()]
-        return [Image.from_model(img) for img in images]
+    async def images(
+        self,
+        pagination: PaginationInput | None = None,
+        filter: ImageFilterInput | None = None,  # noqa: A002
+        sort: SortInput | None = None,
+    ) -> ImageConnection:
+        """Get paginated images with filtering and sorting."""
+        # Set defaults
+        if pagination is None:
+            pagination = PaginationInput()
+
+        # Build filter
+        filter_dict: dict[str, Any] = {}
+        if filter:
+            if filter.status:
+                filter_dict["status"] = filter.status.value
+            if filter.statuses:
+                filter_dict["status"] = {"$in": [s.value for s in filter.statuses]}
+            if filter.url_contains:
+                filter_dict["url"] = {"$regex": filter.url_contains, "$options": "i"}
+
+        sort_list = [(sort.field, sort.order.value)] if sort else [("created_at", -1)]
+
+        # Get paginated results
+        items, total_count = await dependencies.image_repo.find_paginated_with_count(
+            filter_dict=filter_dict,
+            skip=pagination.offset,
+            limit=pagination.limit,
+            sort=sort_list,
+        )
+
+        # Build page info
+        has_next = pagination.offset + len(items) < total_count
+        has_prev = pagination.offset > 0
+
+        page_info = PageInfo(
+            has_next_page=has_next,
+            has_previous_page=has_prev,
+            start_cursor=encode_cursor(str(pagination.offset)) if items else None,
+            end_cursor=encode_cursor(str(pagination.offset + len(items) - 1)) if items else None,
+            total_count=total_count,
+        )
+
+        return ImageConnection(
+            items=[Image.from_model(img) for img in items],
+            page_info=page_info,
+            total_count=total_count,
+        )
 
     @strawberry.field
     async def image(self, id: str) -> Image | None:  # noqa: A002
@@ -56,10 +108,58 @@ class Query:
 
     # Annotation queries
     @strawberry.field
-    async def annotations(self) -> list[Annotation]:
-        """Get all annotations."""
-        annotations = [ann async for ann in dependencies.annotation_repo.find()]
-        return [Annotation.from_model(ann) for ann in annotations]
+    async def annotations(
+        self,
+        pagination: PaginationInput | None = None,
+        filter: AnnotationFilterInput | None = None,  # noqa: A002
+        sort: SortInput | None = None,
+    ) -> AnnotationConnection:
+        """Get paginated annotations with filtering and sorting."""
+        if pagination is None:
+            pagination = PaginationInput()
+
+        # Build filter
+        filter_dict: dict[str, Any] = {}
+        if filter:
+            if filter.image_id:
+                filter_dict["image_id"] = PyObjectId(filter.image_id)
+            if filter.has_tags:
+                filter_dict["tags"] = {"$all": filter.has_tags}
+            if filter.confidence_min is not None:
+                filter_dict.setdefault("confidence", {})["$gte"] = filter.confidence_min
+            if filter.confidence_max is not None:
+                filter_dict.setdefault("confidence", {})["$lte"] = filter.confidence_max
+            if filter.source:
+                filter_dict["source"] = filter.source
+
+        # Build sort
+        sort_list = [(sort.field, sort.order.value)] if sort else [("created_at", -1)]
+
+        # Get paginated results
+        items, total_count = await dependencies.annotation_repo.find_paginated_with_count(
+            filter_dict=filter_dict,
+            skip=pagination.offset,
+            limit=pagination.limit,
+            sort=sort_list,
+        )
+
+        # Build page info
+        has_next = pagination.offset + len(items) < total_count
+        has_prev = pagination.offset > 0
+
+        page_info = PageInfo(
+            has_next_page=has_next,
+            has_previous_page=has_prev,
+            start_cursor=encode_cursor(str(pagination.offset)) if items else None,
+            end_cursor=encode_cursor(str(pagination.offset + len(items) - 1)) if items else None,
+            total_count=total_count,
+        )
+
+        return AnnotationConnection(
+            items=[Annotation.from_model(ann) for ann in items],
+            page_info=page_info,
+            total_count=total_count,
+        )
 
     @strawberry.field
     async def annotation(self, id: str) -> Annotation | None:  # noqa: A002
@@ -75,10 +175,54 @@ class Query:
 
     # ML Job queries
     @strawberry.field
-    async def ml_jobs(self) -> list[MLJob]:
-        """Get all ML jobs."""
-        jobs = [job async for job in dependencies.ml_job_repo.find()]
-        return [MLJob.from_model(job) for job in jobs]
+    async def ml_jobs(
+        self,
+        pagination: PaginationInput | None = None,
+        filter: MLJobFilterInput | None = None,  # noqa: A002
+        sort: SortInput | None = None,
+    ) -> MLJobConnection:
+        """Get paginated ML jobs with filtering and sorting."""
+        if pagination is None:
+            pagination = PaginationInput()
+
+        # Build filter
+        filter_dict: dict[str, Any] = {}
+        if filter:
+            if filter.status:
+                filter_dict["status"] = filter.status.value
+            if filter.image_url:
+                filter_dict["image_url"] = filter.image_url
+            if filter.endpoint:
+                filter_dict["endpoint"] = filter.endpoint
+
+        # Build sort
+        sort_list = [(sort.field, sort.order.value)] if sort else [("created_at", -1)]
+
+        # Get paginated results
+        items, total_count = await dependencies.ml_job_repo.find_paginated_with_count(
+            filter_dict=filter_dict,
+            skip=pagination.offset,
+            limit=pagination.limit,
+            sort=sort_list,
+        )
+
+        # Build page info
+        has_next = pagination.offset + len(items) < total_count
+        has_prev = pagination.offset > 0
+
+        page_info = PageInfo(
+            has_next_page=has_next,
+            has_previous_page=has_prev,
+            start_cursor=encode_cursor(str(pagination.offset)) if items else None,
+            end_cursor=encode_cursor(str(pagination.offset + len(items) - 1)) if items else None,
+            total_count=total_count,
+        )
+
+        return MLJobConnection(
+            items=[MLJob.from_model(job) for job in items],
+            page_info=page_info,
+            total_count=total_count,
+        )
 
     @strawberry.field
     async def ml_job(self, id: str) -> MLJob | None:  # noqa: A002

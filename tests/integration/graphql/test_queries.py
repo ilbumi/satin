@@ -12,7 +12,8 @@ class TestGraphQLQueries:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        assert data["data"]["images"] == []
+        assert data["data"]["images"]["items"] == []
+        assert data["data"]["images"]["totalCount"] == 0
 
     async def test_query_images_with_data(self, test_client: TestClient, mock_dependencies):
         # Create test images
@@ -24,10 +25,11 @@ class TestGraphQLQueries:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        assert len(data["data"]["images"]) == 2
-        assert data["data"]["images"][0]["url"] == "http://test1.com/image.jpg"
-        assert data["data"]["images"][0]["status"] == "NEW"
-        assert data["data"]["images"][1]["url"] == "http://test2.com/image.png"
+        assert len(data["data"]["images"]["items"]) == 2
+        assert data["data"]["images"]["totalCount"] == 2
+        assert data["data"]["images"]["items"][0]["url"] == "http://test1.com/image.jpg"
+        assert data["data"]["images"]["items"][0]["status"] == "NEW"
+        assert data["data"]["images"]["items"][1]["url"] == "http://test2.com/image.png"
 
     async def test_query_image_by_id(self, test_client: TestClient, mock_dependencies):
         created = await mock_dependencies.image_repo.create(create_test_image("http://test.com/image.jpg"))

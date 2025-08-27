@@ -60,14 +60,22 @@ GRAPHQL_QUERIES = {
     "list_images": """
         query {
             images {
-                id
-                url
-                status
-                width
-                height
-                ext
-                createdAt
-                updatedAt
+                items {
+                    id
+                    url
+                    status
+                    width
+                    height
+                    ext
+                    createdAt
+                    updatedAt
+                }
+                pageInfo {
+                    hasNextPage
+                    hasPreviousPage
+                    totalCount
+                }
+                totalCount
             }
         }
     """,
@@ -128,20 +136,28 @@ GRAPHQL_QUERIES = {
     "list_annotations": """
         query {
             annotations {
-                id
-                imageId
-                boundingBox {
-                    x
-                    y
-                    width
-                    height
+                items {
+                    id
+                    imageId
+                    boundingBox {
+                        x
+                        y
+                        width
+                        height
+                    }
+                    tags
+                    description
+                    confidence
+                    source
+                    createdAt
+                    updatedAt
                 }
-                tags
-                description
-                confidence
-                source
-                createdAt
-                updatedAt
+                pageInfo {
+                    hasNextPage
+                    hasPreviousPage
+                    totalCount
+                }
+                totalCount
             }
         }
     """,
@@ -198,13 +214,21 @@ GRAPHQL_QUERIES = {
     "list_ml_jobs": """
         query {
             mlJobs {
-                id
-                imageUrl
-                endpoint
-                status
-                errorMessage
-                createdAt
-                updatedAt
+                items {
+                    id
+                    imageUrl
+                    endpoint
+                    status
+                    errorMessage
+                    createdAt
+                    updatedAt
+                }
+                pageInfo {
+                    hasNextPage
+                    hasPreviousPage
+                    totalCount
+                }
+                totalCount
             }
         }
     """,

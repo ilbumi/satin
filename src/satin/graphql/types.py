@@ -11,6 +11,8 @@ from satin.models.image import Image as ImageModel
 from satin.models.ml_job import MLJob as MLJobModel
 from satin.models.ml_job import MLJobStatus
 
+from .pagination import PageInfo
+
 
 @strawberry.enum
 class ImageStatus(Enum):
@@ -201,3 +203,61 @@ class MLJobUpdateInput:
 
     status: MLJobStatus | None = None
     error_message: str | None = strawberry.field(default=None, name="errorMessage")
+
+
+# Connection types for pagination
+@strawberry.type
+class ImageConnection:
+    """Paginated connection for images."""
+
+    items: list[Image]
+    page_info: PageInfo
+    total_count: int
+
+
+@strawberry.type
+class AnnotationConnection:
+    """Paginated connection for annotations."""
+
+    items: list[Annotation]
+    page_info: PageInfo
+    total_count: int
+
+
+@strawberry.type
+class MLJobConnection:
+    """Paginated connection for ML jobs."""
+
+    items: list[MLJob]
+    page_info: PageInfo
+    total_count: int
+
+
+# Filter inputs for queries
+@strawberry.input
+class ImageFilterInput:
+    """Filter input for image queries."""
+
+    status: ImageStatus | None = None
+    statuses: list[ImageStatus] | None = None
+    url_contains: str | None = None
+
+
+@strawberry.input
+class AnnotationFilterInput:
+    """Filter input for annotation queries."""
+
+    image_id: str | None = None
+    has_tags: list[str] | None = None
+    confidence_min: float | None = None
+    confidence_max: float | None = None
+    source: str | None = None
+
+
+@strawberry.input
+class MLJobFilterInput:
+    """Filter input for ML job queries."""
+
+    status: MLJobStatus | None = None
+    image_url: str | None = None
+    endpoint: str | None = None

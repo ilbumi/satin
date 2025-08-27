@@ -6,14 +6,14 @@ from unittest.mock import patch
 import pytest
 from pydantic import ValidationError
 
-from satin.config import get_settings
 from satin.config.settings import AppSettings
 
 
 @pytest.mark.usefixtures("clean_env")
 class TestAppSettings:
     def test_default_values(self):
-        settings = get_settings()
+        # Create settings without loading .env file to test true defaults
+        settings = AppSettings(_env_file=None, mongo_dsn="mongodb://localhost:27017/test")
         assert settings.backend_host == "localhost"
         assert settings.backend_port == 8000
         assert not settings.reload
@@ -29,7 +29,7 @@ class TestAppSettings:
         }
 
         with patch.dict(os.environ, env_vars):
-            settings = AppSettings()
+            settings = AppSettings(_env_file=None)
             assert str(settings.mongo_dsn) == "mongodb://test:27017/satin"
             assert settings.backend_host == "192.168.1.1"
             assert settings.backend_port == 9000
@@ -40,7 +40,7 @@ class TestAppSettings:
     def test_invalid_mongo_dsn(self, invalid_dsn):
         with patch.dict(os.environ, {"SATIN_MONGO_DSN": invalid_dsn}):
             with pytest.raises(ValidationError) as exc_info:
-                AppSettings()
+                AppSettings(_env_file=None)
             assert "mongo_dsn" in str(exc_info.value)
 
     @pytest.mark.parametrize(
@@ -76,7 +76,7 @@ class TestAppSettings:
         env_vars = {"SATIN_MONGO_DSN": "mongodb://localhost:27017/test", "SATIN_CORS": cors_value}
 
         with patch.dict(os.environ, env_vars):
-            settings = AppSettings()
+            settings = AppSettings(_env_file=None)
             assert settings.cors == expected
 
     @pytest.mark.parametrize(
@@ -94,5 +94,5 @@ class TestAppSettings:
         env_vars = {"SATIN_MONGO_DSN": "mongodb://localhost:27017/test", "SATIN_RELOAD": reload_value}
 
         with patch.dict(os.environ, env_vars):
-            settings = AppSettings()
+            settings = AppSettings(_env_file=None)
             assert settings.reload is expected

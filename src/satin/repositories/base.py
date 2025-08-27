@@ -134,6 +134,30 @@ class BaseRepository[ModelType: SatinBaseModel, CreateSchemaType: BaseModel, Upd
         async for document in cursor:
             yield self._model_class(**document)
 
+    async def find_paginated_with_count(
+        self,
+        filter_dict: dict[str, Any] | None = None,
+        skip: int = 0,
+        limit: int = 100,
+        sort: list[tuple[str, int]] | None = None,
+    ) -> tuple[list[ModelType], int]:
+        """Find documents with pagination and return list with total count.
+
+        Returns:
+            Tuple of (items, total_count)
+
+        """
+        if filter_dict is None:
+            filter_dict = {}
+
+        # Get total count
+        total_count = await self.count(filter_dict)
+
+        # Get paginated items
+        items = [item async for item in self.find_paginated(filter_dict, skip, limit, sort)]
+
+        return items, total_count
+
     async def _aggregate_cursor(self, pipeline: list[dict[str, Any]]) -> AsyncIterator[dict[str, Any]]:
         """Run aggregation pipeline and return cursor.
 

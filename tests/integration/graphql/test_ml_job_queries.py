@@ -17,7 +17,8 @@ class TestMLJobQueries:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        assert data["data"]["mlJobs"] == []
+        assert data["data"]["mlJobs"]["items"] == []
+        assert data["data"]["mlJobs"]["totalCount"] == 0
 
     async def test_query_ml_jobs_with_data(self, test_client: TestClient, mock_dependencies):
         """Test querying ML jobs with sample data."""
@@ -37,10 +38,11 @@ class TestMLJobQueries:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        assert len(data["data"]["mlJobs"]) == 2
+        assert len(data["data"]["mlJobs"]["items"]) == 2
+        assert data["data"]["mlJobs"]["totalCount"] == 2
 
         # Check that ML jobs have correct properties
-        job_data = data["data"]["mlJobs"][0]
+        job_data = data["data"]["mlJobs"]["items"][0]
         assert "id" in job_data
         assert "imageUrl" in job_data
         assert "endpoint" in job_data
