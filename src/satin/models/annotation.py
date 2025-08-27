@@ -1,58 +1,44 @@
-"""Pydantic models for Annotation and BBox."""
+"""Annotation models."""
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
-from satin.constants import MAX_BBOX_COORDINATE
-from satin.exceptions import CoordinateValidationError
-from satin.validators import sanitize_string, validate_tags
+from satin.models.base import PyObjectId, SatinBaseModel
 
 
-class Annotation(BaseModel):
-    """Annotation model for image annotations."""
+class BoundingBox(BaseModel):
+    """Bounding box coordinates."""
 
-    text: str | None = Field(default=None, description="Text annotation", max_length=1000)
-    tags: list[str] | None = Field(default=None, description="List of tags", max_length=50)
-
-    @field_validator("text")
-    @classmethod
-    def validate_text(cls, v: str | None) -> str | None:
-        """Validate annotation text."""
-        if v is None:
-            return v
-        return sanitize_string(v, max_length=1000)
-
-    @field_validator("tags")
-    @classmethod
-    def validate_tags_list(cls, v: list[str] | None) -> list[str] | None:
-        """Validate tags list."""
-        if v is None:
-            return v
-        return validate_tags(v)
-
-    def __str__(self) -> str:
-        """Get string representation of the Annotation."""
-        return f"Annotation(text={self.text}, tags={self.tags})"
+    x: float
+    y: float
+    width: float
+    height: float
 
 
-class BBox(BaseModel):
-    """Bounding box model with annotation."""
+class AnnotationCreate(BaseModel):
+    """Schema for creating an annotation."""
 
-    x: float = Field(..., description="X coordinate of the bounding box", ge=0, le=MAX_BBOX_COORDINATE)
-    y: float = Field(..., description="Y coordinate of the bounding box", ge=0, le=MAX_BBOX_COORDINATE)
-    width: float = Field(..., description="Width of the bounding box", gt=0, le=MAX_BBOX_COORDINATE)
-    height: float = Field(..., description="Height of the bounding box", gt=0, le=MAX_BBOX_COORDINATE)
-    annotation: Annotation = Field(..., description="Annotation for the bounding box")
+    image_id: PyObjectId
+    bounding_box: BoundingBox
+    tags: list[str] = Field(default_factory=list)
+    description: str = ""
+    confidence: float | None = None
 
-    @field_validator("x", "y", "width", "height")
-    @classmethod
-    def validate_coordinates(cls, v: float, info) -> float:
-        """Validate bounding box coordinates."""
-        if v < 0:
-            raise CoordinateValidationError.negative_coordinate(info.field_name)
-        if v > MAX_BBOX_COORDINATE:
-            raise CoordinateValidationError.exceeds_maximum(info.field_name, MAX_BBOX_COORDINATE)
-        return v
 
-    def __str__(self) -> str:
-        """Get string representation of the BBox."""
-        return f"BBox(x={self.x}, y={self.y}, width={self.width}, height={self.height}, annotation={self.annotation})"
+class AnnotationUpdate(BaseModel):
+    """Schema for updating an annotation."""
+
+    bounding_box: BoundingBox | None = None
+    tags: list[str] | None = None
+    description: str | None = None
+    confidence: float | None = None
+
+
+class Annotation(SatinBaseModel):
+    """Annotation model."""
+
+    image_id: PyObjectId
+    bounding_box: BoundingBox
+    tags: list[str] = Field(default_factory=list)
+    description: str = ""
+    confidence: float | None = None
+    source: str = "manual"

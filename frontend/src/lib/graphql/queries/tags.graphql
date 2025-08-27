@@ -1,0 +1,29 @@
+query GetTags {
+	tags {
+		id
+		name
+		description
+		parentId
+		path
+		depth
+		color
+		usageCount
+		createdAt
+		updatedAt
+	}
+}
+
+query GetTagTree($rootId: String) {
+	tagTree(rootId: $rootId) {
+		id
+		name
+		description
+		parentId
+		path
+		depth
+		color
+		usageCount
+		createdAt
+		updatedAt
+	}
+}

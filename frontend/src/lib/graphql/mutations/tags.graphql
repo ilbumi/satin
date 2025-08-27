@@ -1,0 +1,48 @@
+mutation CreateTag($input: TagCreateInput!) {
+	createTag(input: $input) {
+		id
+		name
+		description
+		color
+		path
+		parentId
+		depth
+		usageCount
+		createdAt
+		updatedAt
+	}
+}
+
+mutation UpdateTag($id: String!, $input: TagUpdateInput!) {
+	updateTag(id: $id, input: $input) {
+		id
+		name
+		description
+		color
+		path
+		parentId
+		depth
+		usageCount
+		createdAt
+		updatedAt
+	}
+}
+
+mutation DeleteTag($id: String!) {
+	deleteTag(id: $id)
+}
+
+mutation MoveTag($tagId: String!, $newParentId: String) {
+	moveTag(tagId: $tagId, newParentId: $newParentId) {
+		id
+		name
+		description
+		color
+		path
+		parentId
+		depth
+		usageCount
+		createdAt
+		updatedAt
+	}
+}

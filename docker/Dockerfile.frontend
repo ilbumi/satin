@@ -30,6 +30,7 @@ COPY frontend/ ./
 # Build the application
 RUN pnpm build
 
+
 # Production stage
 FROM node:24-alpine AS production
 
@@ -73,4 +74,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:3000/ || exit 1
 
 # Command to run the application
-CMD ["node", "build/index.js"]
+CMD ["node", "build"]

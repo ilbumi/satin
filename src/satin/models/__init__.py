@@ -1,35 +1,23 @@
-"""Pydantic models for the SATIn application."""
+"""Pydantic models for the Satin application."""
 
-from .annotation import Annotation, BBox
-from .filters import (
-    ListFilterModel,
-    ListFilterOperator,
-    NumberFilterModel,
-    NumberFilterOperator,
-    QueryModel,
-    SortDirection,
-    SortModel,
-    StringFilterModel,
-    StringFilterOperator,
-)
-from .image import Image
-from .project import Project
-from .task import Task, TaskStatus
+from .annotation import Annotation, AnnotationCreate, AnnotationUpdate, BoundingBox
+from .base import BaseModel, PyObjectId
+from .image import Image, ImageCreate, ImageStatus, ImageUpdate
+from .ml_job import MLJob, MLJobCreate, MLJobStatus, MLJobUpdate
 
 __all__ = [
     "Annotation",
-    "BBox",
+    "AnnotationCreate",
+    "AnnotationUpdate",
+    "BaseModel",
+    "BoundingBox",
     "Image",
-    "ListFilterModel",
-    "ListFilterOperator",
-    "NumberFilterModel",
-    "NumberFilterOperator",
-    "Project",
-    "QueryModel",
-    "SortDirection",
-    "SortModel",
-    "StringFilterModel",
-    "StringFilterOperator",
-    "Task",
-    "TaskStatus",
+    "ImageCreate",
+    "ImageStatus",
+    "ImageUpdate",
+    "MLJob",
+    "MLJobCreate",
+    "MLJobStatus",
+    "MLJobUpdate",
+    "PyObjectId",
 ]

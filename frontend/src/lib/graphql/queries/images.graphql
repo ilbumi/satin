@@ -1,0 +1,38 @@
+query GetImages {
+	images {
+		id
+		url
+		width
+		height
+		ext
+		status
+		createdAt
+		updatedAt
+	}
+}
+
+query GetImage($id: String!) {
+	image(id: $id) {
+		id
+		url
+		width
+		height
+		ext
+		status
+		createdAt
+		updatedAt
+	}
+}
+
+query ImagesByStatus($statuses: [String!]!) {
+	imagesByStatus(statuses: $statuses) {
+		id
+		url
+		width
+		height
+		ext
+		status
+		createdAt
+		updatedAt
+	}
+}

@@ -1,36 +1,39 @@
-"""Pydantic model for Image."""
+"""Image models."""
 
-from datetime import datetime
+from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
+from satin.utils import SerializableHttpUrl
 
-class ImageDimensions(BaseModel):
-    """Image dimensions model."""
-
-    width: int = Field(..., description="Image width in pixels")
-    height: int = Field(..., description="Image height in pixels")
+from .base import SatinBaseModel
 
 
-class ImageMetadata(BaseModel):
-    """Image metadata model."""
+class ImageStatus(StrEnum):
+    """Image processing status."""
 
-    filename: str = Field(..., description="Original filename")
-    size: int = Field(..., description="File size in bytes")
-    mime_type: str = Field(..., description="MIME type of the image")
-    format: str | None = Field(None, description="Image format (JPEG, PNG, etc.)")
-    uploaded_at: datetime = Field(default_factory=datetime.utcnow, description="Upload timestamp")
-    is_uploaded: bool = Field(default=False, description="Whether image was uploaded vs URL")
+    NEW = "new"
+    ANNOTATED = "annotated"
+    NEEDS_REANNOTATION = "needs_reannotation"
 
 
-class Image(BaseModel):
-    """Image model for annotation images."""
+class ImageCreate(BaseModel):
+    """Schema for creating a new image."""
 
-    id: str = Field(..., description="Unique identifier for the image")
-    url: str = Field(..., description="URL of the image (HTTP/HTTPS/data URLs)")
-    dimensions: ImageDimensions | None = Field(None, description="Image dimensions")
-    metadata: ImageMetadata | None = Field(None, description="Image metadata")
+    url: SerializableHttpUrl
 
-    def __str__(self) -> str:
-        """Get string representation of the Image."""
-        return f"Image(id={self.id}, url={self.url})"
+
+class ImageUpdate(BaseModel):
+    """Schema for updating an image."""
+
+    status: ImageStatus | None = None
+
+
+class Image(SatinBaseModel):
+    """Image model."""
+
+    url: SerializableHttpUrl
+    width: int | None = None
+    height: int | None = None
+    ext: str | None = None
+    status: ImageStatus = ImageStatus.NEW

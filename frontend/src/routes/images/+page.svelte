@@ -1,328 +1,292 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import { Button, Card, Modal, Toast } from '$lib/components/ui';
-	// Dynamic imports for heavy components
-	let ImageGallery: typeof import('$lib/components/images/ImageGallery.svelte').default | null =
-		$state(null);
-	let VirtualImageGallery:
-		| typeof import('$lib/components/images/VirtualImageGallery.svelte').default
-		| null = $state(null);
-	let AddImageByUrl: typeof import('$lib/components/images/AddImageByUrl.svelte').default | null =
-		$state(null);
-	let ImageViewer: typeof import('$lib/components/images/ImageViewer.svelte').default | null =
-		$state(null);
-	import { imageStore } from '$lib/features/images/store.svelte';
-	import { taskStore } from '$lib/features/tasks/store.svelte';
-	import type { ImageSummary, ImageDetail, ImageFilters } from '$lib/features/images/types';
-	import type { ClientAnnotation } from '$lib/features/annotations/types';
-	import type { Task } from '$lib/graphql/generated/graphql';
-	// Remove coordinator import to avoid circular dependencies
-	import { errorStore } from '$lib/core/errors';
+	import { queryStore, getContextClient } from '@urql/svelte';
+	import ImageGrid from '$lib/components/ImageGrid.svelte';
+	import ImageFilter from '$lib/components/ImageFilter.svelte';
+	import AddImageDialog from '$lib/components/AddImageDialog.svelte';
+	import Pagination from '$lib/components/Pagination.svelte';
+	import { showSuccess, showError } from '$lib/stores/toast';
+	import {
+		GET_IMAGES,
+		UPDATE_IMAGE,
+		DELETE_IMAGE,
+		type ImageData,
+		type GetImagesQuery,
+		type ImageUpdateInput
+	} from '$lib/graphql/operations/images';
 
-	let showAddModal = $state(false);
-	let showViewer = $state(false);
-	let showAnnotator = $state(false);
-	let selectedImage = $state<ImageSummary | null>(null);
-	let selectedImageForAnnotation = $state<ImageSummary | null>(null);
-	let selectedTaskForAnnotation = $state<Task | null>(null);
-	let ImageAnnotator = $state<
-		typeof import('$lib/components/annotations/ImageAnnotator.svelte').default | null
-	>(null);
-	let showToast = $state(false);
-	let toastMessage = $state('');
-	let toastType = $state<'success' | 'error'>('success');
+	let searchQuery = $state('');
+	let selectedStatuses = $state<string[]>(['NEW', 'ANNOTATED', 'NEEDS_REANNOTATION']);
+	let sortBy = $state('createdAt');
+	let sortOrder = $state<'asc' | 'desc'>('desc');
+	let currentPage = $state(1);
+	let itemsPerPage = $state(12);
+	let showAddImageDialog = $state(false);
 
-	// Virtualization threshold - use virtual gallery when we have many images
-	const VIRTUAL_GALLERY_THRESHOLD = 50;
+	// GraphQL stores and client
+	const client = getContextClient();
+	const imagesQuery = queryStore<GetImagesQuery>({
+		query: GET_IMAGES,
+		client
+	});
 
-	function showSuccessToast(message: string) {
-		toastMessage = message;
-		toastType = 'success';
-		showToast = true;
-	}
+	// Reactive data from GraphQL
+	let images = $derived($imagesQuery.data?.images || []);
+	let loading = $derived($imagesQuery.fetching);
+	let error = $derived($imagesQuery.error);
+	let totalImages = $derived(images.length);
 
-	function showErrorToast(message: string) {
-		toastMessage = message;
-		toastType = 'error';
-		showToast = true;
-	}
+	let filteredImages = $derived(() => {
+		let filtered = [...images];
 
-	function handleImageView(image: ImageSummary) {
-		selectedImage = image;
-		showViewer = true;
-	}
+		// Apply search filter
+		if (searchQuery.trim()) {
+			const query = searchQuery.toLowerCase().trim();
+			filtered = filtered.filter(
+				(img) =>
+					img.url.toLowerCase().includes(query) ||
+					new URL(img.url).pathname.toLowerCase().includes(query)
+			);
+		}
 
-	function handleImageDelete(image: ImageSummary | ImageDetail) {
-		imageStore.deleteImage(image.id).then((success) => {
-			if (success) {
-				showSuccessToast(`${image.filename} deleted successfully`);
+		// Apply status filter
+		if (selectedStatuses.length < 3) {
+			filtered = filtered.filter((img) => selectedStatuses.includes(img.status));
+		}
+
+		// Apply sorting
+		filtered.sort((a, b) => {
+			let aValue: string | number = a[sortBy as keyof typeof a] as string | number;
+			let bValue: string | number = b[sortBy as keyof typeof b] as string | number;
+
+			if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+			if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+
+			if (sortOrder === 'asc') {
+				return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
 			} else {
-				showErrorToast(`Failed to delete ${image.filename}`);
+				return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
 			}
 		});
+
+		return filtered;
+	});
+
+	let paginatedImages = $derived((): ImageData[] => {
+		const startIndex = (currentPage - 1) * itemsPerPage;
+		return filteredImages().slice(startIndex, startIndex + itemsPerPage);
+	});
+
+	// Handle GraphQL errors
+	$effect(() => {
+		if (error) {
+			showError(`Failed to load images: ${error.message}`);
+		}
+	});
+
+	function handleAddImage() {
+		showAddImageDialog = true;
 	}
 
-	async function handleImageAnnotate(image: ImageSummary | ImageDetail) {
-		// Find or create a task for this image
+	function handleSearchChange(query: string) {
+		searchQuery = query;
+		currentPage = 1; // Reset to first page when searching
+	}
+
+	function handleStatusFilterChange(statuses: string[]) {
+		selectedStatuses = statuses;
+		currentPage = 1; // Reset to first page when filtering
+	}
+
+	function handleSortChange(newSortBy: string, newSortOrder: 'asc' | 'desc') {
+		sortBy = newSortBy;
+		sortOrder = newSortOrder;
+		currentPage = 1; // Reset to first page when sorting
+	}
+
+	function handleClearFilters() {
+		searchQuery = '';
+		selectedStatuses = ['NEW', 'ANNOTATED', 'NEEDS_REANNOTATION'];
+		sortBy = 'createdAt';
+		sortOrder = 'desc';
+		currentPage = 1;
+	}
+
+	async function handleImageStatusChange(
+		imageId: string,
+		newStatus: 'NEW' | 'ANNOTATED' | 'NEEDS_REANNOTATION'
+	) {
 		try {
-			await taskStore.loadTasks();
-		} catch (error) {
-			console.error('Failed to load tasks:', error);
-			showErrorToast('Failed to load tasks');
-			return;
-		}
+			const input: ImageUpdateInput = { status: newStatus };
+			const result = await client
+				.mutation(UPDATE_IMAGE, {
+					id: imageId,
+					input
+				})
+				.toPromise();
 
-		let task = taskStore.state.list.tasks.find((t) => t.imageId === image.id);
-
-		if (!task) {
-			// Create a new task for this image
-			try {
-				// You might want to show a modal to let user select project first
-				// For now, we'll create a simple task
-				const createForm = {
-					imageId: image.id,
-					projectId: 'default', // You'd need to handle project selection
-					status: 'DRAFT' as const
-				};
-
-				await taskStore.createTask(createForm);
-				await taskStore.loadTasks(); // Refresh to get the new task
-				task = taskStore.state.list.tasks.find((t) => t.imageId === image.id);
-			} catch {
-				showErrorToast('Failed to create annotation task');
-				return;
-			}
-		}
-
-		if (!task) {
-			showErrorToast('Could not create or find annotation task');
-			return;
-		}
-
-		// Get the actual Task object from the service
-		try {
-			const taskService = new (await import('$lib/features/tasks/service')).TaskService();
-			const fullTask = await taskService.getTask(task.id);
-
-			if (!fullTask) {
-				showErrorToast('Could not load task details');
-				return;
+			if (result.error) {
+				throw new Error(result.error.message);
 			}
 
-			// Dynamically import ImageAnnotator before opening
-			if (!ImageAnnotator) {
-				try {
-					const module = await import('$lib/components/annotations');
-					ImageAnnotator = module.ImageAnnotator;
-				} catch {
-					showErrorToast('Failed to load annotation editor');
-					return;
-				}
-			}
-
-			// Open the annotation editor
-			selectedImageForAnnotation = image as ImageSummary;
-			selectedTaskForAnnotation = fullTask;
-			showAnnotator = true;
-		} catch (error) {
-			console.error('Failed to prepare annotation task:', error);
-			showErrorToast('Failed to prepare annotation task');
-		}
-	}
-
-	function handleAnnotationSave(annotations: ClientAnnotation[]) {
-		const count = annotations.length;
-		showSuccessToast(`${count} annotation${count !== 1 ? 's' : ''} saved successfully`);
-
-		// Refresh task data
-		taskStore.refreshTasks();
-	}
-
-	function handleAnnotatorClose() {
-		showAnnotator = false;
-		selectedImageForAnnotation = null;
-		selectedTaskForAnnotation = null;
-	}
-
-	function handleAddSuccess(images: ImageDetail[]) {
-		showAddModal = false;
-		showSuccessToast(`${images.length} image${images.length > 1 ? 's' : ''} added successfully`);
-		imageStore.refetch();
-	}
-
-	function handleAddError(error: string) {
-		showErrorToast(error);
-	}
-
-	function handleFiltersChange(filters: Partial<ImageFilters>) {
-		imageStore.setFilters(filters);
-	}
-
-	function handleLoadMore() {
-		imageStore.nextPage();
-	}
-
-	// Load images, tasks and components on mount
-	onMount(async () => {
-		// Load core components first
-		try {
-			const [galleryModule, virtualGalleryModule, addImageModule, viewerModule] = await Promise.all(
-				[
-					import('$lib/components/images/ImageGallery.svelte'),
-					import('$lib/components/images/VirtualImageGallery.svelte'),
-					import('$lib/components/images/AddImageByUrl.svelte'),
-					import('$lib/components/images/ImageViewer.svelte')
-				]
+			// Refetch images to get updated data
+			imagesQuery.reexecute({ requestPolicy: 'network-only' });
+			showSuccess(`Image status updated to ${newStatus.replace('_', ' ')}`);
+		} catch (err) {
+			showError(
+				`Failed to update image status: ${err instanceof Error ? err.message : 'Unknown error'}`
 			);
-			ImageGallery = galleryModule.default;
-			VirtualImageGallery = virtualGalleryModule.default;
-			AddImageByUrl = addImageModule.default;
-			ImageViewer = viewerModule.default;
-		} catch (error) {
-			console.error('Failed to load image components:', error);
-			errorStore.addSystemError('Failed to load image components', 'Images Page');
+		}
+	}
+
+	async function handleDeleteImage(imageId: string) {
+		if (!confirm('Are you sure you want to delete this image? This action cannot be undone.')) {
+			return;
 		}
 
-		// Load data directly
 		try {
-			await imageStore.fetchImages();
-		} catch (error) {
-			console.error('Failed to load initial data:', error);
-			errorStore.addSystemError('Failed to load page data', 'Images Page');
-		}
-	});
+			const result = await client.mutation(DELETE_IMAGE, { id: imageId }).toPromise();
 
-	onDestroy(() => {
-		// Clean up image store only
-		imageStore.cleanup();
-	});
+			if (result.error) {
+				throw new Error(result.error.message);
+			}
+
+			// Refetch images to get updated data
+			imagesQuery.reexecute({ requestPolicy: 'network-only' });
+			showSuccess('Image deleted successfully');
+		} catch (err) {
+			showError(`Failed to delete image: ${err instanceof Error ? err.message : 'Unknown error'}`);
+		}
+	}
+
+	function handleAddImageSubmit() {
+		// This will be called by AddImageDialog after successful image creation
+		// Refetch images to get updated data
+		imagesQuery.reexecute({ requestPolicy: 'network-only' });
+	}
 </script>
 
 <svelte:head>
 	<title>Images - Satin</title>
 </svelte:head>
 
-<div class="p-6">
+<div class="mx-auto max-w-7xl">
+	<!-- Header -->
 	<div class="mb-8 flex items-center justify-between">
 		<div>
-			<h1 class="text-3xl font-bold text-gray-900">Images</h1>
-			<p class="mt-2 text-gray-600">Browse and manage your image collection</p>
+			<h1 class="text-3xl font-bold text-gray-800">Images</h1>
+			<p class="mt-2 text-gray-600">Manage your image dataset for annotation</p>
 		</div>
-		<div class="flex gap-3">
-			<Button variant="primary" onclick={() => (showAddModal = true)}>
-				<span class="mr-2">🌐</span>
-				Add by URL
-			</Button>
-		</div>
+
+		<button
+			onclick={handleAddImage}
+			class="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+		>
+			<svg class="mr-2 inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+			</svg>
+			Add Image
+		</button>
 	</div>
 
-	<!-- Stats -->
-	<div class="mb-8 grid gap-6 md:grid-cols-4">
-		<Card>
-			<div class="text-center">
-				<div class="text-2xl font-bold text-gray-900">{imageStore.stats().total}</div>
-				<div class="text-sm text-gray-600">Total Images</div>
-			</div>
-		</Card>
-		<Card>
-			<div class="text-center">
-				<div class="text-2xl font-bold text-green-600">{imageStore.stats().annotated}</div>
-				<div class="text-sm text-gray-600">Annotated</div>
-			</div>
-		</Card>
-		<Card>
-			<div class="text-center">
-				<div class="text-2xl font-bold text-yellow-600">{imageStore.stats().processing}</div>
-				<div class="text-sm text-gray-600">Processing</div>
-			</div>
-		</Card>
-		<Card>
-			<div class="text-center">
-				<div class="text-2xl font-bold text-gray-400">{imageStore.stats().pending}</div>
-				<div class="text-sm text-gray-600">Pending</div>
-			</div>
-		</Card>
+	<!-- Filters Section -->
+	<div class="mb-6">
+		<ImageFilter
+			{searchQuery}
+			{selectedStatuses}
+			{sortBy}
+			{sortOrder}
+			onSearchChange={handleSearchChange}
+			onStatusChange={handleStatusFilterChange}
+			onSortChange={handleSortChange}
+			onClearFilters={handleClearFilters}
+		/>
 	</div>
 
-	<!-- Image Gallery - Use virtual gallery for large datasets -->
-	{#if imageStore.pagination.totalCount >= VIRTUAL_GALLERY_THRESHOLD && VirtualImageGallery}
-		<VirtualImageGallery
-			images={imageStore.images()}
-			loading={imageStore.loading}
-			error={imageStore.error}
-			filters={imageStore.filters}
-			pagination={imageStore.pagination}
-			containerHeight={800}
-			onImageView={handleImageView}
-			onImageDelete={handleImageDelete}
-			onImageAnnotate={handleImageAnnotate}
-			onFiltersChange={handleFiltersChange}
-			onLoadMore={handleLoadMore}
+	<!-- Results Summary -->
+	<div class="mb-4 text-sm text-gray-600">
+		{#if loading}
+			<div class="flex items-center">
+				<div
+					class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"
+				></div>
+				Loading images...
+			</div>
+		{:else if error}
+			<div class="flex items-center text-red-600">
+				<svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
+					/>
+				</svg>
+				Failed to load images
+			</div>
+		{:else}
+			Showing {paginatedImages().length} of {filteredImages().length} images
+			{#if filteredImages().length !== totalImages}
+				(filtered from {totalImages} total)
+			{/if}
+		{/if}
+	</div>
+
+	<!-- Images Grid -->
+	<div class="mb-6">
+		{#if error}
+			<!-- Error State -->
+			<div class="rounded-lg bg-red-50 p-8 text-center">
+				<svg
+					class="mx-auto mb-4 h-16 w-16 text-red-400"
+					fill="none"
+					viewBox="0 0 24 24"
+					stroke="currentColor"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
+					/>
+				</svg>
+				<h3 class="mb-2 text-lg font-semibold text-red-800">Unable to load images</h3>
+				<p class="mb-4 text-red-600">{error.message}</p>
+				<button
+					onclick={() => imagesQuery.reexecute({ requestPolicy: 'network-only' })}
+					class="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:outline-none"
+				>
+					Try Again
+				</button>
+			</div>
+		{:else}
+			<ImageGrid
+				images={paginatedImages()}
+				{loading}
+				onStatusChange={handleImageStatusChange}
+				onDelete={handleDeleteImage}
+				onAddImage={handleAddImage}
+			/>
+		{/if}
+	</div>
+
+	<!-- Pagination -->
+	{#if !loading && filteredImages().length > 0}
+		<Pagination
+			{currentPage}
+			totalItems={filteredImages().length}
+			{itemsPerPage}
+			onPageChange={(page) => (currentPage = page)}
+			onItemsPerPageChange={(newItemsPerPage) => {
+				itemsPerPage = newItemsPerPage;
+				currentPage = 1;
+			}}
 		/>
-	{:else if ImageGallery}
-		<ImageGallery
-			images={imageStore.images()}
-			loading={imageStore.loading}
-			error={imageStore.error}
-			filters={imageStore.filters}
-			pagination={imageStore.pagination}
-			onImageView={handleImageView}
-			onImageDelete={handleImageDelete}
-			onImageAnnotate={handleImageAnnotate}
-			onFiltersChange={handleFiltersChange}
-			onLoadMore={handleLoadMore}
-		/>
-	{:else}
-		<div class="flex items-center justify-center py-12">
-			<div class="animate-pulse text-gray-600">Loading images...</div>
-		</div>
 	{/if}
 </div>
 
-<!-- Add Images Modal -->
-{#if AddImageByUrl && showAddModal}
-	<Modal bind:open={showAddModal} title="Add Images by URL" size="lg" closeOnBackdropClick={true}>
-		<AddImageByUrl multiple={true} onAdd={handleAddSuccess} onError={handleAddError} />
-	</Modal>
-{/if}
-
-<!-- Image Viewer -->
-{#if ImageViewer && showViewer}
-	<ImageViewer
-		bind:open={showViewer}
-		image={selectedImage}
-		images={imageStore.allImages}
-		onDelete={handleImageDelete}
-		onAnnotate={handleImageAnnotate}
-		onClose={() => {
-			showViewer = false;
-			selectedImage = null;
-		}}
-	/>
-{/if}
-
-<!-- Image Annotator -->
-{#if selectedImageForAnnotation && selectedTaskForAnnotation && ImageAnnotator}
-	{@const AnnotatorComponent = ImageAnnotator}
-	<AnnotatorComponent
-		bind:open={showAnnotator}
-		task={selectedTaskForAnnotation}
-		image={{
-			id: selectedImageForAnnotation.id,
-			url: selectedImageForAnnotation.url
-		}}
-		onClose={handleAnnotatorClose}
-		onSaveComplete={handleAnnotationSave}
-	/>
-{/if}
-
-<!-- Toast Notifications -->
-{#if showToast}
-	<Toast
-		type={toastType}
-		title={toastType === 'success' ? 'Success' : 'Error'}
-		message={toastMessage}
-		onClose={() => (showToast = false)}
-		duration={4000}
-	/>
-{/if}
+<!-- Add Image Dialog -->
+<AddImageDialog
+	open={showAddImageDialog}
+	onClose={() => (showAddImageDialog = false)}
+	onSubmit={handleAddImageSubmit}
+/>

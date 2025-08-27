@@ -1,267 +1,232 @@
+"""Base repository class for MongoDB operations with async iterators."""
+
 import asyncio
-import time
-from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 from typing import Any, TypeVar
 
-import strawberry
+from bson import ObjectId
+from bson.errors import InvalidId
+from pydantic import BaseModel
+from pymongo import ReturnDocument, UpdateOne
+from pymongo.asynchronous.collection import AsyncCollection
 from pymongo.asynchronous.database import AsyncDatabase
 
-from satin.schema.utils import build_mongodb_filter_condition, build_mongodb_sort_condition
-from satin.validators import ValidationError, validate_and_convert_object_id
+from satin.models.base import PyObjectId, SatinBaseModel
 
-T = TypeVar("T")
+ModelType = TypeVar("ModelType", bound=SatinBaseModel)
+CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
+UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 
 
-class BaseRepository[T](ABC):
-    """Base repository class with common database operations."""
+class BaseRepository[ModelType: SatinBaseModel, CreateSchemaType: BaseModel, UpdateSchemaType: BaseModel]:
+    """Base repository for CRUD operations with async iterators."""
 
-    def __init__(self, db: AsyncDatabase, collection_name: str):
-        """Initialize the repository with a database connection and collection name."""
-        self.db = db
-        self.collection_name = collection_name
-        self.collection = db[collection_name]
-        # Simple in-memory cache for single-user application
-        self._cache: dict[str, tuple[Any, float]] = {}  # key -> (value, timestamp)
-        self._cache_ttl = 300  # 5 minutes TTL
-        self._cache_max_size = 100
+    def __init__(self, database: AsyncDatabase, collection_name: str, model_class: type[ModelType]):
+        """Initialize repository.
 
-    def _convert_id(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Convert MongoDB _id to id field."""
-        if data and "_id" in data:
-            data["id"] = str(data["_id"])
-            del data["_id"]
-        return data
+        Args:
+            database: MongoDB database instance
+            collection_name: Name of the collection
+            model_class: Pydantic model class for this repository
 
-    def _cache_key(self, method: str, **kwargs) -> str:
-        """Generate cache key from method and parameters."""
-        key_parts = [self.collection_name, method] + [f"{k}:{v}" for k, v in sorted(kwargs.items())]
-        return "|".join(key_parts)
+        """
+        self._database = database
+        self._collection: AsyncCollection = database.get_collection(collection_name)
+        self._model_class = model_class
 
-    def _get_cached(self, cache_key: str) -> Any | None:
-        """Get value from cache if not expired."""
-        if cache_key not in self._cache:
-            return None
+    @property
+    def collection(self) -> AsyncCollection:
+        """Get the MongoDB collection."""
+        return self._collection
 
-        value, timestamp = self._cache[cache_key]
-        if time.time() - timestamp > self._cache_ttl:
-            # Expired, remove from cache
-            del self._cache[cache_key]
-            return None
-
-        return value
-
-    def _set_cache(self, cache_key: str, value: Any) -> None:
-        """Set value in cache with timestamp."""
-        if value is None:
-            return
-
-        # Simple cache size management
-        if len(self._cache) >= self._cache_max_size:
-            # Remove oldest entries (simple FIFO)
-            oldest_keys = list(self._cache.keys())[:20]
-            for key in oldest_keys:
-                del self._cache[key]
-
-        self._cache[cache_key] = (value, time.time())
-
-    def _invalidate_cache(self, pattern: str | None = None) -> None:
-        """Invalidate cache entries by pattern or clear all."""
-        if pattern is None:
-            self._cache.clear()
-        else:
-            keys_to_remove = [k for k in self._cache if pattern in k]
-            for key in keys_to_remove:
-                del self._cache[key]
-
-    async def find_by_id(self, object_id: strawberry.ID) -> dict[str, Any] | None:
-        """Find a document by its ID with caching."""
-        cache_key = self._cache_key("find_by_id", object_id=str(object_id))
-
-        # Try cache first
-        cached_result = self._get_cached(cache_key)
-        if cached_result is not None:
-            if not isinstance(cached_result, dict):
-                msg = "Cached result is not a valid document"
-                raise TypeError(msg)
-            return cached_result
-
+    def _normalize_id(self, id_value: PyObjectId | ObjectId | str) -> ObjectId | None:
+        """Normalize ID to ObjectId, return None for invalid IDs."""
         try:
-            validated_id = validate_and_convert_object_id(object_id)
-            result = await self.collection.find_one({"_id": validated_id})
-
-            # Cache the result
-            self._set_cache(cache_key, result)
-        except ValidationError:
-            # Return None for invalid IDs instead of raising an error
-            # This maintains backward compatibility while preventing injection
+            if isinstance(id_value, str):
+                return ObjectId(id_value)
+            if isinstance(id_value, PyObjectId):
+                return ObjectId(str(id_value))
+        except InvalidId:
             return None
         else:
-            return result
+            return id_value
 
-    def build_match_stage(self, query_input) -> dict[str, Any]:  # QueryModel | None
-        """Build MongoDB match stage from query input filters."""
-        if not query_input:
-            return {}
+    async def create(self, obj_in: CreateSchemaType) -> ModelType:
+        """Create a new document."""
+        obj_data = obj_in.model_dump(mode="json")
+        now = datetime.now(UTC)
+        obj_data["created_at"] = now
+        obj_data["updated_at"] = now
 
-        match_conditions = []
+        model = self._model_class(**obj_data)
+        result = await self._collection.insert_one(model.model_dump(by_alias=True, exclude_none=True))
+        model.id = result.inserted_id
 
-        # Handle number filters
-        if query_input.number_filters:
-            for number_filter_input in query_input.number_filters:
-                condition = build_mongodb_filter_condition(
-                    number_filter_input.field, number_filter_input.operator, number_filter_input.value
-                )
-                match_conditions.append(condition)
+        return model
 
-        # Handle string filters
-        if query_input.string_filters:
-            for string_filter_input in query_input.string_filters:
-                condition = build_mongodb_filter_condition(
-                    string_filter_input.field, string_filter_input.operator, string_filter_input.value
-                )
-                match_conditions.append(condition)
+    async def bulk_create(self, objects: list[CreateSchemaType]) -> list[ModelType]:
+        """Create multiple documents efficiently."""
+        if not objects:
+            return []
 
-        # Handle list filters
-        if query_input.list_filters:
-            for list_filter_input in query_input.list_filters:
-                condition = build_mongodb_filter_condition(
-                    list_filter_input.field, list_filter_input.operator, list_filter_input.value
-                )
-                match_conditions.append(condition)
+        now = datetime.now(UTC)
+        docs = []
+        for obj in objects:
+            obj_data = obj.model_dump(mode="json")
+            obj_data["created_at"] = now
+            obj_data["updated_at"] = now
+            docs.append(self._model_class(**obj_data).model_dump(mode="json"))
 
-        # Combine all conditions with $and if multiple conditions exist
-        if not match_conditions:
-            return {}
-        if len(match_conditions) == 1:
-            return match_conditions[0]
-        return {"$and": match_conditions}
+        result = await self._collection.insert_many(docs)
 
-    def build_sort_stage(self, query_input) -> dict[str, Any]:  # QueryModel | None
-        """Build MongoDB sort stage from query input sorts."""
-        if not query_input or not query_input.sorts:
-            return {}
+        # Add inserted IDs back to documents
+        for doc, inserted_id in zip(docs, result.inserted_ids, strict=False):
+            doc["_id"] = inserted_id
 
-        sort_dict = {}
-        for sort_input in query_input.sorts:
-            field, direction = build_mongodb_sort_condition(sort_input.field, sort_input.direction.value)
-            sort_dict[field] = direction
+        return [self._model_class(**doc) for doc in docs]
 
-        return sort_dict
+    async def get_by_id(self, id_value: PyObjectId | ObjectId | str) -> ModelType | None:
+        """Get document by ID."""
+        object_id = self._normalize_id(id_value)
+        if object_id is None:
+            return None
+        document = await self._collection.find_one({"_id": object_id})
 
-    async def find_all(
+        if document:
+            return self._model_class(**document)
+        return None
+
+    async def find_one(self, filter_dict: dict[str, Any]) -> ModelType | None:
+        """Get single document by filter."""
+        document = await self._collection.find_one(filter_dict)
+        if document:
+            return self._model_class(**document)
+        return None
+
+    async def find(self, filter_dict: dict[str, Any] | None = None) -> AsyncIterator[ModelType]:
+        """Find documents and return async iterator."""
+        if filter_dict is None:
+            filter_dict = {}
+
+        cursor = self._collection.find(filter_dict)
+        async for document in cursor:
+            yield self._model_class(**document)
+
+    async def find_paginated(
         self,
-        limit: int | None = None,
-        offset: int = 0,
-        query_input=None,  # QueryModel | None
-    ) -> list[dict[str, Any]]:
-        """Find all documents with filtering, sorting, and pagination using aggregation pipeline."""
-        pipeline: list[dict[str, Any]] = []
+        filter_dict: dict[str, Any] | None = None,
+        skip: int = 0,
+        limit: int = 100,
+        sort: list[tuple[str, int]] | None = None,
+    ) -> AsyncIterator[ModelType]:
+        """Find documents with pagination and return async iterator."""
+        if filter_dict is None:
+            filter_dict = {}
 
-        # Add match stage for filters
-        match_stage = self.build_match_stage(query_input)
-        if match_stage:
-            pipeline.append({"$match": match_stage})
+        cursor = self._collection.find(filter_dict)
 
-        # Add sort stage
-        sort_stage = self.build_sort_stage(query_input)
-        if sort_stage:
-            pipeline.append({"$sort": sort_stage})
+        if sort:
+            cursor = cursor.sort(sort)
 
-        # Use query_input pagination if provided, otherwise use parameters
-        if query_input:
-            pipeline.extend(
-                [
-                    {"$skip": query_input.offset},
-                    {"$limit": query_input.limit if query_input.limit else 1000},
-                ]
-            )
-        else:
-            pipeline.extend(
-                [
-                    {"$skip": offset},
-                    {"$limit": limit if limit is not None else 1000},
-                ]
-            )
-
-        # Add ID conversion
-        pipeline.append(
-            {
-                "$addFields": {
-                    "id": {"$toString": "$_id"},
-                }
-            }
-        )
-
-        results: list[dict[str, Any]] = []
-        opt_cursor = self.collection.aggregate(pipeline)
-        if asyncio.iscoroutine(opt_cursor):
-            cursor = await opt_cursor
-        else:
-            cursor = opt_cursor  # Handle sync cursor for testing
+        cursor = cursor.skip(skip).limit(limit)
 
         async for document in cursor:
-            document.pop("_id", None)
-            results.append(document)
+            yield self._model_class(**document)
 
-        return results
+    async def _aggregate_cursor(self, pipeline: list[dict[str, Any]]) -> AsyncIterator[dict[str, Any]]:
+        """Run aggregation pipeline and return cursor.
 
-    async def count_all(self, filter_query: dict[str, Any] | None = None, query_input=None) -> int:  # QueryModel | None
-        """Count total documents in the collection."""
-        if query_input:
-            # Use query_input filters for counting
-            match_stage = self.build_match_stage(query_input)
-            return await self.collection.count_documents(match_stage)
-        # Use legacy filter_query parameter
-        if filter_query is None:
-            filter_query = {}
-        return await self.collection.count_documents(filter_query)
+        Use this instead of directly calling self._collection.aggregate.
+        """
+        res = self._collection.aggregate(pipeline)
+        if asyncio.iscoroutine(res):  # for testing
+            cursor = await res
+        else:
+            cursor = res
+        return cursor  # type: ignore[return-value]
 
-    async def create(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Create a new document."""
-        result = await self.collection.insert_one(data)
-        data["id"] = str(result.inserted_id)
-        data.pop("_id", None)
+    async def aggregate(self, pipeline: list[dict[str, Any]]) -> AsyncIterator[ModelType]:
+        """Run aggregation pipeline and return async iterator."""
+        cursor = await self._aggregate_cursor(pipeline)
+        async for document in cursor:
+            yield self._model_class(**document)
 
-        # Invalidate relevant cache entries
-        self._invalidate_cache(self.collection_name)
+    async def update_by_id(self, id_value: PyObjectId | ObjectId | str, obj_in: UpdateSchemaType) -> ModelType | None:
+        """Update document by ID and return updated document."""
+        object_id = self._normalize_id(id_value)
+        if object_id is None:
+            return None
+        update_data = obj_in.model_dump(exclude_unset=True)
 
-        return data
-
-    async def update_by_id(self, object_id: strawberry.ID, update_data: dict[str, Any]) -> bool:
-        """Update a document by its ID."""
         if not update_data:
+            return await self.get_by_id(id_value)
+
+        update_data["updated_at"] = datetime.now(UTC)
+
+        document = await self._collection.find_one_and_update(
+            {"_id": object_id},
+            {"$set": update_data},
+            return_document=ReturnDocument.AFTER,
+        )
+
+        if document:
+            return self._model_class(**document)
+        return None
+
+    async def bulk_update(self, updates: list[tuple[dict[str, Any], UpdateSchemaType]]) -> int:
+        """Update multiple documents efficiently.
+
+        Args:
+            updates: List of (filter, update_data) tuples
+
+        Returns:
+            Number of documents modified
+
+        """
+        if not updates:
+            return 0
+
+        operations: list[UpdateOne] = []
+        now = datetime.now(UTC)
+
+        for filter_dict, obj_in in updates:
+            update_data = obj_in.model_dump(exclude_unset=True)
+            if update_data:
+                update_data["updated_at"] = now
+                operations.append(UpdateOne(filter=filter_dict, update={"$set": update_data}))
+
+        if not operations:
+            return 0
+
+        result = await self._collection.bulk_write(operations)
+        return result.modified_count
+
+    async def delete_by_id(self, id_value: PyObjectId | ObjectId | str) -> bool:
+        """Delete document by ID."""
+        object_id = self._normalize_id(id_value)
+        if object_id is None:
             return False
+        result = await self._collection.delete_one({"_id": object_id})
+        return result.deleted_count > 0
 
-        try:
-            validated_id = validate_and_convert_object_id(object_id)
-            result = await self.collection.update_one({"_id": validated_id}, {"$set": update_data})
+    async def delete_many(self, filter_dict: dict[str, Any]) -> int:
+        """Delete multiple documents matching filter.
 
-            # Invalidate cache for this specific item and collection
-            if result.modified_count > 0:
-                cache_key = self._cache_key("find_by_id", object_id=str(object_id))
-                self._invalidate_cache(cache_key)
-                self._invalidate_cache(self.collection_name)
+        Returns:
+            Number of documents deleted
 
-        except ValidationError:
-            return False
-        else:
-            return result.modified_count > 0
+        """
+        result = await self._collection.delete_many(filter_dict)
+        return result.deleted_count
 
-    async def delete_by_id(self, object_id: strawberry.ID) -> bool:
-        """Delete a document by its ID."""
-        try:
-            validated_id = validate_and_convert_object_id(object_id)
-            result = await self.collection.delete_one({"_id": validated_id})
+    async def count(self, filter_dict: dict[str, Any] | None = None) -> int:
+        """Count documents matching filter."""
+        if filter_dict is None:
+            filter_dict = {}
+        return await self._collection.count_documents(filter_dict)
 
-            # Invalidate cache for this specific item and collection
-            if result.deleted_count > 0:
-                self._invalidate_cache(f"find_by_id|object_id:{object_id}")
-                self._invalidate_cache(self.collection_name)
-        except ValidationError:
-            return False
-        else:
-            return result.deleted_count > 0
-
-    @abstractmethod
-    async def to_domain_object(self, data: dict[str, Any]) -> T:
-        """Convert database document to domain object."""
+    async def exists(self, filter_dict: dict[str, Any]) -> bool:
+        """Check if document exists matching filter."""
+        document = await self._collection.find_one(filter_dict, {"_id": 1})
+        return document is not None

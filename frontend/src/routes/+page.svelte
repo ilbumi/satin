@@ -1,101 +1,65 @@
-<script lang="ts">
-	import { onDestroy } from 'svelte';
-	import { Toast, ErrorBoundary } from '$lib/components/ui';
-	import { ConnectionStatus, SystemTestResults } from '$lib/components/dashboard';
-	import { connectionStore } from '$lib/features/connection';
+<div class="flex min-h-[60vh] items-center justify-center">
+	<div class="w-full max-w-2xl text-center">
+		<h1 class="mb-6 text-5xl font-bold text-gray-800">Welcome to Satin</h1>
+		<p class="mb-8 text-xl text-gray-600">
+			A lightweight image annotation tool for ML data preparation
+		</p>
 
-	// Toast states for user feedback
-	let showToast = $state(false);
-	let toastMessage = $state('');
-	let toastType = $state<'success' | 'error' | 'warning' | 'info'>('info');
-
-	// Handle connection store changes for toast notifications
-	$effect(() => {
-		if (connectionStore.status === 'connected' && connectionStore.retryCount > 0) {
-			toastType = 'success';
-			toastMessage = 'Successfully reconnected to backend!';
-			showToast = true;
-		} else if (connectionStore.status === 'error' && connectionStore.retryCount > 0) {
-			toastType = 'error';
-			toastMessage = connectionStore.error || 'Connection failed';
-			showToast = true;
-		}
-	});
-
-	async function handleRetry() {
-		try {
-			await connectionStore.manualRetry();
-		} catch (error) {
-			console.error('Failed to retry connection:', error);
-			// Error is already handled in the connection store and global error system
-		}
-	}
-
-	// Dashboard layout classes
-	const containerClasses = 'p-6';
-	const headerClasses = 'mb-8';
-	const titleClasses = 'text-3xl font-bold text-gray-900';
-	const subtitleClasses = 'mt-2 text-gray-600';
-	const gridClasses = 'grid gap-6 md:grid-cols-2 lg:grid-cols-3';
-	const quickActionsClasses = 'space-y-3';
-	const linkClasses = 'block text-sm text-blue-600 hover:text-blue-800 transition-colors';
-	const systemResultsClasses = 'mt-8';
-
-	onDestroy(() => {
-		// Clean up store to prevent memory leaks
-		connectionStore.cleanup();
-	});
-</script>
-
-<ErrorBoundary fallbackMessage="Failed to load dashboard. Please try again." onRetry={handleRetry}>
-	<div class={containerClasses}>
-		<!-- Dashboard Header -->
-		<div class={headerClasses}>
-			<h1 class={titleClasses}>Dashboard</h1>
-			<p class={subtitleClasses}>Welcome to Satin - Image Annotation Platform</p>
-		</div>
-
-		<!-- Dashboard Grid -->
-		<div class={gridClasses}>
-			<!-- Connection Status -->
-			<ConnectionStatus showProjectCount={true} showRetryButton={true} autoCheck={true} />
-
-			<!-- Quick Actions -->
-			<div class="rounded-lg border bg-white p-6 shadow-sm">
-				<h2 class="mb-3 text-lg font-semibold text-gray-900">Quick Actions</h2>
-				<div class={quickActionsClasses}>
-					<a href="/projects" class={linkClasses}>📁 Manage Projects</a>
-					<a href="/tasks" class={linkClasses}>✅ View Tasks</a>
-					<a href="/annotations" class={linkClasses}>✏️ Start Annotating</a>
+		<div class="grid gap-4 md:grid-cols-3">
+			<div class="rounded-xl bg-white p-6 shadow-lg">
+				<div class="mb-4 text-blue-600">
+					<svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+						/>
+					</svg>
 				</div>
+				<h3 class="mb-2 text-lg font-semibold">Upload Images</h3>
+				<p class="text-sm text-gray-600">Start by uploading your images for annotation</p>
 			</div>
 
-			<!-- Recent Activity -->
-			<div class="rounded-lg border bg-white p-6 shadow-sm">
-				<h2 class="mb-3 text-lg font-semibold text-gray-900">Recent Activity</h2>
-				<div class="space-y-2">
-					{#if connectionStore.recentResults.length === 0}
-						{#if connectionStore.status === 'testing'}
-							<p class="text-sm text-gray-500">Running tests...</p>
-						{:else}
-							<p class="text-sm text-gray-500">No recent activity</p>
-						{/if}
-					{:else}
-						{#each connectionStore.recentResults as result (result.id)}
-							<p class="font-mono text-xs text-gray-600">{result.message}</p>
-						{/each}
-					{/if}
+			<div class="rounded-xl bg-white p-6 shadow-lg">
+				<div class="mb-4 text-green-600">
+					<svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+						/>
+					</svg>
 				</div>
+				<h3 class="mb-2 text-lg font-semibold">Annotate</h3>
+				<p class="text-sm text-gray-600">Create bounding boxes and labels for your data</p>
+			</div>
+
+			<div class="rounded-xl bg-white p-6 shadow-lg">
+				<div class="mb-4 text-purple-600">
+					<svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+						/>
+					</svg>
+				</div>
+				<h3 class="mb-2 text-lg font-semibold">Export</h3>
+				<p class="text-sm text-gray-600">Export your annotations in various formats</p>
 			</div>
 		</div>
 
-		<!-- System Test Results -->
-		<div class={systemResultsClasses}>
-			<SystemTestResults showAllResults={true} />
+		<div class="mt-8 space-y-4">
+			<a
+				href="/annotate"
+				class="inline-block rounded-lg bg-blue-600 px-8 py-3 font-medium text-white transition-colors duration-200 hover:bg-blue-700"
+			>
+				Start Annotating
+			</a>
+			<div class="text-sm text-gray-500">Ready to start your ML data annotation journey</div>
 		</div>
 	</div>
-</ErrorBoundary>
-
-{#if showToast}
-	<Toast type={toastType} message={toastMessage} onClose={() => (showToast = false)} />
-{/if}
+</div>

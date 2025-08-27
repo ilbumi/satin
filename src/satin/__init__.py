@@ -1,3 +1,3 @@
-from satin.main import app
+from .app import main
 
-__all__ = ["app"]
+__all__ = ["main"]

@@ -1,0 +1,37 @@
+query GetAnnotationsByImage($imageId: String!) {
+	annotationsByImage(imageId: $imageId) {
+		id
+		imageId
+		boundingBox {
+			x
+			y
+			width
+			height
+		}
+		tags
+		description
+		confidence
+		source
+		createdAt
+		updatedAt
+	}
+}
+
+query GetAnnotation($id: String!) {
+	annotation(id: $id) {
+		id
+		imageId
+		boundingBox {
+			x
+			y
+			width
+			height
+		}
+		tags
+		description
+		confidence
+		source
+		createdAt
+		updatedAt
+	}
+}

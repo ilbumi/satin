@@ -1,16 +1,25 @@
-# Version control
+# Git
 .git
 .gitignore
 
 # Documentation
 docs/
+TODo.md
 
-# Development files
-.env
-.env.local
-.env.development
-.env.test
-.env.production
+
+# Environment files
+.env*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
 
 # Logs
 *.log
@@ -26,48 +35,24 @@ __pycache__/
 *.pyo
 *.pyd
 .Python
-*.so
 .pytest_cache/
 .coverage
 htmlcov/
 .tox/
-.venv/
-venv/
-env/
 .mypy_cache/
 .ruff_cache/
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
 # Build artifacts
-build/
+frontend/build/
+frontend/.svelte-kit/
+dist/
 *.egg-info/
 
-# Test files
-tests/
-test_*/
+# Development
+.env
+TODO.md
 
 # Docker
 Dockerfile*
 docker-compose*.yml
 .dockerignore
-
-# CI/CD
-.github/
-.gitlab-ci.yml
-.travis.yml
-Jenkinsfile
-
-# Temporary files
-*.tmp
-*.temp
-.cache/
