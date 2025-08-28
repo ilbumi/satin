@@ -108,7 +108,10 @@ GRAPHQL_QUERIES = {
     """,
     "delete_image": """
         mutation DeleteImage($id: String!) {
-            deleteImage(id: $id)
+            deleteImage(id: $id) {
+                deleted
+                message
+            }
         }
     """,
     "introspection_schema": """
@@ -207,7 +210,10 @@ GRAPHQL_QUERIES = {
     """,
     "delete_annotation": """
         mutation DeleteAnnotation($id: String!) {
-            deleteAnnotation(id: $id)
+            deleteAnnotation(id: $id) {
+                deleted
+                message
+            }
         }
     """,
     # ML Job queries

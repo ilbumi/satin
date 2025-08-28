@@ -5,6 +5,7 @@ from typing import Any
 
 from pymongo.asynchronous.database import AsyncDatabase
 
+from satin.models.base import PyObjectId
 from satin.models.image import Image, ImageCreate, ImageStatus, ImageUpdate
 
 from .base import BaseRepository
@@ -106,7 +107,7 @@ class ImageRepository(BaseRepository[Image, ImageCreate, ImageUpdate]):
         async for image in self.find(filter_dict):
             yield image
 
-    async def mark_as_annotated(self, image_id: str) -> Image | None:
+    async def mark_as_annotated(self, image_id: PyObjectId) -> Image | None:
         """Mark an image as annotated."""
         update_data = ImageUpdate(status=ImageStatus.ANNOTATED)
-        return await self.update_by_id(image_id, update_data)
+        return await self.update_by_id(image_id, update_data)  # type: ignore[no-any-return]

@@ -6,12 +6,12 @@ from datetime import UTC, datetime
 from typing import Any, TypeVar
 
 from bson import ObjectId
-from bson.errors import InvalidId
-from pydantic import BaseModel
+from pydantic import BaseModel, validate_call
 from pymongo import ReturnDocument, UpdateOne
 from pymongo.asynchronous.collection import AsyncCollection
 from pymongo.asynchronous.database import AsyncDatabase
 
+from satin.logging import LoggingMixin
 from satin.models.base import PyObjectId, SatinBaseModel
 
 ModelType = TypeVar("ModelType", bound=SatinBaseModel)
@@ -19,7 +19,7 @@ CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 
 
-class BaseRepository[ModelType: SatinBaseModel, CreateSchemaType: BaseModel, UpdateSchemaType: BaseModel]:
+class BaseRepository[ModelType: SatinBaseModel, CreateSchemaType: BaseModel, UpdateSchemaType: BaseModel](LoggingMixin):
     """Base repository for CRUD operations with async iterators."""
 
     def __init__(self, database: AsyncDatabase, collection_name: str, model_class: type[ModelType]):
@@ -31,29 +31,25 @@ class BaseRepository[ModelType: SatinBaseModel, CreateSchemaType: BaseModel, Upd
             model_class: Pydantic model class for this repository
 
         """
+        super().__init__()
         self._database = database
         self._collection: AsyncCollection = database.get_collection(collection_name)
         self._model_class = model_class
+        self._collection_name = collection_name
 
     @property
     def collection(self) -> AsyncCollection:
         """Get the MongoDB collection."""
         return self._collection
 
-    def _normalize_id(self, id_value: PyObjectId | ObjectId | str) -> ObjectId | None:
-        """Normalize ID to ObjectId, return None for invalid IDs."""
-        try:
-            if isinstance(id_value, str):
-                return ObjectId(id_value)
-            if isinstance(id_value, PyObjectId):
-                return ObjectId(str(id_value))
-        except InvalidId:
-            return None
-        else:
-            return id_value
+    def _normalize_id(self, id_value: PyObjectId) -> ObjectId:
+        """Convert PyObjectId to ObjectId."""
+        return ObjectId(str(id_value))
 
     async def create(self, obj_in: CreateSchemaType) -> ModelType:
         """Create a new document."""
+        log = self._log_operation("create")
+
         obj_data = obj_in.model_dump(mode="json")
         now = datetime.now(UTC)
         obj_data["created_at"] = now
@@ -63,6 +59,7 @@ class BaseRepository[ModelType: SatinBaseModel, CreateSchemaType: BaseModel, Upd
         result = await self._collection.insert_one(model.model_dump(by_alias=True, exclude_none=True))
         model.id = result.inserted_id
 
+        log.info("document_created", document_id=str(result.inserted_id))
         return model
 
     async def bulk_create(self, objects: list[CreateSchemaType]) -> list[ModelType]:
@@ -86,15 +83,20 @@ class BaseRepository[ModelType: SatinBaseModel, CreateSchemaType: BaseModel, Upd
 
         return [self._model_class(**doc) for doc in docs]
 
-    async def get_by_id(self, id_value: PyObjectId | ObjectId | str) -> ModelType | None:
+    @validate_call
+    async def get_by_id(self, id_value: PyObjectId) -> ModelType | None:
         """Get document by ID."""
+        log = self._log_operation("get_by_id", document_id=str(id_value))
+
         object_id = self._normalize_id(id_value)
-        if object_id is None:
-            return None
+
         document = await self._collection.find_one({"_id": object_id})
 
         if document:
+            log.debug("document_found")
             return self._model_class(**document)
+
+        log.debug("document_not_found")
         return None
 
     async def find_one(self, filter_dict: dict[str, Any]) -> ModelType | None:
@@ -176,15 +178,18 @@ class BaseRepository[ModelType: SatinBaseModel, CreateSchemaType: BaseModel, Upd
         async for document in cursor:
             yield self._model_class(**document)
 
-    async def update_by_id(self, id_value: PyObjectId | ObjectId | str, obj_in: UpdateSchemaType) -> ModelType | None:
+    @validate_call
+    async def update_by_id(self, id_value: PyObjectId, obj_in: UpdateSchemaType) -> ModelType | None:
         """Update document by ID and return updated document."""
+        log = self._log_operation("update_by_id", document_id=str(id_value))
+
         object_id = self._normalize_id(id_value)
-        if object_id is None:
-            return None
+
         update_data = obj_in.model_dump(exclude_unset=True)
 
         if not update_data:
-            return await self.get_by_id(id_value)
+            log.debug("no_updates_provided")
+            return await self.get_by_id(id_value)  # type: ignore[no-any-return]
 
         update_data["updated_at"] = datetime.now(UTC)
 
@@ -195,7 +200,10 @@ class BaseRepository[ModelType: SatinBaseModel, CreateSchemaType: BaseModel, Upd
         )
 
         if document:
+            log.info("document_updated")
             return self._model_class(**document)
+
+        log.warning("document_not_found")
         return None
 
     async def bulk_update(self, updates: list[tuple[dict[str, Any], UpdateSchemaType]]) -> int:
@@ -226,13 +234,21 @@ class BaseRepository[ModelType: SatinBaseModel, CreateSchemaType: BaseModel, Upd
         result = await self._collection.bulk_write(operations)
         return result.modified_count
 
-    async def delete_by_id(self, id_value: PyObjectId | ObjectId | str) -> bool:
+    @validate_call
+    async def delete_by_id(self, id_value: PyObjectId) -> bool:
         """Delete document by ID."""
+        log = self._log_operation("delete_by_id", document_id=str(id_value))
+
         object_id = self._normalize_id(id_value)
-        if object_id is None:
-            return False
+
         result = await self._collection.delete_one({"_id": object_id})
-        return result.deleted_count > 0
+
+        if result.deleted_count > 0:
+            log.info("document_deleted")
+            return True
+
+        log.warning("document_not_found")
+        return False
 
     async def delete_many(self, filter_dict: dict[str, Any]) -> int:
         """Delete multiple documents matching filter.

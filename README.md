@@ -120,4 +120,4 @@ Modular monolith architecture with separated frontend and backend modules:
 1. Follow the established code conventions and patterns
 2. Run tests and linting before submitting changes
 3. Use TypeScript for new frontend code
-4. Follow the existing project structure
+4. Follow the existing project st

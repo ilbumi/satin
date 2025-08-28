@@ -76,9 +76,8 @@ class TestAnnotationMutations:
 
         assert response.status_code == 200
         data = response.json()
-        assert "data" in data
-        # Should return None for invalid image ID (invalid ObjectId)
-        assert data["data"]["createAnnotation"] is None
+        # Should have errors due to invalid ObjectId
+        assert "errors" in data
 
     async def test_update_annotation(self, test_client: TestClient, mock_dependencies):
         """Test updating an existing annotation."""
@@ -185,7 +184,7 @@ class TestAnnotationMutations:
         data = response.json()
         assert "data" in data
         deleted = data["data"]["deleteAnnotation"]
-        assert deleted is True
+        assert deleted["deleted"] is True
 
         # Verify the annotation is deleted
         original = await mock_dependencies.annotation_repo.get_by_id(created.id)
@@ -204,7 +203,7 @@ class TestAnnotationMutations:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        assert data["data"]["deleteAnnotation"] is False
+        assert data["data"]["deleteAnnotation"]["deleted"] is False
 
 
 class TestAnnotationMutationErrorHandling:

@@ -85,7 +85,7 @@ class TestGraphQLMutations:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        assert data["data"]["deleteImage"] is True
+        assert data["data"]["deleteImage"]["deleted"] is True
 
         # Verify it's deleted
         deleted = await mock_dependencies.image_repo.get_by_id(created.id)
@@ -100,4 +100,4 @@ class TestGraphQLMutations:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        assert data["data"]["deleteImage"] is False
+        assert data["data"]["deleteImage"]["deleted"] is False

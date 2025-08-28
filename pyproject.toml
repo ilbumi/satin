@@ -13,6 +13,8 @@ dependencies = [
     "pydantic-settings>=2.8.0",
     "pymongo>=4.10.0",
     "strawberry-graphql[fastapi]>=0.252.0",
+    "structlog>=24.4.0",
+    "rich>=14.1.0",
 ]
 
 [project.optional-dependencies]

@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 from enum import Enum
+from typing import Annotated
 
 import strawberry
 
@@ -11,6 +12,7 @@ from satin.models.image import Image as ImageModel
 from satin.models.ml_job import MLJob as MLJobModel
 from satin.models.ml_job import MLJobStatus
 
+from .errors import NotFoundError, OperationError, SuccessResult, ValidationError
 from .pagination import PageInfo
 
 
@@ -261,3 +263,35 @@ class MLJobFilterInput:
     status: MLJobStatus | None = None
     image_url: str | None = None
     endpoint: str | None = None
+
+
+# Union result types for mutations
+CreateImageResult = Annotated[
+    SuccessResult[Image] | ValidationError | OperationError,
+    strawberry.union("CreateImageResult"),
+]
+
+UpdateImageResult = Annotated[
+    SuccessResult[Image] | NotFoundError | ValidationError | OperationError,
+    strawberry.union("UpdateImageResult"),
+]
+
+CreateAnnotationResult = Annotated[
+    SuccessResult[Annotation] | NotFoundError | ValidationError | OperationError,
+    strawberry.union("CreateAnnotationResult"),
+]
+
+UpdateAnnotationResult = Annotated[
+    SuccessResult[Annotation] | NotFoundError | ValidationError | OperationError,
+    strawberry.union("UpdateAnnotationResult"),
+]
+
+CreateMLJobResult = Annotated[
+    SuccessResult[MLJob] | ValidationError | OperationError,
+    strawberry.union("CreateMLJobResult"),
+]
+
+UpdateMLJobResult = Annotated[
+    SuccessResult[MLJob] | NotFoundError | ValidationError | OperationError,
+    strawberry.union("UpdateMLJobResult"),
+]

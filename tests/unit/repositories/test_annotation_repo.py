@@ -1,7 +1,9 @@
 """Tests for AnnotationRepository without versioning."""
 
+import pytest
 from bson import ObjectId
 from mongomock_motor import AsyncMongoMockDatabase
+from pydantic import ValidationError
 
 from satin.models.annotation import AnnotationUpdate, BoundingBox
 from satin.repositories.annotation import AnnotationRepository
@@ -185,10 +187,13 @@ class TestAnnotationRepositoryErrorHandling:
         # Test with string that's not a valid ObjectId
         invalid_id = "invalid-object-id"
 
-        # These should handle gracefully and return None/empty results
-        assert await repo.update_by_id(invalid_id, AnnotationUpdate(description="test")) is None
-        assert await repo.delete_by_id(invalid_id) is False
+        # These should raise ValidationError due to @validate_call decorator
+        with pytest.raises(ValidationError):
+            await repo.update_by_id(invalid_id, AnnotationUpdate(description="test"))
 
-        # This should return empty iterators
+        with pytest.raises(ValidationError):
+            await repo.delete_by_id(invalid_id)
+
+        # This should return empty iterators (doesn't use @validate_call)
         by_image = [ann async for ann in repo.find_by_image(invalid_id)]
         assert len(by_image) == 0
