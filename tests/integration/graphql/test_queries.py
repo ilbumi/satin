@@ -2,6 +2,7 @@
 
 from fastapi.testclient import TestClient
 
+from tests.conftest import MockDependencies
 from tests.fixtures.sample_data import GRAPHQL_QUERIES, create_test_image
 
 
@@ -15,7 +16,7 @@ class TestGraphQLQueries:
         assert data["data"]["images"]["items"] == []
         assert data["data"]["images"]["totalCount"] == 0
 
-    async def test_query_images_with_data(self, test_client: TestClient, mock_dependencies):
+    async def test_query_images_with_data(self, test_client: TestClient, mock_dependencies: MockDependencies):
         # Create test images
         await mock_dependencies.image_repo.create(create_test_image("http://test1.com/image.jpg"))
         await mock_dependencies.image_repo.create(create_test_image("http://test2.com/image.png"))

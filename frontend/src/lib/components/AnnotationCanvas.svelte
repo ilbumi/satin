@@ -80,10 +80,24 @@
 
 	// Save state
 	let saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
+	let hasUnsavedChanges = $state(false);
+	let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+	const SAVE_DEBOUNCE_MS = 1000; // 1 second after last change
 
 	// Double-click tracking
 	let lastClickTime = 0;
 	let lastClickedBoxId: string | null = null;
+
+	// Performance optimization: RAF and throttling
+	let rafId: number | null = null;
+	let lastMouseMoveTime = 0;
+	const MOUSE_THROTTLE_MS = 16; // 60fps
+	let pendingCanvasUpdate = false;
+
+	// Offscreen canvas for caching static elements
+	let offscreenCanvas: HTMLCanvasElement | null = null;
+	let offscreenCtx: CanvasRenderingContext2D | null = null;
+	let staticElementsCached = false;
 
 	// Convert backend annotation to frontend bounding box
 	function annotationToBoundingBox(annotation: AnnotationData): BoundingBox {
@@ -132,9 +146,26 @@
 		return baseInput as AnnotationUpdateInput;
 	}
 
+	// Mark annotations as needing save
+	function markAsUnsaved() {
+		hasUnsavedChanges = true;
+		debouncedSave();
+	}
+
+	// Debounced save function
+	function debouncedSave() {
+		if (saveDebounceTimer) {
+			clearTimeout(saveDebounceTimer);
+		}
+
+		saveDebounceTimer = setTimeout(() => {
+			saveAnnotations();
+		}, SAVE_DEBOUNCE_MS);
+	}
+
 	// Save annotations to backend
 	async function saveAnnotations() {
-		if (!imageId || saveStatus === 'saving') return;
+		if (!imageId || saveStatus === 'saving' || !hasUnsavedChanges) return;
 
 		try {
 			saveStatus = 'saving';
@@ -215,6 +246,7 @@
 			console.log('After save, boundingBoxes:', boundingBoxes.length, boundingBoxes);
 
 			saveStatus = 'saved';
+			hasUnsavedChanges = false;
 			onSaveStatusChange?.(saveStatus);
 			onAnnotationsChange?.(boundingBoxes);
 
@@ -295,6 +327,10 @@
 			imageOffsetY = newOffsetY;
 			scaledImageWidth = newScaledWidth;
 			scaledImageHeight = newScaledHeight;
+
+			// Invalidate static cache when dimensions change
+			staticElementsCached = false;
+			cacheStaticElements();
 		}
 	}
 
@@ -336,7 +372,7 @@
 		const box = boundingBoxes.find((b) => b.id === id);
 		if (box) {
 			box._isDeleted = true;
-			saveAnnotations(); // Save immediately on deletion
+			markAsUnsaved(); // Mark as unsaved and debounce save
 		}
 		if (selectedBoxId === id) {
 			selectedBoxId = null;
@@ -350,10 +386,19 @@
 	}
 
 	function handleKeyDown(event: KeyboardEvent) {
-		if (event.key === 'Delete' && selectedBoxId) {
+		// Handle Ctrl+S or Cmd+S for manual save
+		if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+			event.preventDefault();
+			if (hasUnsavedChanges) {
+				if (saveDebounceTimer) {
+					clearTimeout(saveDebounceTimer);
+				}
+				saveAnnotations();
+			}
+		} else if (event.key === 'Delete' && selectedBoxId) {
 			boundingBoxes = boundingBoxes.filter((box) => box.id !== selectedBoxId);
 			selectedBoxId = null;
-			saveAnnotations(); // Save after deletion
+			markAsUnsaved(); // Mark as unsaved and debounce save
 			drawCanvas();
 		} else if (event.key === 'Escape') {
 			selectedBoxId = null;
@@ -368,6 +413,13 @@
 	onMount(() => {
 		if (canvasElement) {
 			ctx = canvasElement.getContext('2d');
+
+			// Create offscreen canvas for caching
+			offscreenCanvas = document.createElement('canvas');
+			offscreenCanvas.width = canvasElement.width;
+			offscreenCanvas.height = canvasElement.height;
+			offscreenCtx = offscreenCanvas.getContext('2d');
+
 			loadImage();
 		}
 
@@ -376,6 +428,9 @@
 
 		return () => {
 			window.removeEventListener('keydown', handleKeyDown);
+			if (rafId) {
+				cancelAnimationFrame(rafId);
+			}
 		};
 	});
 
@@ -386,6 +441,8 @@
 		image.crossOrigin = 'anonymous';
 		image.onload = () => {
 			fitImageToCanvas();
+			staticElementsCached = false; // Invalidate cache
+			cacheStaticElements(); // Re-cache with new image
 			drawCanvas();
 		};
 		image.onerror = () => {
@@ -416,41 +473,94 @@
 		ctx.textAlign = 'left';
 	}
 
-	function drawCanvas() {
-		if (!ctx || !canvasElement) return;
+	// Cache static elements (background, image) to offscreen canvas
+	function cacheStaticElements() {
+		if (!offscreenCtx || !offscreenCanvas) return;
 
-		// Clear canvas with background pattern
-		ctx.fillStyle = '#f8f9fa';
-		ctx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+		// Clear offscreen canvas
+		offscreenCtx.fillStyle = '#f8f9fa';
+		offscreenCtx.fillRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
 
-		// Draw checkerboard pattern for areas outside image
-		drawCheckerboardPattern();
+		// Draw checkerboard pattern
+		drawCheckerboardPatternToContext(offscreenCtx, offscreenCanvas);
 
-		// Draw image if loaded successfully, otherwise show placeholder
+		// Draw image if loaded
 		if (image && image.complete && image.naturalWidth > 0) {
-			// Draw image with preserved aspect ratio
-			ctx.drawImage(image, imageOffsetX, imageOffsetY, scaledImageWidth, scaledImageHeight);
+			offscreenCtx.drawImage(
+				image,
+				imageOffsetX,
+				imageOffsetY,
+				scaledImageWidth,
+				scaledImageHeight
+			);
 
 			// Draw subtle border around image
-			ctx.strokeStyle = '#e5e7eb';
-			ctx.lineWidth = 1;
-			ctx.strokeRect(
+			offscreenCtx.strokeStyle = '#e5e7eb';
+			offscreenCtx.lineWidth = 1;
+			offscreenCtx.strokeRect(
 				imageOffsetX - 0.5,
 				imageOffsetY - 0.5,
 				scaledImageWidth + 1,
 				scaledImageHeight + 1
 			);
 		} else {
-			// Draw placeholder in center
-			ctx.fillStyle = '#f3f4f6';
-			ctx.fillRect(imageOffsetX, imageOffsetY, scaledImageWidth || 400, scaledImageHeight || 300);
+			// Draw placeholder
+			offscreenCtx.fillStyle = '#f3f4f6';
+			offscreenCtx.fillRect(
+				imageOffsetX,
+				imageOffsetY,
+				scaledImageWidth || 400,
+				scaledImageHeight || 300
+			);
 
-			// Draw placeholder text
-			ctx.fillStyle = '#9ca3af';
-			ctx.font = '16px sans-serif';
-			ctx.textAlign = 'center';
-			ctx.fillText('Loading image...', canvasElement.width / 2, canvasElement.height / 2);
-			ctx.textAlign = 'left';
+			offscreenCtx.fillStyle = '#9ca3af';
+			offscreenCtx.font = '16px sans-serif';
+			offscreenCtx.textAlign = 'center';
+			offscreenCtx.fillText(
+				'Loading image...',
+				offscreenCanvas.width / 2,
+				offscreenCanvas.height / 2
+			);
+			offscreenCtx.textAlign = 'left';
+		}
+
+		staticElementsCached = true;
+	}
+
+	function drawCanvas() {
+		if (!ctx || !canvasElement) return;
+
+		// Use cached static elements if available
+		if (staticElementsCached && offscreenCanvas) {
+			ctx.drawImage(offscreenCanvas, 0, 0);
+		} else {
+			// Fallback to direct drawing
+			ctx.fillStyle = '#f8f9fa';
+			ctx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+
+			drawCheckerboardPattern();
+
+			if (image && image.complete && image.naturalWidth > 0) {
+				ctx.drawImage(image, imageOffsetX, imageOffsetY, scaledImageWidth, scaledImageHeight);
+
+				ctx.strokeStyle = '#e5e7eb';
+				ctx.lineWidth = 1;
+				ctx.strokeRect(
+					imageOffsetX - 0.5,
+					imageOffsetY - 0.5,
+					scaledImageWidth + 1,
+					scaledImageHeight + 1
+				);
+			} else {
+				ctx.fillStyle = '#f3f4f6';
+				ctx.fillRect(imageOffsetX, imageOffsetY, scaledImageWidth || 400, scaledImageHeight || 300);
+
+				ctx.fillStyle = '#9ca3af';
+				ctx.font = '16px sans-serif';
+				ctx.textAlign = 'center';
+				ctx.fillText('Loading image...', canvasElement.width / 2, canvasElement.height / 2);
+				ctx.textAlign = 'left';
+			}
 		}
 
 		// Draw saved bounding boxes (convert from image to canvas coordinates)
@@ -505,13 +615,19 @@
 	// Draw checkerboard pattern for areas outside image
 	function drawCheckerboardPattern() {
 		if (!ctx || !canvasElement) return;
+		drawCheckerboardPatternToContext(ctx, canvasElement);
+	}
 
+	function drawCheckerboardPatternToContext(
+		context: CanvasRenderingContext2D,
+		canvas: HTMLCanvasElement
+	) {
 		const squareSize = 16;
 		const lightColor = '#ffffff';
 		const darkColor = '#f5f5f5';
 
-		for (let x = 0; x < canvasElement.width; x += squareSize) {
-			for (let y = 0; y < canvasElement.height; y += squareSize) {
+		for (let x = 0; x < canvas.width; x += squareSize) {
+			for (let y = 0; y < canvas.height; y += squareSize) {
 				// Skip if this square is within the image area
 				if (
 					x + squareSize > imageOffsetX &&
@@ -523,8 +639,8 @@
 				}
 
 				const isEvenSquare = (x / squareSize + y / squareSize) % 2 === 0;
-				ctx.fillStyle = isEvenSquare ? lightColor : darkColor;
-				ctx.fillRect(x, y, squareSize, squareSize);
+				context.fillStyle = isEvenSquare ? lightColor : darkColor;
+				context.fillRect(x, y, squareSize, squareSize);
 			}
 		}
 	}
@@ -654,8 +770,25 @@
 		}
 	}
 
+	function scheduleCanvasUpdate() {
+		if (!pendingCanvasUpdate) {
+			pendingCanvasUpdate = true;
+			rafId = requestAnimationFrame(() => {
+				drawCanvas();
+				pendingCanvasUpdate = false;
+			});
+		}
+	}
+
 	function handleMouseMove(event: MouseEvent) {
 		if (!ctx || !canvasElement) return;
+
+		// Throttle mouse move events
+		const now = Date.now();
+		if (now - lastMouseMoveTime < MOUSE_THROTTLE_MS) {
+			return;
+		}
+		lastMouseMoveTime = now;
 
 		const rect = canvasElement.getBoundingClientRect();
 		const canvasX = event.clientX - rect.left;
@@ -728,8 +861,9 @@
 				if (!selectedBox._isNew) {
 					selectedBox._isDirty = true;
 				}
+				markAsUnsaved();
 
-				drawCanvas();
+				scheduleCanvasUpdate();
 			}
 		} else if (isDragging && selectedBoxId) {
 			// Handle box moving - convert canvas coordinates to image coordinates
@@ -756,8 +890,9 @@
 				if (!selectedBox._isNew) {
 					selectedBox._isDirty = true;
 				}
+				markAsUnsaved();
 
-				drawCanvas();
+				scheduleCanvasUpdate();
 			}
 		} else if (isDrawing) {
 			// Handle new box drawing - draw in canvas coordinates but will be converted when saved
@@ -815,12 +950,12 @@
 					};
 					boundingBoxes.push(newBox);
 					selectedBoxId = newBox.id;
-					saveAnnotations(); // Save immediately on creation
+					markAsUnsaved(); // Mark as unsaved and debounce save
 				}
 			}
 		}
 
-		// Mark annotations as dirty after any modification and save immediately (before resetting flags)
+		// Mark annotations as dirty after any modification
 		if (isResizing || isDragging) {
 			// Update timestamp and mark as dirty for modified box
 			const modifiedBox = boundingBoxes.find((box) => box.id === selectedBoxId);
@@ -828,7 +963,7 @@
 				console.log('Marking annotation as dirty:', modifiedBox.id, '_isNew:', modifiedBox._isNew);
 				modifiedBox.updatedAt = new Date().toISOString();
 				modifiedBox._isDirty = true;
-				saveAnnotations(); // Save immediately on modification
+				markAsUnsaved(); // Mark as unsaved and debounce save
 			}
 		}
 
@@ -900,28 +1035,70 @@
 		}
 	});
 
-	// Cleanup on unmount - no longer needed since we save immediately
+	// Cleanup effect for pending saves
+	$effect(() => {
+		return () => {
+			// Save any pending changes on unmount
+			if (saveDebounceTimer) {
+				clearTimeout(saveDebounceTimer);
+				if (hasUnsavedChanges) {
+					saveAnnotations();
+				}
+			}
+		};
+	});
 </script>
 
 <div class="relative">
-	<!-- Mode Toggle Buttons -->
-	<div class="mb-4 flex gap-2">
-		<button
-			onclick={() => (mode = 'select')}
-			class="rounded px-3 py-2 text-sm font-medium transition-colors {mode === 'select'
-				? 'bg-blue-600 text-white'
-				: 'bg-gray-200 text-gray-700 hover:bg-gray-300'}"
-		>
-			Select (S)
-		</button>
-		<button
-			onclick={() => (mode = 'draw')}
-			class="rounded px-3 py-2 text-sm font-medium transition-colors {mode === 'draw'
-				? 'bg-blue-600 text-white'
-				: 'bg-gray-200 text-gray-700 hover:bg-gray-300'}"
-		>
-			Draw (D)
-		</button>
+	<!-- Mode Toggle Buttons and Save Status -->
+	<div class="mb-4 flex items-center justify-between">
+		<div class="flex gap-2">
+			<button
+				onclick={() => (mode = 'select')}
+				class="rounded px-3 py-2 text-sm font-medium transition-colors {mode === 'select'
+					? 'bg-blue-600 text-white'
+					: 'bg-gray-200 text-gray-700 hover:bg-gray-300'}"
+			>
+				Select (S)
+			</button>
+			<button
+				onclick={() => (mode = 'draw')}
+				class="rounded px-3 py-2 text-sm font-medium transition-colors {mode === 'draw'
+					? 'bg-blue-600 text-white'
+					: 'bg-gray-200 text-gray-700 hover:bg-gray-300'}"
+			>
+				Draw (D)
+			</button>
+		</div>
+
+		<!-- Save Status Indicator -->
+		<div class="flex items-center gap-2">
+			{#if hasUnsavedChanges && saveStatus !== 'saving'}
+				<span class="text-sm text-amber-600">• Unsaved changes</span>
+			{:else if saveStatus === 'saving'}
+				<span class="text-sm text-blue-600">Saving...</span>
+			{:else if saveStatus === 'saved'}
+				<span class="text-sm text-green-600">✓ Saved</span>
+			{:else if saveStatus === 'error'}
+				<span class="text-sm text-red-600">⚠ Save failed</span>
+			{/if}
+
+			<button
+				onclick={() => {
+					if (hasUnsavedChanges && saveDebounceTimer) {
+						clearTimeout(saveDebounceTimer);
+						saveAnnotations();
+					}
+				}}
+				disabled={!hasUnsavedChanges || saveStatus === 'saving'}
+				class="rounded px-3 py-1 text-sm font-medium transition-colors {hasUnsavedChanges &&
+				saveStatus !== 'saving'
+					? 'bg-blue-600 text-white hover:bg-blue-700'
+					: 'cursor-not-allowed bg-gray-200 text-gray-400'}"
+			>
+				Save (Ctrl+S)
+			</button>
+		</div>
 	</div>
 
 	<canvas

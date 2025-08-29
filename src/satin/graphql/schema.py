@@ -23,6 +23,8 @@ from .types import (
     AnnotationCreateInput,
     AnnotationFilterInput,
     AnnotationUpdateInput,
+    BulkAnnotationSaveInput,
+    BulkAnnotationSaveResult,
     CreateAnnotationResult,
     CreateImageResult,
     CreateMLJobResult,
@@ -427,6 +429,78 @@ class Mutation:
         except (ValueError, TypeError, ValidationError):
             # Invalid ObjectId format or validation error
             return DeleteResult.not_found("Annotation")
+
+    @strawberry.mutation
+    @handle_mutation_errors("BulkAnnotation")
+    async def bulk_save_annotations(self, input: BulkAnnotationSaveInput) -> BulkAnnotationSaveResult:  # noqa: A002, C901
+        """Bulk save annotations - create, update, and delete in a single operation."""
+        created_annotations = []
+        updated_annotations = []
+        deleted_ids = []
+
+        # Process creates
+        for create_input in input.create:
+            bbox = BoundingBox(
+                x=create_input.bounding_box.x,
+                y=create_input.bounding_box.y,
+                width=create_input.bounding_box.width,
+                height=create_input.bounding_box.height,
+            )
+
+            annotation_create = AnnotationCreate(
+                image_id=PyObjectId(create_input.image_id),
+                bounding_box=bbox,
+                tags=create_input.tags,
+                description=create_input.description,
+                confidence=create_input.confidence,
+            )
+            annotation = await dependencies.annotation_repo.create(annotation_create)
+            created_annotations.append(Annotation.from_model(annotation))
+
+        # Process updates
+        for update_item in input.update:
+            update_kwargs: dict[str, Any] = {}
+
+            if update_item.input.bounding_box is not None:
+                update_kwargs["bounding_box"] = BoundingBox(
+                    x=update_item.input.bounding_box.x,
+                    y=update_item.input.bounding_box.y,
+                    width=update_item.input.bounding_box.width,
+                    height=update_item.input.bounding_box.height,
+                )
+
+            if update_item.input.tags is not None:
+                update_kwargs["tags"] = update_item.input.tags
+
+            if update_item.input.description is not None:
+                update_kwargs["description"] = update_item.input.description
+
+            if update_item.input.confidence is not None:
+                update_kwargs["confidence"] = update_item.input.confidence
+
+            if update_kwargs:
+                annotation_update = AnnotationUpdate(**update_kwargs)
+                updated_annotation = await dependencies.annotation_repo.update_by_id(
+                    PyObjectId(update_item.id), annotation_update
+                )
+                if updated_annotation:
+                    updated_annotations.append(Annotation.from_model(updated_annotation))
+
+        # Process deletes
+        for delete_id in input.delete:
+            try:
+                deleted = await dependencies.annotation_repo.delete_by_id(PyObjectId(delete_id))
+                if deleted:
+                    deleted_ids.append(delete_id)
+            except (ValueError, TypeError, ValidationError):
+                # Skip invalid IDs
+                continue
+
+        return BulkAnnotationSaveResult(  # type: ignore[return-value]
+            created=created_annotations,
+            updated=updated_annotations,
+            deleted=deleted_ids,
+        )
 
     # ML Job mutations
     @strawberry.mutation

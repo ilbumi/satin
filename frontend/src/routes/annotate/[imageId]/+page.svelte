@@ -70,6 +70,24 @@
 		(imageQuery ? $imageQuery!.error : null) || (annotationsQuery ? $annotationsQuery!.error : null)
 	);
 
+	// Sync backend annotations to local annotations array for sidebar display
+	$effect(() => {
+		if (backendAnnotations && backendAnnotations.length > 0 && annotations.length === 0) {
+			annotations = backendAnnotations.map((ann) => ({
+				id: ann.id,
+				x: ann.boundingBox.x,
+				y: ann.boundingBox.y,
+				width: ann.boundingBox.width,
+				height: ann.boundingBox.height,
+				description: ann.description,
+				tags: ann.tags,
+				confidence: ann.confidence,
+				createdAt: ann.createdAt,
+				updatedAt: ann.updatedAt
+			}));
+		}
+	});
+
 	onMount(() => {
 		const checkMobile = () => {
 			isMobile = window.innerWidth < 768;

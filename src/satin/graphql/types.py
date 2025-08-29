@@ -148,6 +148,33 @@ class AnnotationUpdateInput:
     confidence: float | None = None
 
 
+@strawberry.input
+class AnnotationUpdateWithId:
+    """Annotation update with ID."""
+
+    id: str
+    input: AnnotationUpdateInput
+
+
+@strawberry.input
+class BulkAnnotationSaveInput:
+    """Input for bulk saving annotations."""
+
+    image_id: str
+    create: list[AnnotationCreateInput] = strawberry.field(default_factory=list)
+    update: list[AnnotationUpdateWithId] = strawberry.field(default_factory=list)
+    delete: list[str] = strawberry.field(default_factory=list)
+
+
+@strawberry.type
+class BulkAnnotationSaveResult:
+    """Result of bulk annotation save operation."""
+
+    created: list[Annotation]
+    updated: list[Annotation]
+    deleted: list[str]
+
+
 @strawberry.type
 class MLJob:
     """GraphQL MLJob type."""
