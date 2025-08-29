@@ -145,8 +145,7 @@
 			const mutationResult = handleMutationResult<ImageData>(result, 'updateImage');
 
 			if (mutationResult.success) {
-				// Refetch images to get updated data
-				imagesQuery.reexecute({ requestPolicy: 'network-only' });
+				// Cache will automatically update due to normalized caching
 				showSuccess(`Image status updated to ${newStatus.replace('_', ' ')}`);
 			} else {
 				showError(mutationResult.error || 'Failed to update image status');
@@ -168,8 +167,7 @@
 			const deleteResult = handleDeleteResult(result, 'deleteImage');
 
 			if (deleteResult.success) {
-				// Refetch images to get updated data
-				imagesQuery.reexecute({ requestPolicy: 'network-only' });
+				// Cache will automatically update due to cache configuration
 				showSuccess(deleteResult.message);
 			} else {
 				showError(deleteResult.message);
@@ -181,8 +179,7 @@
 
 	function handleAddImageSubmit() {
 		// This will be called by AddImageDialog after successful image creation
-		// Refetch images to get updated data
-		imagesQuery.reexecute({ requestPolicy: 'network-only' });
+		// Cache will automatically update due to cache configuration
 	}
 </script>
 

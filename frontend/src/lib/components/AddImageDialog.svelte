@@ -140,7 +140,8 @@
 
 			if (mutationResult.success) {
 				showSuccess('Image added successfully!');
-				onSubmit(); // Notify parent to refetch data
+				// Cache will automatically update due to cache configuration
+				onSubmit(); // Notify parent component
 				handleClose();
 			} else {
 				showError(mutationResult.error || 'Failed to add image');

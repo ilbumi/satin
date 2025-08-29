@@ -137,6 +137,10 @@
 		startEditingAnnotation(annotationId);
 	}
 
+	function handleSelectionChange(annotationId: string | null) {
+		selectedAnnotationId = annotationId;
+	}
+
 	// Keyboard shortcuts
 	function handleKeydown(event: KeyboardEvent) {
 		// Don't trigger shortcuts when typing in inputs
@@ -365,6 +369,7 @@
 					onAnnotationsChange={handleAnnotationsChange}
 					onSaveStatusChange={handleSaveStatusChange}
 					onDoubleClickAnnotation={handleDoubleClickAnnotation}
+					onSelectionChange={handleSelectionChange}
 					responsive={true}
 				/>
 			</div>

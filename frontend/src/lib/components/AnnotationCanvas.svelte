@@ -22,6 +22,7 @@
 		onAnnotationsChange?: (annotations: BoundingBox[]) => void;
 		onSaveStatusChange?: (status: 'idle' | 'saving' | 'saved' | 'error') => void;
 		onDoubleClickAnnotation?: (annotationId: string) => void;
+		onSelectionChange?: (annotationId: string | null) => void;
 	}
 
 	interface BoundingBox {
@@ -51,7 +52,8 @@
 		responsive = false,
 		onAnnotationsChange,
 		onSaveStatusChange,
-		onDoubleClickAnnotation
+		onDoubleClickAnnotation,
+		onSelectionChange
 	}: Props = $props();
 
 	// GraphQL client for backend operations
@@ -106,6 +108,12 @@
 
 	// Convert backend annotation to frontend bounding box
 	function annotationToBoundingBox(annotation: AnnotationData): BoundingBox {
+		// Add defensive checks for boundingBox
+		if (!annotation.boundingBox) {
+			console.error('Annotation missing boundingBox:', annotation);
+			throw new Error('Annotation data is missing boundingBox');
+		}
+
 		return {
 			id: annotation.id,
 			x: annotation.boundingBox.x,
@@ -189,12 +197,31 @@
 				}
 
 				if (mutationResult.data) {
-					// Update local box with backend data
-					const backendAnnotation = mutationResult.data;
-					Object.assign(box, annotationToBoundingBox(backendAnnotation));
-					box._isNew = false;
-					box._isDirty = false;
-					console.log('Successfully created annotation:', backendAnnotation.id);
+					// The mutationResult.data contains the wrapper, we need the nested data
+					let backendAnnotation = mutationResult.data;
+
+					// Check if we have the wrapper structure and extract the actual annotation
+					if (
+						backendAnnotation &&
+						typeof backendAnnotation === 'object' &&
+						'data' in backendAnnotation
+					) {
+						backendAnnotation = (backendAnnotation as Record<string, unknown>)
+							.data as AnnotationData;
+					}
+
+					try {
+						Object.assign(box, annotationToBoundingBox(backendAnnotation));
+						box._isNew = false;
+						box._isDirty = false;
+						console.log('Successfully created annotation:', backendAnnotation.id);
+					} catch (error) {
+						console.error('Failed to convert annotation to bounding box:', error);
+						console.error('Mutation result data:', mutationResult.data);
+						console.error('Extracted annotation data:', backendAnnotation);
+						// Keep the box as new/dirty so it can be retried
+						throw error;
+					}
 				}
 			}
 
@@ -221,8 +248,19 @@
 				}
 
 				if (mutationResult.data) {
-					// Update local box with backend data
-					const backendAnnotation = mutationResult.data;
+					// The mutationResult.data contains the wrapper, we need the nested data
+					let backendAnnotation = mutationResult.data;
+
+					// Check if we have the wrapper structure and extract the actual annotation
+					if (
+						backendAnnotation &&
+						typeof backendAnnotation === 'object' &&
+						'data' in backendAnnotation
+					) {
+						backendAnnotation = (backendAnnotation as Record<string, unknown>)
+							.data as AnnotationData;
+					}
+
 					Object.assign(box, annotationToBoundingBox(backendAnnotation));
 					box._isDirty = false;
 					console.log('Successfully updated annotation:', backendAnnotation.id);
@@ -381,12 +419,14 @@
 		}
 		if (selectedBoxId === id) {
 			selectedBoxId = null;
+			onSelectionChange?.(null);
 		}
 		drawCanvas();
 	}
 
 	export function selectAnnotationById(id: string) {
 		selectedBoxId = id;
+		onSelectionChange?.(id || null);
 		drawCanvas();
 	}
 
@@ -411,10 +451,12 @@
 		} else if (event.key === 'Delete' && selectedBoxId) {
 			boundingBoxes = boundingBoxes.filter((box) => box.id !== selectedBoxId);
 			selectedBoxId = null;
+			onSelectionChange?.(null);
 			markAsUnsaved(); // Mark as unsaved and debounce save
 			drawCanvas();
 		} else if (event.key === 'Escape') {
 			selectedBoxId = null;
+			onSelectionChange?.(null);
 			drawCanvas();
 		} else if (event.key === 's' || event.key === 'S') {
 			mode = 'select';
@@ -633,7 +675,14 @@
 		}
 
 		// Draw saved bounding boxes (convert from image to canvas coordinates)
-		boundingBoxes.forEach((box) => {
+		// Filter out deleted boxes so they disappear immediately
+		const visibleBoxes = boundingBoxes.filter((box) => !box._isDeleted);
+
+		// Draw non-selected boxes first, then selected box last (so it appears on top)
+		const nonSelectedBoxes = visibleBoxes.filter((box) => box.id !== selectedBoxId);
+		const selectedBox = visibleBoxes.find((box) => box.id === selectedBoxId);
+
+		[...nonSelectedBoxes, ...(selectedBox ? [selectedBox] : [])].forEach((box) => {
 			// Convert image coordinates to canvas coordinates for display
 			const topLeft = imageToCanvasCoords(box.x, box.y);
 			const bottomRight = imageToCanvasCoords(box.x + box.width, box.y + box.height);
@@ -644,13 +693,18 @@
 			const canvasHeight = bottomRight.y - topLeft.y;
 
 			const isSelected = box.id === selectedBoxId;
+
+			// Ensure we save and restore canvas state to avoid interference
+			ctx!.save();
 			ctx!.strokeStyle = isSelected ? '#f59e0b' : '#3b82f6';
 			ctx!.lineWidth = isSelected ? 3 : 2;
 			ctx!.strokeRect(canvasX, canvasY, canvasWidth, canvasHeight);
+			ctx!.restore();
 
 			// Draw selection handles for selected box
 			if (isSelected) {
 				const handleSize = 8;
+				ctx!.save();
 				ctx!.fillStyle = '#f59e0b';
 				ctx!.strokeStyle = '#fff';
 				ctx!.lineWidth = 1;
@@ -677,6 +731,7 @@
 						handleSize
 					);
 				});
+				ctx!.restore();
 			}
 		});
 	}
@@ -725,8 +780,9 @@
 		const imageCoords = canvasToImageCoords(canvasX, canvasY);
 
 		for (let i = boundingBoxes.length - 1; i >= 0; i--) {
-			if (isPointInBox(imageCoords.x, imageCoords.y, boundingBoxes[i])) {
-				return boundingBoxes[i];
+			const box = boundingBoxes[i];
+			if (!box._isDeleted && isPointInBox(imageCoords.x, imageCoords.y, box)) {
+				return box;
 			}
 		}
 		return null;
@@ -776,6 +832,7 @@
 		// Only allow interactions within the image area
 		if (!isPointInImageArea(canvasX, canvasY)) {
 			selectedBoxId = null;
+			onSelectionChange?.(null);
 			drawCanvas();
 			return;
 		}
@@ -820,16 +877,19 @@
 				lastClickedBoxId = clickedBox.id;
 
 				selectedBoxId = clickedBox.id;
+				onSelectionChange?.(clickedBox.id);
 				drawCanvas();
 				return;
 			}
 
 			// Click on empty area - deselect
 			selectedBoxId = null;
+			onSelectionChange?.(null);
 			drawCanvas();
 		} else if (mode === 'draw') {
 			// Draw mode: only create new boxes
 			selectedBoxId = null;
+			onSelectionChange?.(null);
 			startX = canvasX;
 			startY = canvasY;
 			isDrawing = true;
@@ -1016,6 +1076,7 @@
 					};
 					boundingBoxes.push(newBox);
 					selectedBoxId = newBox.id;
+					onSelectionChange?.(newBox.id);
 					markAsUnsaved(); // Mark as unsaved and debounce save
 				}
 			}
