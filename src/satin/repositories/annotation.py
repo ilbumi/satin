@@ -18,14 +18,16 @@ class AnnotationRepository(BaseRepository[Annotation, AnnotationCreate, Annotati
         """Initialize Annotation repository."""
         super().__init__(database, "annotations", Annotation)
 
-    async def find_by_image(self, image_id: PyObjectId | str) -> AsyncIterator[Annotation]:
+    async def find_by_image(self, image_id: PyObjectId) -> AsyncIterator[Annotation]:
         """Find all annotations for an image."""
-        filter_dict = {"image_id": str(image_id)}
+        # Use the normalized ObjectId for MongoDB query
+        filter_dict = {"image_id": self._normalize_id(image_id)}
         async for annotation in self.find(filter_dict):
             yield annotation
 
-    async def find_by_tags(self, tag_ids: list[PyObjectId | str]) -> AsyncIterator[Annotation]:
+    async def find_by_tags(self, tag_ids: list[PyObjectId]) -> AsyncIterator[Annotation]:
         """Find annotations containing any of the specified tags."""
+        # Tags are stored as strings, so convert PyObjectId to strings
         tag_strings = [str(tag_id) for tag_id in tag_ids]
         filter_dict = {"tags": {"$in": tag_strings}}
         async for annotation in self.find(filter_dict):
@@ -51,6 +53,6 @@ class AnnotationRepository(BaseRepository[Annotation, AnnotationCreate, Annotati
         async for annotation in self.find(filter_dict):
             yield annotation
 
-    async def get_annotation_count_by_image(self, image_id: PyObjectId | str) -> int:
+    async def get_annotation_count_by_image(self, image_id: PyObjectId) -> int:
         """Count annotations for an image."""
-        return await self._collection.count_documents({"image_id": str(image_id)})
+        return await self._collection.count_documents({"image_id": self._normalize_id(image_id)})

@@ -7,6 +7,7 @@ from typing import Any
 from pymongo.asynchronous.database import AsyncDatabase
 
 from satin.models.annotation import AnnotationCreate
+from satin.models.base import PyObjectId
 from satin.models.ml_job import MLJob, MLJobCreate, MLJobStatus, MLJobUpdate
 
 from .base import BaseRepository
@@ -72,27 +73,27 @@ class MLJobRepository(BaseRepository[MLJob, MLJobCreate, MLJobUpdate]):
 
     async def update_status(
         self,
-        job_id: str,
+        job_id: PyObjectId,
         status: MLJobStatus,
         error_message: str | None = None,
     ) -> MLJob | None:
         """Update ML job status and optionally error message."""
         update_data = MLJobUpdate(status=status, error_message=error_message)
-        return await self.update_by_id(job_id, update_data)
+        return await self.update_by_id(job_id, update_data)  # type: ignore[no-any-return]
 
     async def add_predictions(
         self,
-        job_id: str,
+        job_id: PyObjectId,
         predictions: list[AnnotationCreate],
     ) -> MLJob | None:
         """Add prediction results to an ML job."""
         update_data = MLJobUpdate(predictions=predictions, status=MLJobStatus.COMPLETED)
-        return await self.update_by_id(job_id, update_data)
+        return await self.update_by_id(job_id, update_data)  # type: ignore[no-any-return]
 
-    async def cancel_job(self, job_id: str) -> MLJob | None:
+    async def cancel_job(self, job_id: PyObjectId) -> MLJob | None:
         """Cancel a pending or running ML job."""
         update_data = MLJobUpdate(status=MLJobStatus.CANCELLED)
-        return await self.update_by_id(job_id, update_data)
+        return await self.update_by_id(job_id, update_data)  # type: ignore[no-any-return]
 
     async def count_by_status(self, status: MLJobStatus) -> int:
         """Count ML jobs by status."""

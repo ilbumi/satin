@@ -10,6 +10,7 @@
 		type AnnotationCreateInput,
 		type AnnotationUpdateInput
 	} from '$lib/graphql/operations/annotations';
+	import { handleDeleteResult, handleMutationResult } from '$lib/utils/graphql-errors';
 
 	interface Props {
 		imageUrl: string;
@@ -144,21 +145,20 @@
 			for (const box of newBoxes) {
 				const input = boundingBoxToAnnotationInput(box) as AnnotationCreateInput;
 				const result = await client.mutation(CREATE_ANNOTATION, { input }).toPromise();
+				const mutationResult = handleMutationResult<AnnotationData>(result, 'createAnnotation');
 
-				if (result.error) {
-					console.error('Failed to create annotation:', result.error);
-					throw new Error(`Failed to create annotation: ${result.error.message}`);
+				if (!mutationResult.success) {
+					console.error('Failed to create annotation:', mutationResult.error);
+					throw new Error(mutationResult.error || 'Failed to create annotation');
 				}
 
-				if (result.data?.createAnnotation) {
+				if (mutationResult.data) {
 					// Update local box with backend data
-					const backendAnnotation = result.data.createAnnotation;
+					const backendAnnotation = mutationResult.data;
 					Object.assign(box, annotationToBoundingBox(backendAnnotation));
 					box._isNew = false;
 					box._isDirty = false;
 					console.log('Successfully created annotation:', backendAnnotation.id);
-				} else {
-					throw new Error('Create annotation returned no data');
 				}
 			}
 
@@ -169,6 +169,7 @@
 			console.log('Updated boxes to save:', updatedBoxes.length, updatedBoxes);
 			for (const box of updatedBoxes) {
 				const input = boundingBoxToAnnotationInput(box) as AnnotationUpdateInput;
+				console.log('Sending update for annotation:', box.id, 'with input:', input);
 				const result = await client
 					.mutation(UPDATE_ANNOTATION, {
 						id: box.id,
@@ -176,19 +177,19 @@
 					})
 					.toPromise();
 
-				if (result.error) {
-					console.error('Failed to update annotation:', result.error);
-					throw new Error(`Failed to update annotation: ${result.error.message}`);
+				const mutationResult = handleMutationResult<AnnotationData>(result, 'updateAnnotation');
+
+				if (!mutationResult.success) {
+					console.error('Failed to update annotation:', mutationResult.error);
+					throw new Error(mutationResult.error || 'Failed to update annotation');
 				}
 
-				if (result.data?.updateAnnotation) {
+				if (mutationResult.data) {
 					// Update local box with backend data
-					const backendAnnotation = result.data.updateAnnotation;
+					const backendAnnotation = mutationResult.data;
 					Object.assign(box, annotationToBoundingBox(backendAnnotation));
 					box._isDirty = false;
 					console.log('Successfully updated annotation:', backendAnnotation.id);
-				} else {
-					throw new Error('Update annotation returned no data');
 				}
 			}
 
@@ -197,14 +198,11 @@
 			for (const box of deletedBoxes) {
 				if (!box._isNew) {
 					const result = await client.mutation(DELETE_ANNOTATION, { id: box.id }).toPromise();
+					const deleteResult = handleDeleteResult(result, 'deleteAnnotation');
 
-					if (result.error) {
-						console.error('Failed to delete annotation:', result.error);
-						throw new Error(`Failed to delete annotation: ${result.error.message}`);
-					}
-
-					if (!result.data?.deleteAnnotation) {
-						throw new Error('Delete annotation failed');
+					if (!deleteResult.success) {
+						console.error('Failed to delete annotation:', deleteResult.message);
+						throw new Error(deleteResult.message);
 					}
 
 					console.log('Successfully deleted annotation:', box.id);
@@ -214,16 +212,25 @@
 			// Remove deleted boxes from local state
 			boundingBoxes = boundingBoxes.filter((box) => !box._isDeleted);
 
+			console.log('After save, boundingBoxes:', boundingBoxes.length, boundingBoxes);
+
 			saveStatus = 'saved';
 			onSaveStatusChange?.(saveStatus);
 			onAnnotationsChange?.(boundingBoxes);
 
-			// Invalidate annotations query cache to ensure fresh data on refresh
+			// Invalidate annotations query cache to ensure parent gets fresh data
+			// This is important so the parent component knows about new annotations
 			if (imageId) {
-				// Force cache invalidation by making a network-only query
-				client
-					.query(GET_ANNOTATIONS_BY_IMAGE, { imageId: imageId }, { requestPolicy: 'network-only' })
-					.toPromise();
+				// Delay the cache invalidation slightly to ensure our state is stable
+				setTimeout(() => {
+					client
+						.query(
+							GET_ANNOTATIONS_BY_IMAGE,
+							{ imageId: imageId },
+							{ requestPolicy: 'network-only' }
+						)
+						.toPromise();
+				}, 100);
 			}
 
 			// Auto-clear saved status after 2 seconds
@@ -717,6 +724,11 @@
 					selectedBox.height = Math.min(selectedBox.height, image.naturalHeight - selectedBox.y);
 				}
 
+				// Mark as dirty immediately when modifying
+				if (!selectedBox._isNew) {
+					selectedBox._isDirty = true;
+				}
+
 				drawCanvas();
 			}
 		} else if (isDragging && selectedBoxId) {
@@ -738,6 +750,11 @@
 				} else {
 					selectedBox.x = imageCoords.x;
 					selectedBox.y = imageCoords.y;
+				}
+
+				// Mark as dirty immediately when modifying
+				if (!selectedBox._isNew) {
+					selectedBox._isDirty = true;
 				}
 
 				drawCanvas();
@@ -828,25 +845,52 @@
 	// Track if initial annotations have been loaded to prevent infinite loops
 	let hasLoadedInitial = false;
 
+	// Track the last processed initialAnnotations to prevent infinite loops
+	let lastProcessedAnnotations = $state<string>('');
+
 	// Load initial annotations when they change
 	$effect(() => {
+		// Only react to changes in initialAnnotations
+		if (!initialAnnotations) return;
+
+		// Create a simple hash to detect real changes
+		const annotationsHash = JSON.stringify(initialAnnotations.map((a) => a.id).sort());
+		if (annotationsHash === lastProcessedAnnotations && hasLoadedInitial) {
+			return; // No real change, skip processing
+		}
+
 		const newAnnotations = initialAnnotations.map(annotationToBoundingBox);
 
-		// Skip update if we're currently saving (to avoid conflicts)
-		if (saveStatus === 'saving') {
+		console.log(
+			'Effect running - saveStatus:',
+			saveStatus,
+			'initialAnnotations:',
+			initialAnnotations.length,
+			'boundingBoxes:',
+			boundingBoxes.length
+		);
+
+		// Skip update if we're currently saving or just saved (to avoid conflicts)
+		if (saveStatus === 'saving' || saveStatus === 'saved') {
+			console.log('Skipping effect update due to saveStatus:', saveStatus);
 			return;
 		}
 
-		// Only update if the content is actually different
-		const hasChanged =
-			!hasLoadedInitial ||
-			newAnnotations.length !== boundingBoxes.length ||
-			newAnnotations.some((ann, i) => !boundingBoxes[i] || ann.id !== boundingBoxes[i].id);
-
-		if (hasChanged) {
+		// If this is the initial load, just set the annotations
+		if (!hasLoadedInitial) {
+			console.log('Initial load - setting boundingBoxes to:', newAnnotations.length, 'annotations');
 			boundingBoxes = newAnnotations;
-			onAnnotationsChange?.(boundingBoxes);
 			hasLoadedInitial = true;
+			lastProcessedAnnotations = annotationsHash;
+			// Don't call onAnnotationsChange here as it might trigger the effect again
+			return;
+		}
+
+		// For subsequent updates, only update if backend has new data
+		if (newAnnotations.length > 0) {
+			console.log('Updating from backend:', newAnnotations.length, 'annotations');
+			boundingBoxes = newAnnotations;
+			lastProcessedAnnotations = annotationsHash;
 		}
 	});
 

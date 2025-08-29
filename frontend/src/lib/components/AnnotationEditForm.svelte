@@ -2,8 +2,10 @@
 	import { getContextClient } from '@urql/svelte';
 	import {
 		UPDATE_ANNOTATION,
-		type AnnotationUpdateInput
+		type AnnotationUpdateInput,
+		type AnnotationData
 	} from '$lib/graphql/operations/annotations';
+	import { handleMutationResult } from '$lib/utils/graphql-errors';
 
 	interface Annotation {
 		id: string;
@@ -63,19 +65,19 @@
 				})
 				.toPromise();
 
-			if (result.error) {
-				throw new Error(result.error.message);
-			}
+			const mutationResult = handleMutationResult<AnnotationData>(result, 'updateAnnotation');
 
-			if (result.data?.updateAnnotation) {
+			if (mutationResult.success && mutationResult.data) {
 				const updatedAnnotation: Annotation = {
 					...annotation,
-					description: result.data.updateAnnotation.description,
-					tags: result.data.updateAnnotation.tags,
-					confidence: result.data.updateAnnotation.confidence,
-					updatedAt: result.data.updateAnnotation.updatedAt
+					description: mutationResult.data.description,
+					tags: mutationResult.data.tags,
+					confidence: mutationResult.data.confidence,
+					updatedAt: mutationResult.data.updatedAt
 				};
 				onSave?.(updatedAnnotation);
+			} else {
+				throw new Error(mutationResult.error || 'Failed to update annotation');
 			}
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to save annotation';

@@ -3,6 +3,7 @@
 	import { getContextClient } from '@urql/svelte';
 	import { showError, showSuccess } from '$lib/stores/toast';
 	import { CREATE_IMAGE, type ImageCreateInput } from '$lib/graphql/operations/images';
+	import { handleMutationResult } from '$lib/utils/graphql-errors';
 
 	interface Props {
 		open: boolean;
@@ -135,14 +136,15 @@
 
 			// Execute the mutation using URQL client
 			const result = await client.mutation(CREATE_IMAGE, { input }).toPromise();
+			const mutationResult = handleMutationResult(result, 'createImage');
 
-			if (result.error) {
-				throw new Error(result.error.message);
+			if (mutationResult.success) {
+				showSuccess('Image added successfully!');
+				onSubmit(); // Notify parent to refetch data
+				handleClose();
+			} else {
+				showError(mutationResult.error || 'Failed to add image');
 			}
-
-			showSuccess('Image added successfully!');
-			onSubmit(); // Notify parent to refetch data
-			handleClose();
 		} catch (error) {
 			showError(error instanceof Error ? error.message : 'Failed to add image');
 		} finally {

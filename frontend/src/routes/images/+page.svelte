@@ -13,6 +13,7 @@
 		type GetImagesQuery,
 		type ImageUpdateInput
 	} from '$lib/graphql/operations/images';
+	import { handleDeleteResult, handleMutationResult } from '$lib/utils/graphql-errors';
 
 	let searchQuery = $state('');
 	let selectedStatuses = $state<string[]>(['NEW', 'ANNOTATED', 'NEEDS_REANNOTATION']);
@@ -30,10 +31,10 @@
 	});
 
 	// Reactive data from GraphQL
-	let images = $derived($imagesQuery.data?.images || []);
+	let images = $derived($imagesQuery.data?.images?.items || []);
 	let loading = $derived($imagesQuery.fetching);
 	let error = $derived($imagesQuery.error);
-	let totalImages = $derived(images.length);
+	let totalImages = $derived($imagesQuery.data?.images?.totalCount || 0);
 
 	let filteredImages = $derived(() => {
 		let filtered = [...images];
@@ -93,20 +94,27 @@
 	}
 
 	function handleStatusFilterChange(statuses: string[]) {
-		selectedStatuses = statuses;
+		selectedStatuses = statuses as Array<'NEW' | 'ANNOTATED' | 'NEEDS_REANNOTATION'>;
 		currentPage = 1; // Reset to first page when filtering
 	}
 
 	function handleSortChange(newSortBy: string, newSortOrder: 'asc' | 'desc') {
-		sortBy = newSortBy;
-		sortOrder = newSortOrder;
+		// Map frontend field names to backend field names
+		const fieldMap: Record<string, string> = {
+			createdAt: 'created_at',
+			updatedAt: 'updated_at',
+			url: 'url',
+			status: 'status'
+		};
+		sortBy = fieldMap[newSortBy] || newSortBy;
+		sortOrder = newSortOrder === 'asc' ? 'asc' : 'desc';
 		currentPage = 1; // Reset to first page when sorting
 	}
 
 	function handleClearFilters() {
 		searchQuery = '';
 		selectedStatuses = ['NEW', 'ANNOTATED', 'NEEDS_REANNOTATION'];
-		sortBy = 'createdAt';
+		sortBy = 'created_at';
 		sortOrder = 'desc';
 		currentPage = 1;
 	}
@@ -124,13 +132,15 @@
 				})
 				.toPromise();
 
-			if (result.error) {
-				throw new Error(result.error.message);
-			}
+			const mutationResult = handleMutationResult<ImageData>(result, 'updateImage');
 
-			// Refetch images to get updated data
-			imagesQuery.reexecute({ requestPolicy: 'network-only' });
-			showSuccess(`Image status updated to ${newStatus.replace('_', ' ')}`);
+			if (mutationResult.success) {
+				// Refetch images to get updated data
+				imagesQuery.reexecute({ requestPolicy: 'network-only' });
+				showSuccess(`Image status updated to ${newStatus.replace('_', ' ')}`);
+			} else {
+				showError(mutationResult.error || 'Failed to update image status');
+			}
 		} catch (err) {
 			showError(
 				`Failed to update image status: ${err instanceof Error ? err.message : 'Unknown error'}`
@@ -145,14 +155,15 @@
 
 		try {
 			const result = await client.mutation(DELETE_IMAGE, { id: imageId }).toPromise();
+			const deleteResult = handleDeleteResult(result, 'deleteImage');
 
-			if (result.error) {
-				throw new Error(result.error.message);
+			if (deleteResult.success) {
+				// Refetch images to get updated data
+				imagesQuery.reexecute({ requestPolicy: 'network-only' });
+				showSuccess(deleteResult.message);
+			} else {
+				showError(deleteResult.message);
 			}
-
-			// Refetch images to get updated data
-			imagesQuery.reexecute({ requestPolicy: 'network-only' });
-			showSuccess('Image deleted successfully');
 		} catch (err) {
 			showError(`Failed to delete image: ${err instanceof Error ? err.message : 'Unknown error'}`);
 		}
@@ -223,11 +234,13 @@
 				</svg>
 				Failed to load images
 			</div>
-		{:else}
-			Showing {paginatedImages().length} of {filteredImages().length} images
-			{#if filteredImages().length !== totalImages}
-				(filtered from {totalImages} total)
+		{:else if totalImages > 0}
+			Showing {Math.min(paginatedImages().length, itemsPerPage)} of {totalImages} images
+			{#if searchQuery || selectedStatuses.length < 3}
+				(filtered)
 			{/if}
+		{:else}
+			No images found
 		{/if}
 	</div>
 
@@ -270,10 +283,10 @@
 	</div>
 
 	<!-- Pagination -->
-	{#if !loading && filteredImages().length > 0}
+	{#if !loading && totalImages > 0}
 		<Pagination
 			{currentPage}
-			totalItems={filteredImages().length}
+			totalItems={totalImages}
 			{itemsPerPage}
 			onPageChange={(page) => (currentPage = page)}
 			onItemsPerPageChange={(newItemsPerPage) => {

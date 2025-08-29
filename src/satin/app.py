@@ -7,6 +7,10 @@ from satin.config import get_settings
 from satin.database import check_database_health
 from satin.dependencies import dependencies
 from satin.graphql.schema import schema
+from satin.logging import setup_logging
+
+# Initialize logging
+setup_logging(level="INFO", json_logs=False)
 
 # Initialize FastAPI application
 app = FastAPI(title="Satin API", version="0.1.0")
@@ -19,8 +23,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Create GraphQL router
-graphql_app = GraphQLRouter(schema)
+# Create GraphQL router with logging extension
+graphql_app: GraphQLRouter = GraphQLRouter(
+    schema,
+)
 app.include_router(graphql_app, prefix="/graphql")
 
 

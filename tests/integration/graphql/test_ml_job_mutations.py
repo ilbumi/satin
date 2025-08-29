@@ -25,7 +25,9 @@ class TestMLJobMutations:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        job = data["data"]["createMlJob"]
+        result = data["data"]["createMlJob"]
+        assert "data" in result
+        job = result["data"]
         assert job["imageUrl"] == "https://test.com/image.jpg"
         assert job["endpoint"] == "yolo-v5-detector"
         assert job["status"] == "pending"  # Should default to PENDING
@@ -49,7 +51,9 @@ class TestMLJobMutations:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        job = data["data"]["createMlJob"]
+        result = data["data"]["createMlJob"]
+        assert "data" in result
+        job = result["data"]
         assert job["imageUrl"] == "https://secure.example.com/images/photo.png"
         assert job["endpoint"] == "detectron2"
         assert job["status"] == "pending"
@@ -75,7 +79,9 @@ class TestMLJobMutations:
             assert response.status_code == 200
             data = response.json()
             assert "data" in data
-            job = data["data"]["createMlJob"]
+            result = data["data"]["createMlJob"]
+            assert "data" in result
+            job = result["data"]
             assert job["endpoint"] == endpoint
 
     async def test_update_ml_job_status(self, test_client: TestClient, mock_dependencies):
@@ -100,7 +106,9 @@ class TestMLJobMutations:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        job = data["data"]["updateMlJobStatus"]
+        result = data["data"]["updateMlJobStatus"]
+        assert "data" in result
+        job = result["data"]
         assert job["status"] == "running"
         assert job["errorMessage"] is None
 
@@ -124,7 +132,9 @@ class TestMLJobMutations:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        job = data["data"]["updateMlJobStatus"]
+        result = data["data"]["updateMlJobStatus"]
+        assert "data" in result
+        job = result["data"]
         assert job["status"] == "failed"
         assert job["errorMessage"] == "Model inference timeout"
 
@@ -147,7 +157,9 @@ class TestMLJobMutations:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        job = data["data"]["updateMlJobStatus"]
+        result = data["data"]["updateMlJobStatus"]
+        assert "data" in result
+        job = result["data"]
         assert job["status"] == "completed"
         assert job["errorMessage"] is None
 
@@ -167,8 +179,9 @@ class TestMLJobMutations:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        # Should return None for invalid status
-        assert data["data"]["updateMlJobStatus"] is None
+        # Should return error for invalid status
+        result = data["data"]["updateMlJobStatus"]
+        assert "message" in result or "field" in result
 
     def test_update_nonexistent_ml_job(self, test_client: TestClient):
         """Test updating non-existent ML job."""
@@ -186,7 +199,9 @@ class TestMLJobMutations:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        assert data["data"]["updateMlJobStatus"] is None
+        result = data["data"]["updateMlJobStatus"]
+        # When not found, should return NotFoundError
+        assert "resource" in result or "message" in result
 
     async def test_cancel_ml_job(self, test_client: TestClient, mock_dependencies):
         """Test canceling a pending ML job."""
@@ -204,7 +219,9 @@ class TestMLJobMutations:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        job = data["data"]["cancelMlJob"]
+        result = data["data"]["cancelMlJob"]
+        assert "data" in result
+        job = result["data"]
         assert job["status"] == "cancelled"
         assert job["id"] == str(created.id)
 
@@ -224,7 +241,9 @@ class TestMLJobMutations:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        job = data["data"]["cancelMlJob"]
+        result = data["data"]["cancelMlJob"]
+        assert "data" in result
+        job = result["data"]
         assert job["status"] == "cancelled"
 
     def test_cancel_nonexistent_ml_job(self, test_client: TestClient):
@@ -240,7 +259,9 @@ class TestMLJobMutations:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        assert data["data"]["cancelMlJob"] is None
+        result = data["data"]["cancelMlJob"]
+        # When not found, should return NotFoundError
+        assert "resource" in result or "message" in result
 
     async def test_status_transitions(self, test_client: TestClient, mock_dependencies):
         """Test various status transitions for ML job."""
@@ -259,7 +280,7 @@ class TestMLJobMutations:
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["data"]["updateMlJobStatus"]["status"] == "running"
+        assert data["data"]["updateMlJobStatus"]["data"]["status"] == "running"
 
         # Transition: RUNNING -> COMPLETED
         response = test_client.post(
@@ -271,7 +292,7 @@ class TestMLJobMutations:
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["data"]["updateMlJobStatus"]["status"] == "completed"
+        assert data["data"]["updateMlJobStatus"]["data"]["status"] == "completed"
 
     async def test_multiple_ml_jobs_same_image(self, test_client: TestClient, mock_dependencies):
         """Test creating multiple ML jobs for the same image."""
@@ -299,7 +320,7 @@ class TestMLJobMutations:
             )
             assert response.status_code == 200
             data = response.json()
-            assert data["data"]["updateMlJobStatus"]["status"] == status
+            assert data["data"]["updateMlJobStatus"]["data"]["status"] == status
 
 
 class TestMLJobMutationErrorHandling:
@@ -352,7 +373,10 @@ class TestMLJobMutationErrorHandling:
 
         assert response.status_code == 200
         data = response.json()
-        assert "errors" in data
+        # Should return validation error due to invalid URL
+        assert "data" in data
+        result = data["data"]["createMlJob"]
+        assert "field" in result  # ValidationError
 
     def test_create_ml_job_invalid_input_types(self, test_client: TestClient):
         """Test creating ML job with invalid input types."""
@@ -482,4 +506,6 @@ class TestMLJobMutationErrorHandling:
         # This should not cause a GraphQL error since errorMessage is optional
         # The actual error would be from the non-existent ID
         assert "data" in data
-        assert data["data"]["updateMlJobStatus"] is None
+        result = data["data"]["updateMlJobStatus"]
+        # When not found, should return NotFoundError
+        assert "resource" in result or "message" in result

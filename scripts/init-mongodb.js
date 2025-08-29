@@ -73,23 +73,18 @@ db.createCollection('images', {
   }
 });
 
-// Annotations collection - versioned annotation data
+// Annotations collection - stores annotation data
 db.createCollection('annotations', {
   validator: {
     $jsonSchema: {
       bsonType: 'object',
-      required: ['image_id', 'version', 'bbox', 'created_at'],
+      required: ['image_id', 'bounding_box', 'created_at'],
       properties: {
         image_id: {
           bsonType: 'objectId',
           description: 'Reference to image - required'
         },
-        version: {
-          bsonType: 'int',
-          minimum: 1,
-          description: 'Annotation version number - required'
-        },
-        bbox: {
+        bounding_box: {
           bsonType: 'object',
           required: ['x', 'y', 'width', 'height'],
           properties: {
@@ -102,16 +97,12 @@ db.createCollection('annotations', {
         },
         tags: {
           bsonType: 'array',
-          items: { bsonType: 'objectId' },
-          description: 'Array of tag references'
+          items: { bsonType: 'string' },
+          description: 'Array of tag strings'
         },
         description: {
           bsonType: 'string',
           description: 'Free-text annotation description'
-        },
-        ml_description: {
-          bsonType: 'string',
-          description: 'ML-generated description'
         },
         confidence: {
           bsonType: 'number',
@@ -124,13 +115,13 @@ db.createCollection('annotations', {
           enum: ['manual', 'ml'],
           description: 'Annotation source'
         },
-        is_current: {
-          bsonType: 'bool',
-          description: 'Whether this is the current version'
-        },
         created_at: {
           bsonType: 'date',
           description: 'Creation timestamp - required'
+        },
+        updated_at: {
+          bsonType: 'date',
+          description: 'Last update timestamp'
         }
       }
     }
@@ -212,20 +203,20 @@ db.createCollection('ml_jobs', {
   validator: {
     $jsonSchema: {
       bsonType: 'object',
-      required: ['image_id', 'status', 'created_at'],
+      required: ['image_url', 'endpoint', 'status', 'created_at'],
       properties: {
-        image_id: {
-          bsonType: 'objectId',
-          description: 'Reference to image - required'
+        image_url: {
+          bsonType: 'string',
+          description: 'URL of the image to process - required'
+        },
+        endpoint: {
+          bsonType: 'string',
+          description: 'ML service endpoint used - required'
         },
         status: {
           bsonType: 'string',
-          enum: ['pending', 'processing', 'completed', 'failed'],
+          enum: ['pending', 'running', 'completed', 'failed', 'cancelled'],
           description: 'ML job status - required'
-        },
-        ml_endpoint: {
-          bsonType: 'string',
-          description: 'ML service endpoint used'
         },
         predictions: {
           bsonType: 'array',
@@ -239,9 +230,9 @@ db.createCollection('ml_jobs', {
           bsonType: 'date',
           description: 'Creation timestamp - required'
         },
-        completed_at: {
+        updated_at: {
           bsonType: 'date',
-          description: 'Completion timestamp'
+          description: 'Last update timestamp'
         }
       }
     }
@@ -255,13 +246,19 @@ print('Creating indexes...');
 db.images.createIndex({ "url": 1 }, { unique: true });
 db.images.createIndex({ "status": 1 });
 db.images.createIndex({ "created_at": -1 });
+db.images.createIndex({ "updated_at": -1 });
+// Compound index for status filtering with sorting
+db.images.createIndex({ "status": 1, "created_at": -1 });
 
 // Annotations collection indexes
-db.annotations.createIndex({ "image_id": 1, "version": -1 });
-db.annotations.createIndex({ "image_id": 1, "is_current": 1 });
+db.annotations.createIndex({ "image_id": 1 });
 db.annotations.createIndex({ "tags": 1 });
 db.annotations.createIndex({ "source": 1 });
+db.annotations.createIndex({ "confidence": 1 });
 db.annotations.createIndex({ "created_at": -1 });
+db.annotations.createIndex({ "updated_at": -1 });
+// Compound index for image_id with sorting
+db.annotations.createIndex({ "image_id": 1, "created_at": -1 });
 
 // Tags collection indexes
 db.tags.createIndex({ "name": 1 }, { unique: true });
@@ -276,9 +273,13 @@ db.export_jobs.createIndex({ "created_at": -1 });
 db.export_jobs.createIndex({ "expires_at": 1 }, { expireAfterSeconds: 0 });
 
 // ML jobs collection indexes
-db.ml_jobs.createIndex({ "image_id": 1 });
+db.ml_jobs.createIndex({ "image_url": 1 });
+db.ml_jobs.createIndex({ "endpoint": 1 });
 db.ml_jobs.createIndex({ "status": 1 });
 db.ml_jobs.createIndex({ "created_at": -1 });
+db.ml_jobs.createIndex({ "updated_at": -1 });
+// Compound index for status filtering with sorting
+db.ml_jobs.createIndex({ "status": 1, "created_at": -1 });
 
 // Verify collections and indexes
 print('\nVerifying database setup...');

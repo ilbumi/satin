@@ -14,7 +14,8 @@ class TestAnnotationQueries:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        assert data["data"]["annotations"] == []
+        assert data["data"]["annotations"]["items"] == []
+        assert data["data"]["annotations"]["totalCount"] == 0
 
     async def test_query_annotations_with_data(self, test_client: TestClient, mock_dependencies: MockDependencies):
         """Test querying annotations with sample data."""
@@ -33,10 +34,11 @@ class TestAnnotationQueries:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        assert len(data["data"]["annotations"]) == 2
+        assert len(data["data"]["annotations"]["items"]) == 2
+        assert data["data"]["annotations"]["totalCount"] == 2
 
         # Check that annotations have correct properties
-        annotation_data = data["data"]["annotations"][0]
+        annotation_data = data["data"]["annotations"]["items"][0]
         assert "id" in annotation_data
         assert "imageId" in annotation_data
         assert "boundingBox" in annotation_data

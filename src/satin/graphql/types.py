@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 from enum import Enum
+from typing import Annotated
 
 import strawberry
 
@@ -10,6 +11,9 @@ from satin.models.annotation import BoundingBox as BoundingBoxModel
 from satin.models.image import Image as ImageModel
 from satin.models.ml_job import MLJob as MLJobModel
 from satin.models.ml_job import MLJobStatus
+
+from .errors import NotFoundError, OperationError, SuccessResult, ValidationError
+from .pagination import PageInfo
 
 
 @strawberry.enum
@@ -201,3 +205,93 @@ class MLJobUpdateInput:
 
     status: MLJobStatus | None = None
     error_message: str | None = strawberry.field(default=None, name="errorMessage")
+
+
+# Connection types for pagination
+@strawberry.type
+class ImageConnection:
+    """Paginated connection for images."""
+
+    items: list[Image]
+    page_info: PageInfo
+    total_count: int
+
+
+@strawberry.type
+class AnnotationConnection:
+    """Paginated connection for annotations."""
+
+    items: list[Annotation]
+    page_info: PageInfo
+    total_count: int
+
+
+@strawberry.type
+class MLJobConnection:
+    """Paginated connection for ML jobs."""
+
+    items: list[MLJob]
+    page_info: PageInfo
+    total_count: int
+
+
+# Filter inputs for queries
+@strawberry.input
+class ImageFilterInput:
+    """Filter input for image queries."""
+
+    status: ImageStatus | None = None
+    statuses: list[ImageStatus] | None = None
+    url_contains: str | None = None
+
+
+@strawberry.input
+class AnnotationFilterInput:
+    """Filter input for annotation queries."""
+
+    image_id: str | None = None
+    has_tags: list[str] | None = None
+    confidence_min: float | None = None
+    confidence_max: float | None = None
+    source: str | None = None
+
+
+@strawberry.input
+class MLJobFilterInput:
+    """Filter input for ML job queries."""
+
+    status: MLJobStatus | None = None
+    image_url: str | None = None
+    endpoint: str | None = None
+
+
+# Union result types for mutations
+CreateImageResult = Annotated[
+    SuccessResult[Image] | ValidationError | OperationError,
+    strawberry.union("CreateImageResult"),
+]
+
+UpdateImageResult = Annotated[
+    SuccessResult[Image] | NotFoundError | ValidationError | OperationError,
+    strawberry.union("UpdateImageResult"),
+]
+
+CreateAnnotationResult = Annotated[
+    SuccessResult[Annotation] | NotFoundError | ValidationError | OperationError,
+    strawberry.union("CreateAnnotationResult"),
+]
+
+UpdateAnnotationResult = Annotated[
+    SuccessResult[Annotation] | NotFoundError | ValidationError | OperationError,
+    strawberry.union("UpdateAnnotationResult"),
+]
+
+CreateMLJobResult = Annotated[
+    SuccessResult[MLJob] | ValidationError | OperationError,
+    strawberry.union("CreateMLJobResult"),
+]
+
+UpdateMLJobResult = Annotated[
+    SuccessResult[MLJob] | NotFoundError | ValidationError | OperationError,
+    strawberry.union("UpdateMLJobResult"),
+]
