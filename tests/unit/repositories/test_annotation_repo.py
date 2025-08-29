@@ -2,6 +2,7 @@
 
 import pytest
 from bson import ObjectId
+from bson.errors import InvalidId
 from mongomock_motor import AsyncMongoMockDatabase
 from pydantic import ValidationError
 
@@ -194,6 +195,6 @@ class TestAnnotationRepositoryErrorHandling:
         with pytest.raises(ValidationError):
             await repo.delete_by_id(invalid_id)
 
-        # This should return empty iterators (doesn't use @validate_call)
-        by_image = [ann async for ann in repo.find_by_image(invalid_id)]
-        assert len(by_image) == 0
+        # This should also raise error now that find_by_image normalizes IDs
+        with pytest.raises(InvalidId):
+            [ann async for ann in repo.find_by_image(invalid_id)]

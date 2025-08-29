@@ -7,7 +7,7 @@ from typing import Any, TypeVar
 import structlog
 from pydantic import ValidationError as PydanticValidationError
 
-from .errors import OperationError, ValidationError
+from .errors import NotFoundError, OperationError, SuccessResult, ValidationError
 
 T = TypeVar("T")
 logger = structlog.get_logger(__name__)
@@ -73,9 +73,11 @@ def handle_mutation_errors(resource_name: str = "Resource") -> Callable[[Any], A
                 return error_result
 
             # Process successful result
-            # For mutations that return raw types (not unions),
-            # just return the result directly
-            return result
+            # Wrap in SuccessResult for union type returns
+            if result is None:
+                # Handle None results (e.g., not found)
+                return NotFoundError.create(resource_name, "unknown")
+            return SuccessResult(data=result)
 
         # Return async wrapper (mutations are typically async)
         return async_wrapper

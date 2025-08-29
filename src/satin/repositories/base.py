@@ -56,6 +56,7 @@ class BaseRepository[ModelType: SatinBaseModel, CreateSchemaType: BaseModel, Upd
         obj_data["updated_at"] = now
 
         model = self._model_class(**obj_data)
+        # Don't use mode="json" when dumping for MongoDB to preserve ObjectId types
         result = await self._collection.insert_one(model.model_dump(by_alias=True, exclude_none=True))
         model.id = result.inserted_id
 

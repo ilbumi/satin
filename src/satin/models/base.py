@@ -14,6 +14,14 @@ class PyObjectId(str):
     @classmethod
     def __get_pydantic_core_schema__(cls, _source_type: Any, _handler: Any) -> core_schema.CoreSchema:
         """Get Pydantic core schema for PyObjectId."""
+
+        def serialize(x: Any, info: Any) -> Any:
+            """Serialize based on mode - string for JSON, ObjectId for Python/MongoDB."""
+            if info.mode_is_json():
+                return str(x)
+            # For Python mode (MongoDB), return the ObjectId
+            return x if isinstance(x, ObjectId) else ObjectId(x)
+
         return core_schema.json_or_python_schema(
             json_schema=core_schema.str_schema(),
             python_schema=core_schema.union_schema(
@@ -27,7 +35,16 @@ class PyObjectId(str):
                     ),
                 ]
             ),
-            serialization=core_schema.plain_serializer_function_ser_schema(lambda x: str(x)),
+            serialization=core_schema.plain_serializer_function_ser_schema(
+                serialize,
+                info_arg=True,
+                return_schema=core_schema.union_schema(
+                    [
+                        core_schema.str_schema(),
+                        core_schema.is_instance_schema(ObjectId),
+                    ]
+                ),
+            ),
         )
 
     @classmethod

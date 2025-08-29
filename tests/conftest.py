@@ -10,6 +10,8 @@ from mongomock_motor import AsyncMongoMockClient, AsyncMongoMockDatabase
 
 from satin.app import app
 from satin.dependencies import dependencies
+from satin.models.annotation import AnnotationCreate, BoundingBox
+from satin.models.image import ImageCreate
 from satin.repositories.annotation import AnnotationRepository
 from satin.repositories.image import ImageRepository
 from satin.repositories.ml_job import MLJobRepository
@@ -60,3 +62,24 @@ def clean_env(mock_env):
     """Clean environment with minimal required variables."""
     with patch.dict(os.environ, mock_env, clear=True):
         yield
+
+
+@pytest.fixture
+async def sample_image(mock_dependencies: MockDependencies):
+    """Create a sample image for testing."""
+    image_create = ImageCreate(url="https://example.com/test-image.jpg")
+    return await mock_dependencies.image_repo.create(image_create)
+
+
+@pytest.fixture
+async def sample_annotation(mock_dependencies: MockDependencies, sample_image):
+    """Create a sample annotation for testing."""
+    bbox = BoundingBox(x=10, y=20, width=100, height=200)
+    annotation_create = AnnotationCreate(
+        image_id=sample_image.id,
+        bounding_box=bbox,
+        tags=["test"],
+        description="Test annotation",
+        confidence=0.95,
+    )
+    return await mock_dependencies.annotation_repo.create(annotation_create)

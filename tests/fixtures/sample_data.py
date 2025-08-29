@@ -91,18 +91,46 @@ GRAPHQL_QUERIES = {
     "create_image": """
         mutation CreateImage($input: ImageCreateInput!) {
             createImage(input: $input) {
-                id
-                url
-                status
+                ... on ImageSuccessResult {
+                    data {
+                        id
+                        url
+                        status
+                    }
+                }
+                ... on ValidationError {
+                    field
+                    message
+                }
+                ... on OperationError {
+                    message
+                    details
+                }
             }
         }
     """,
     "update_image": """
         mutation UpdateImage($id: String!, $input: ImageUpdateInput!) {
             updateImage(id: $id, input: $input) {
-                id
-                url
-                status
+                ... on ImageSuccessResult {
+                    data {
+                        id
+                        url
+                        status
+                    }
+                }
+                ... on NotFoundError {
+                    message
+                    resource
+                }
+                ... on ValidationError {
+                    field
+                    message
+                }
+                ... on OperationError {
+                    message
+                    details
+                }
             }
         }
     """,
@@ -194,17 +222,49 @@ GRAPHQL_QUERIES = {
     "create_annotation": """
         mutation CreateAnnotation($input: AnnotationCreateInput!) {
             createAnnotation(input: $input) {
-                id
-                imageId
-                description
+                ... on AnnotationSuccessResult {
+                    data {
+                        id
+                        imageId
+                        description
+                    }
+                }
+                ... on NotFoundError {
+                    message
+                    resource
+                }
+                ... on ValidationError {
+                    field
+                    message
+                }
+                ... on OperationError {
+                    message
+                    details
+                }
             }
         }
     """,
     "update_annotation": """
         mutation UpdateAnnotation($id: String!, $input: AnnotationUpdateInput!) {
             updateAnnotation(id: $id, input: $input) {
-                id
-                description
+                ... on AnnotationSuccessResult {
+                    data {
+                        id
+                        description
+                    }
+                }
+                ... on NotFoundError {
+                    message
+                    resource
+                }
+                ... on ValidationError {
+                    field
+                    message
+                }
+                ... on OperationError {
+                    message
+                    details
+                }
             }
         }
     """,
@@ -275,27 +335,71 @@ GRAPHQL_QUERIES = {
     "create_ml_job": """
         mutation CreateMLJob($input: MLJobCreateInput!) {
             createMlJob(input: $input) {
-                id
-                imageUrl
-                endpoint
-                status
+                ... on MLJobSuccessResult {
+                    data {
+                        id
+                        imageUrl
+                        endpoint
+                        status
+                    }
+                }
+                ... on ValidationError {
+                    field
+                    message
+                }
+                ... on OperationError {
+                    message
+                    details
+                }
             }
         }
     """,
     "update_ml_job_status": """
         mutation UpdateMLJobStatus($id: String!, $status: String!, $errorMessage: String) {
             updateMlJobStatus(id: $id, status: $status, errorMessage: $errorMessage) {
-                id
-                status
-                errorMessage
+                ... on MLJobSuccessResult {
+                    data {
+                        id
+                        status
+                        errorMessage
+                    }
+                }
+                ... on NotFoundError {
+                    message
+                    resource
+                }
+                ... on ValidationError {
+                    field
+                    message
+                }
+                ... on OperationError {
+                    message
+                    details
+                }
             }
         }
     """,
     "cancel_ml_job": """
         mutation CancelMLJob($id: String!) {
             cancelMlJob(id: $id) {
-                id
-                status
+                ... on MLJobSuccessResult {
+                    data {
+                        id
+                        status
+                    }
+                }
+                ... on NotFoundError {
+                    message
+                    resource
+                }
+                ... on ValidationError {
+                    field
+                    message
+                }
+                ... on OperationError {
+                    message
+                    details
+                }
             }
         }
     """,

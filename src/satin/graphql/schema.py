@@ -23,6 +23,9 @@ from .types import (
     AnnotationCreateInput,
     AnnotationFilterInput,
     AnnotationUpdateInput,
+    CreateAnnotationResult,
+    CreateImageResult,
+    CreateMLJobResult,
     Image,
     ImageConnection,
     ImageCreateInput,
@@ -32,6 +35,9 @@ from .types import (
     MLJobConnection,
     MLJobCreateInput,
     MLJobFilterInput,
+    UpdateAnnotationResult,
+    UpdateImageResult,
+    UpdateMLJobResult,
 )
 
 logger = structlog.get_logger(__name__)
@@ -228,7 +234,7 @@ class Query:
     @handle_query_errors(default_value=[])
     async def annotations_by_image(self, image_id: str) -> list[Annotation]:
         """Get all annotations for an image."""
-        annotations = [ann async for ann in dependencies.annotation_repo.find_by_image(image_id)]
+        annotations = [ann async for ann in dependencies.annotation_repo.find_by_image(PyObjectId(image_id))]
         return [Annotation.from_model(ann) for ann in annotations]
 
     # ML Job queries
@@ -315,15 +321,15 @@ class Mutation:
 
     @strawberry.mutation
     @handle_mutation_errors("Image")
-    async def create_image(self, input: ImageCreateInput) -> Image:  # noqa: A002
+    async def create_image(self, input: ImageCreateInput) -> CreateImageResult:  # noqa: A002
         """Create a new image."""
         image_create = ImageCreate(url=SerializableHttpUrl(input.url))
         image = await dependencies.image_repo.create(image_create)
-        return Image.from_model(image)
+        return Image.from_model(image)  # type: ignore[return-value]
 
     @strawberry.mutation
     @handle_mutation_errors("Image")
-    async def update_image(self, id: str, input: ImageUpdateInput) -> Image | None:  # noqa: A002
+    async def update_image(self, id: str, input: ImageUpdateInput) -> UpdateImageResult:  # noqa: A002
         """Update an existing image."""
         update_data = {}
         if input.status is not None:
@@ -332,12 +338,12 @@ class Mutation:
         if not update_data:
             # If no updates, return current image
             image = await dependencies.image_repo.get_by_id(PyObjectId(id))
-            return Image.from_model(image) if image else None
+            return Image.from_model(image) if image else None  # type: ignore[return-value]
 
         # Create ImageUpdate model from update_data
         image_update = ImageUpdate(**update_data)  # type: ignore[arg-type]
         image = await dependencies.image_repo.update_by_id(PyObjectId(id), image_update)
-        return Image.from_model(image) if image else None
+        return Image.from_model(image) if image else None  # type: ignore[return-value]
 
     @strawberry.mutation
     async def delete_image(self, id: str) -> DeleteResult:  # noqa: A002
@@ -355,7 +361,7 @@ class Mutation:
     # Annotation mutations
     @strawberry.mutation
     @handle_mutation_errors("Annotation")
-    async def create_annotation(self, input: AnnotationCreateInput) -> Annotation:  # noqa: A002
+    async def create_annotation(self, input: AnnotationCreateInput) -> CreateAnnotationResult:  # noqa: A002
         """Create a new annotation."""
         # Convert BoundingBoxInput to BoundingBox model
         bbox = BoundingBox(
@@ -373,11 +379,11 @@ class Mutation:
             confidence=input.confidence,
         )
         annotation = await dependencies.annotation_repo.create(annotation_create)
-        return Annotation.from_model(annotation)
+        return Annotation.from_model(annotation)  # type: ignore[return-value]
 
     @strawberry.mutation
     @handle_mutation_errors("Annotation")
-    async def update_annotation(self, id: str, input: AnnotationUpdateInput) -> Annotation | None:  # noqa: A002
+    async def update_annotation(self, id: str, input: AnnotationUpdateInput) -> UpdateAnnotationResult:  # noqa: A002
         """Update an existing annotation."""
         # Build update data with only fields that are provided
         update_kwargs: dict[str, Any] = {}
@@ -403,11 +409,11 @@ class Mutation:
         if not update_kwargs:
             # If no updates, return current annotation
             annotation = await dependencies.annotation_repo.get_by_id(PyObjectId(id))
-            return Annotation.from_model(annotation) if annotation else None
+            return Annotation.from_model(annotation) if annotation else None  # type: ignore[return-value]
 
         annotation_update = AnnotationUpdate(**update_kwargs)
         annotation = await dependencies.annotation_repo.update_by_id(PyObjectId(id), annotation_update)
-        return Annotation.from_model(annotation) if annotation else None
+        return Annotation.from_model(annotation) if annotation else None  # type: ignore[return-value]
 
     @strawberry.mutation
     async def delete_annotation(self, id: str) -> DeleteResult:  # noqa: A002
@@ -425,29 +431,29 @@ class Mutation:
     # ML Job mutations
     @strawberry.mutation
     @handle_mutation_errors("MLJob")
-    async def create_ml_job(self, input: MLJobCreateInput) -> MLJob:  # noqa: A002
+    async def create_ml_job(self, input: MLJobCreateInput) -> CreateMLJobResult:  # noqa: A002
         """Create a new ML job."""
         ml_job_create = MLJobCreate(
             image_url=SerializableHttpUrl(input.image_url),
             endpoint=input.endpoint,
         )
         ml_job = await dependencies.ml_job_repo.create(ml_job_create)
-        return MLJob.from_model(ml_job)
+        return MLJob.from_model(ml_job)  # type: ignore[return-value]
 
     @strawberry.mutation
     @handle_mutation_errors("MLJob")
-    async def update_ml_job_status(self, id: str, status: str, error_message: str | None = None) -> MLJob | None:  # noqa: A002
+    async def update_ml_job_status(self, id: str, status: str, error_message: str | None = None) -> UpdateMLJobResult:  # noqa: A002
         """Update ML job status."""
         job_status = MLJobStatus(status)  # Will raise ValueError if invalid
         ml_job = await dependencies.ml_job_repo.update_status(PyObjectId(id), job_status, error_message)
-        return MLJob.from_model(ml_job) if ml_job else None
+        return MLJob.from_model(ml_job) if ml_job else None  # type: ignore[return-value]
 
     @strawberry.mutation
     @handle_mutation_errors("MLJob")
-    async def cancel_ml_job(self, id: str) -> MLJob | None:  # noqa: A002
+    async def cancel_ml_job(self, id: str) -> UpdateMLJobResult:  # noqa: A002
         """Cancel a pending or running ML job."""
         ml_job = await dependencies.ml_job_repo.cancel_job(PyObjectId(id))
-        return MLJob.from_model(ml_job) if ml_job else None
+        return MLJob.from_model(ml_job) if ml_job else None  # type: ignore[return-value]
 
 
 schema = strawberry.Schema(

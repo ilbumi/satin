@@ -9,9 +9,17 @@ class TestImageMutations:
         query = """
         mutation CreateImage($input: ImageCreateInput!) {
             createImage(input: $input) {
-                id
-                url
-                status
+                ... on ImageSuccessResult {
+                    data {
+                        id
+                        url
+                        status
+                    }
+                }
+                ... on ValidationError {
+                    field
+                    message
+                }
             }
         }
         """
@@ -23,16 +31,26 @@ class TestImageMutations:
 
         assert response.status_code == 200
         assert "data" in result
-        assert result["data"]["createImage"]["url"] == "https://example.com/image.jpg"
-        assert result["data"]["createImage"]["status"] == "NEW"
+        assert "data" in result["data"]["createImage"]
+        image = result["data"]["createImage"]["data"]
+        assert image["url"] == "https://example.com/image.jpg"
+        assert image["status"] == "NEW"
 
     def test_create_image_with_invalid_url(self, test_client):
         """Test image creation with invalid URL."""
         query = """
         mutation CreateImage($input: ImageCreateInput!) {
             createImage(input: $input) {
-                id
-                url
+                ... on ImageSuccessResult {
+                    data {
+                        id
+                        url
+                    }
+                }
+                ... on ValidationError {
+                    field
+                    message
+                }
             }
         }
         """
@@ -43,16 +61,25 @@ class TestImageMutations:
         result = response.json()
 
         assert response.status_code == 200
-        # Should have errors due to invalid URL
-        assert "errors" in result
+        # Should return validation error due to invalid URL
+        assert "data" in result
+        assert "field" in result["data"]["createImage"]  # ValidationError
 
     def test_update_nonexistent_image(self, test_client):
         """Test updating an image that doesn't exist."""
         query = """
         mutation UpdateImage($id: String!, $input: ImageUpdateInput!) {
             updateImage(id: $id, input: $input) {
-                id
-                status
+                ... on ImageSuccessResult {
+                    data {
+                        id
+                        status
+                    }
+                }
+                ... on NotFoundError {
+                    message
+                    resource
+                }
             }
         }
         """
@@ -71,7 +98,9 @@ class TestImageMutations:
 
         assert response.status_code == 200
         assert "data" in result
-        assert result["data"]["updateImage"] is None
+        # Should return NotFoundError for non-existent resource
+        update_result = result["data"]["updateImage"]
+        assert "resource" in update_result or "message" in update_result
 
     def test_update_image_with_invalid_id(self, test_client):
         """Test updating an image with invalid ObjectId."""
@@ -193,6 +222,63 @@ class TestAnnotationMutations:
         assert response.status_code == 200
         # Should have errors due to negative values
         assert "errors" in result
+
+    def test_update_annotation_bounding_box(self, test_client, sample_annotation):
+        """Test updating annotation bounding box coordinates."""
+        query = """
+        mutation UpdateAnnotation($id: String!, $input: AnnotationUpdateInput!) {
+            updateAnnotation(id: $id, input: $input) {
+                __typename
+                ... on AnnotationSuccessResult {
+                    data {
+                        id
+                        boundingBox {
+                            x
+                            y
+                            width
+                            height
+                        }
+                    }
+                }
+                ... on NotFoundError {
+                    message
+                }
+                ... on ValidationError {
+                    field
+                    message
+                }
+                ... on OperationError {
+                    message
+                    details
+                }
+            }
+        }
+        """
+
+        # Test with the exact structure that the frontend sends
+        new_bbox = {"x": 50.5, "y": 75.3, "width": 150.0, "height": 200.0}
+
+        response = test_client.post(
+            "/graphql",
+            json={
+                "query": query,
+                "variables": {
+                    "id": str(sample_annotation.id),
+                    "input": {"boundingBox": new_bbox},
+                },
+            },
+        )
+        result = response.json()
+
+        assert response.status_code == 200
+        assert "data" in result, f"Response: {result}"
+        assert result["data"]["updateAnnotation"]["__typename"] == "AnnotationSuccessResult"
+
+        updated_bbox = result["data"]["updateAnnotation"]["data"]["boundingBox"]
+        assert updated_bbox["x"] == new_bbox["x"]
+        assert updated_bbox["y"] == new_bbox["y"]
+        assert updated_bbox["width"] == new_bbox["width"]
+        assert updated_bbox["height"] == new_bbox["height"]
 
 
 class TestMLJobMutations:

@@ -31,7 +31,9 @@ class TestAnnotationMutations:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        annotation = data["data"]["createAnnotation"]
+        result = data["data"]["createAnnotation"]
+        assert "data" in result
+        annotation = result["data"]
         assert annotation["imageId"] == str(image.id)
         assert annotation["description"] == "Test annotation"
         assert annotation["id"] is not None
@@ -56,7 +58,9 @@ class TestAnnotationMutations:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        annotation = data["data"]["createAnnotation"]
+        result = data["data"]["createAnnotation"]
+        assert "data" in result
+        annotation = result["data"]
         assert annotation["imageId"] == str(image.id)
 
     def test_create_annotation_invalid_image_id(self, test_client: TestClient):
@@ -76,8 +80,10 @@ class TestAnnotationMutations:
 
         assert response.status_code == 200
         data = response.json()
-        # Should have errors due to invalid ObjectId
-        assert "errors" in data
+        # Should return validation error due to invalid ObjectId
+        assert "data" in data
+        result = data["data"]["createAnnotation"]
+        assert "field" in result  # ValidationError has field and message
 
     async def test_update_annotation(self, test_client: TestClient, mock_dependencies):
         """Test updating an existing annotation."""
@@ -103,7 +109,9 @@ class TestAnnotationMutations:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        annotation = data["data"]["updateAnnotation"]
+        result = data["data"]["updateAnnotation"]
+        assert "data" in result
+        annotation = result["data"]
         assert annotation["description"] == "Updated description"
 
     async def test_update_annotation_bounding_box(self, test_client: TestClient, mock_dependencies):
@@ -128,7 +136,9 @@ class TestAnnotationMutations:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        assert data["data"]["updateAnnotation"] is not None
+        result = data["data"]["updateAnnotation"]
+        assert "data" in result
+        assert result["data"] is not None
 
     async def test_update_annotation_no_changes(self, test_client: TestClient, mock_dependencies):
         """Test updating annotation with no changes."""
@@ -148,7 +158,9 @@ class TestAnnotationMutations:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        assert data["data"]["updateAnnotation"] is not None
+        result = data["data"]["updateAnnotation"]
+        assert "data" in result
+        assert result["data"] is not None
 
     def test_update_nonexistent_annotation(self, test_client: TestClient):
         """Test updating non-existent annotation."""
@@ -163,7 +175,9 @@ class TestAnnotationMutations:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        assert data["data"]["updateAnnotation"] is None
+        result = data["data"]["updateAnnotation"]
+        # When not found, should return NotFoundError
+        assert "resource" in result or "message" in result
 
     async def test_delete_annotation(self, test_client: TestClient, mock_dependencies):
         """Test soft deleting an annotation."""

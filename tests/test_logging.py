@@ -249,9 +249,17 @@ class TestIntegrationLogging:
         query = """
         mutation {
             createImage(input: { url: "http://example.com/test.jpg" }) {
-                id
-                url
-                status
+                ... on ImageSuccessResult {
+                    data {
+                        id
+                        url
+                        status
+                    }
+                }
+                ... on ValidationError {
+                    field
+                    message
+                }
             }
         }
         """
@@ -260,7 +268,10 @@ class TestIntegrationLogging:
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
-        # The mutation should succeed and return an Image
-        assert data["data"]["createImage"] is not None
-        assert data["data"]["createImage"]["url"] == "http://example.com/test.jpg"
-        assert data["data"]["createImage"]["status"] == "NEW"
+        # The mutation should succeed and return a SuccessResult
+        result = data["data"]["createImage"]
+        assert result is not None
+        assert "data" in result
+        image = result["data"]
+        assert image["url"] == "http://example.com/test.jpg"
+        assert image["status"] == "NEW"

@@ -48,20 +48,38 @@ export const GET_ANNOTATION = gql`
 export const CREATE_ANNOTATION = gql`
 	mutation CreateAnnotation($input: AnnotationCreateInput!) {
 		createAnnotation(input: $input) {
-			id
-			imageId
-			boundingBox {
-				x
-				y
-				width
-				height
+			__typename
+			... on AnnotationSuccessResult {
+				data {
+					id
+					imageId
+					boundingBox {
+						x
+						y
+						width
+						height
+					}
+					tags
+					description
+					confidence
+					source
+					createdAt
+					updatedAt
+				}
 			}
-			tags
-			description
-			confidence
-			source
-			createdAt
-			updatedAt
+			... on NotFoundError {
+				resource
+				id
+				message
+			}
+			... on ValidationError {
+				field
+				message
+			}
+			... on OperationError {
+				message
+				details
+			}
 		}
 	}
 `;
@@ -70,20 +88,38 @@ export const CREATE_ANNOTATION = gql`
 export const UPDATE_ANNOTATION = gql`
 	mutation UpdateAnnotation($id: String!, $input: AnnotationUpdateInput!) {
 		updateAnnotation(id: $id, input: $input) {
-			id
-			imageId
-			boundingBox {
-				x
-				y
-				width
-				height
+			__typename
+			... on AnnotationSuccessResult {
+				data {
+					id
+					imageId
+					boundingBox {
+						x
+						y
+						width
+						height
+					}
+					tags
+					description
+					confidence
+					source
+					createdAt
+					updatedAt
+				}
 			}
-			tags
-			description
-			confidence
-			source
-			createdAt
-			updatedAt
+			... on NotFoundError {
+				resource
+				id
+				message
+			}
+			... on ValidationError {
+				field
+				message
+			}
+			... on OperationError {
+				message
+				details
+			}
 		}
 	}
 `;
@@ -91,7 +127,10 @@ export const UPDATE_ANNOTATION = gql`
 // Mutation to delete an annotation
 export const DELETE_ANNOTATION = gql`
 	mutation DeleteAnnotation($id: String!) {
-		deleteAnnotation(id: $id)
+		deleteAnnotation(id: $id) {
+			deleted
+			message
+		}
 	}
 `;
 
@@ -123,16 +162,47 @@ export interface GetAnnotationQuery {
 	annotation: AnnotationData | null;
 }
 
+// Error type definitions (same as in images.ts)
+export interface ValidationError {
+	__typename: 'ValidationError';
+	field: string;
+	message: string;
+}
+
+export interface NotFoundError {
+	__typename: 'NotFoundError';
+	resource: string;
+	id: string;
+	message: string;
+}
+
+export interface OperationError {
+	__typename: 'OperationError';
+	message: string;
+	details?: string | null;
+}
+
 export interface CreateAnnotationMutation {
-	createAnnotation: AnnotationData | null;
+	createAnnotation:
+		| { __typename: 'AnnotationSuccessResult'; data: AnnotationData }
+		| { __typename: 'NotFoundError'; resource: string; id: string; message: string }
+		| { __typename: 'ValidationError'; field: string; message: string }
+		| { __typename: 'OperationError'; message: string; details?: string | null };
 }
 
 export interface UpdateAnnotationMutation {
-	updateAnnotation: AnnotationData | null;
+	updateAnnotation:
+		| { __typename: 'AnnotationSuccessResult'; data: AnnotationData }
+		| { __typename: 'NotFoundError'; resource: string; id: string; message: string }
+		| { __typename: 'ValidationError'; field: string; message: string }
+		| { __typename: 'OperationError'; message: string; details?: string | null };
 }
 
 export interface DeleteAnnotationMutation {
-	deleteAnnotation: boolean;
+	deleteAnnotation: {
+		deleted: boolean;
+		message: string;
+	};
 }
 
 export interface BoundingBoxInput {
