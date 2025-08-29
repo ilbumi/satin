@@ -1,20 +1,20 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { cacheExchange } from '@urql/exchange-graphcache';
 import { GetImagesDocument, GetAnnotationsByImageDocument } from './generated';
+import schema from './introspection.json';
 
 export const graphcacheExchange = cacheExchange({
+	// Pass schema for deterministic fragment matching
+	schema,
+
 	// Configure cache keys for entities
 	keys: {
 		Image: (data) => data.id as string,
 		Annotation: (data) => data.id as string,
 		BoundingBox: () => null, // Value object - embed in parent annotation
 		DeleteResult: () => null, // DeleteResult doesn't have an ID
-		ImageSuccessResult: () => null,
-		AnnotationSuccessResult: () => null,
-		ValidationError: () => null,
-		OperationError: () => null,
-		NotFoundError: () => null,
-		PaginatedImages: () => null // Pagination wrapper doesn't need caching
+		ImageConnection: () => null, // Pagination wrapper doesn't need caching
+		AnnotationConnection: () => null // Pagination wrapper doesn't need caching
 	},
 
 	// Configure cache updates for mutations

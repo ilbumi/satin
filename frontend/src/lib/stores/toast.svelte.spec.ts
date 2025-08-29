@@ -1,7 +1,6 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
-import { get } from 'svelte/store';
 import {
-	toasts,
+	getToasts,
 	addToast,
 	removeToast,
 	clearToasts,
@@ -9,9 +8,14 @@ import {
 	showError,
 	showWarning,
 	showInfo
-} from './toast';
+} from './toast.svelte';
 
-describe('toast store', () => {
+// Mock browser environment for tests
+vi.mock('$app/environment', () => ({
+	browser: true
+}));
+
+describe('toast store (Svelte 5)', () => {
 	beforeEach(() => {
 		clearToasts();
 		vi.useFakeTimers();
@@ -23,7 +27,7 @@ describe('toast store', () => {
 	});
 
 	it('starts with empty toast array', () => {
-		expect(get(toasts)).toEqual([]);
+		expect(getToasts()).toEqual([]);
 	});
 
 	it('adds toast with auto-generated id', () => {
@@ -32,7 +36,7 @@ describe('toast store', () => {
 			message: 'Test message'
 		});
 
-		const currentToasts = get(toasts);
+		const currentToasts = getToasts();
 		expect(currentToasts).toHaveLength(1);
 		expect(currentToasts[0].id).toBe(id);
 		expect(currentToasts[0].type).toBe('success');
@@ -47,7 +51,7 @@ describe('toast store', () => {
 			message: 'Info message'
 		});
 
-		const currentToasts = get(toasts);
+		const currentToasts = getToasts();
 		expect(currentToasts[0].title).toBe('Info Title');
 	});
 
@@ -58,7 +62,7 @@ describe('toast store', () => {
 			duration: 3000
 		});
 
-		const currentToasts = get(toasts);
+		const currentToasts = getToasts();
 		expect(currentToasts[0].duration).toBe(3000);
 	});
 
@@ -66,11 +70,11 @@ describe('toast store', () => {
 		const id1 = addToast({ type: 'success', message: 'Message 1' });
 		const id2 = addToast({ type: 'error', message: 'Message 2' });
 
-		expect(get(toasts)).toHaveLength(2);
+		expect(getToasts()).toHaveLength(2);
 
 		removeToast(id1);
 
-		const currentToasts = get(toasts);
+		const currentToasts = getToasts();
 		expect(currentToasts).toHaveLength(1);
 		expect(currentToasts[0].id).toBe(id2);
 	});
@@ -79,11 +83,11 @@ describe('toast store', () => {
 		addToast({ type: 'success', message: 'Message 1' });
 		addToast({ type: 'error', message: 'Message 2' });
 
-		expect(get(toasts)).toHaveLength(2);
+		expect(getToasts()).toHaveLength(2);
 
 		clearToasts();
 
-		expect(get(toasts)).toHaveLength(0);
+		expect(getToasts()).toHaveLength(0);
 	});
 
 	it('auto-removes toast after duration', () => {
@@ -93,11 +97,11 @@ describe('toast store', () => {
 			duration: 1000
 		});
 
-		expect(get(toasts)).toHaveLength(1);
+		expect(getToasts()).toHaveLength(1);
 
 		vi.advanceTimersByTime(1000);
 
-		expect(get(toasts)).toHaveLength(0);
+		expect(getToasts()).toHaveLength(0);
 	});
 
 	it('does not auto-remove toast with duration 0', () => {
@@ -107,11 +111,11 @@ describe('toast store', () => {
 			duration: 0
 		});
 
-		expect(get(toasts)).toHaveLength(1);
+		expect(getToasts()).toHaveLength(1);
 
 		vi.advanceTimersByTime(10000);
 
-		expect(get(toasts)).toHaveLength(1);
+		expect(getToasts()).toHaveLength(1);
 	});
 
 	it('does not auto-remove toast with negative duration', () => {
@@ -121,17 +125,17 @@ describe('toast store', () => {
 			duration: -1
 		});
 
-		expect(get(toasts)).toHaveLength(1);
+		expect(getToasts()).toHaveLength(1);
 
 		vi.advanceTimersByTime(10000);
 
-		expect(get(toasts)).toHaveLength(1);
+		expect(getToasts()).toHaveLength(1);
 	});
 
 	it('showSuccess creates success toast', () => {
 		const id = showSuccess('Success message', 'Success Title');
 
-		const currentToasts = get(toasts);
+		const currentToasts = getToasts();
 		expect(currentToasts).toHaveLength(1);
 		expect(currentToasts[0].id).toBe(id);
 		expect(currentToasts[0].type).toBe('success');
@@ -143,7 +147,7 @@ describe('toast store', () => {
 	it('showError creates error toast with longer duration', () => {
 		const id = showError('Error message', 'Error Title');
 
-		const currentToasts = get(toasts);
+		const currentToasts = getToasts();
 		expect(currentToasts).toHaveLength(1);
 		expect(currentToasts[0].id).toBe(id);
 		expect(currentToasts[0].type).toBe('error');
@@ -155,7 +159,7 @@ describe('toast store', () => {
 	it('showWarning creates warning toast', () => {
 		const id = showWarning('Warning message');
 
-		const currentToasts = get(toasts);
+		const currentToasts = getToasts();
 		expect(currentToasts).toHaveLength(1);
 		expect(currentToasts[0].id).toBe(id);
 		expect(currentToasts[0].type).toBe('warning');
@@ -166,7 +170,7 @@ describe('toast store', () => {
 	it('showInfo creates info toast', () => {
 		const id = showInfo('Info message');
 
-		const currentToasts = get(toasts);
+		const currentToasts = getToasts();
 		expect(currentToasts).toHaveLength(1);
 		expect(currentToasts[0].id).toBe(id);
 		expect(currentToasts[0].type).toBe('info');
@@ -174,11 +178,13 @@ describe('toast store', () => {
 		expect(currentToasts[0].duration).toBe(5000);
 	});
 
-	it('increments toast ids', () => {
+	it('generates unique toast ids', () => {
 		const id1 = addToast({ type: 'success', message: 'Message 1' });
 		const id2 = addToast({ type: 'success', message: 'Message 2' });
 
-		expect(parseInt(id2)).toBeGreaterThan(parseInt(id1));
+		expect(id1).not.toBe(id2);
+		expect(id1).toMatch(/^toast_\d+_[a-z0-9]+$/);
+		expect(id2).toMatch(/^toast_\d+_[a-z0-9]+$/);
 	});
 
 	it('maintains toast order', () => {
@@ -186,9 +192,27 @@ describe('toast store', () => {
 		const id2 = addToast({ type: 'error', message: 'Second' });
 		const id3 = addToast({ type: 'warning', message: 'Third' });
 
-		const currentToasts = get(toasts);
+		const currentToasts = getToasts();
 		expect(currentToasts[0].id).toBe(id1);
 		expect(currentToasts[1].id).toBe(id2);
 		expect(currentToasts[2].id).toBe(id3);
+	});
+
+	it('generates timestamp-based IDs that are unique', () => {
+		const id1 = addToast({ type: 'success', message: 'Message 1' });
+
+		// Wait a small amount to ensure different timestamp
+		vi.advanceTimersByTime(1);
+
+		const id2 = addToast({ type: 'success', message: 'Message 2' });
+
+		expect(id1).not.toBe(id2);
+		expect(id1).toMatch(/^toast_\d+_[a-z0-9]+$/);
+		expect(id2).toMatch(/^toast_\d+_[a-z0-9]+$/);
+
+		// Extract timestamps and verify they're different
+		const timestamp1 = parseInt(id1.split('_')[1]);
+		const timestamp2 = parseInt(id2.split('_')[1]);
+		expect(timestamp2).toBeGreaterThanOrEqual(timestamp1);
 	});
 });

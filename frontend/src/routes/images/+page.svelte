@@ -4,7 +4,7 @@
 	import ImageFilter from '$lib/components/ImageFilter.svelte';
 	import AddImageDialog from '$lib/components/AddImageDialog.svelte';
 	import Pagination from '$lib/components/Pagination.svelte';
-	import { showSuccess, showError } from '$lib/stores/toast';
+	import { showSuccess, showError } from '$lib/stores/toast.svelte';
 	import {
 		GET_IMAGES,
 		UPDATE_IMAGE,
@@ -34,6 +34,13 @@
 	let loading = $derived($imagesQuery.fetching);
 	let error = $derived($imagesQuery.error);
 	let totalImages = $derived($imagesQuery.data?.images?.totalCount || 0);
+
+	// Handle GraphQL errors
+	$effect(() => {
+		if (error) {
+			showError(`Failed to load images: ${error.message}`);
+		}
+	});
 
 	let filteredImages = $derived(() => {
 		let filtered = [...images];
@@ -85,13 +92,6 @@
 				updatedAt: img.updatedAt,
 				ext: img.ext ?? undefined
 			}));
-	});
-
-	// Handle GraphQL errors
-	$effect(() => {
-		if (error) {
-			showError(`Failed to load images: ${error.message}`);
-		}
 	});
 
 	function handleAddImage() {

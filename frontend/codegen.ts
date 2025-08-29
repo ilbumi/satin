@@ -20,6 +20,12 @@ const config: CodegenConfig = {
 					enumValues: 'upper-case#upperCase'
 				}
 			}
+		},
+		'src/lib/graphql/introspection.json': {
+			plugins: ['introspection'],
+			config: {
+				minify: true
+			}
 		}
 	},
 	ignoreNoDocuments: true

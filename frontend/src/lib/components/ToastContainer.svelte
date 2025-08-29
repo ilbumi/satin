@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { toasts, removeToast } from '$lib/stores/toast';
+	import { getToasts, removeToast } from '$lib/stores/toast.svelte';
 	import { fly } from 'svelte/transition';
 
 	const iconMap = {
@@ -26,7 +26,7 @@
 </script>
 
 <div class="fixed top-4 right-4 z-50 space-y-2">
-	{#each $toasts as toast (toast.id)}
+	{#each getToasts() as toast (toast.id)}
 		<div
 			transition:fly={{ x: 300, duration: 300 }}
 			class="max-w-sm rounded-lg border p-4 shadow-lg {colorMap[toast.type]}"

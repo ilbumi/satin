@@ -1,7 +1,7 @@
 <script lang="ts">
 	import StatusBadge from './StatusBadge.svelte';
 	import { goto } from '$app/navigation';
-	import { showSuccess } from '$lib/stores/toast';
+	import { showSuccess } from '$lib/stores/toast.svelte';
 
 	interface ImageData {
 		id: string;
