@@ -19,10 +19,9 @@
 	let mobileMenuOpen = $state(false);
 
 	const navigationItems = [
-		{ name: 'Home', href: '/', shortcut: '⌘1' },
-		{ name: 'Images', href: '/images', shortcut: '⌘2' },
-		{ name: 'Annotate', href: '/annotate', shortcut: '⌘3' },
-		{ name: 'Export', href: '/export', shortcut: '⌘4' }
+		{ name: 'Images', href: '/images', shortcut: '⌘1' },
+		{ name: 'Annotate', href: '/annotate', shortcut: '⌘2' },
+		{ name: 'Export', href: '/export', shortcut: '⌘3' }
 	];
 </script>
 
@@ -31,7 +30,7 @@
 		<div class="flex h-16 items-center justify-between">
 			<!-- Logo/Brand -->
 			<div class="flex items-center">
-				<a href="/" class="flex items-center">
+				<a href="/images" class="flex items-center">
 					<h1 class="text-xl font-semibold text-gray-900">Satin</h1>
 					<span class="ml-2 text-xs text-gray-500">ML Annotation</span>
 				</a>

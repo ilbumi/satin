@@ -18,6 +18,7 @@
 		initialAnnotations?: AnnotationData[];
 		width?: number;
 		height?: number;
+		responsive?: boolean;
 		onAnnotationsChange?: (annotations: BoundingBox[]) => void;
 		onSaveStatusChange?: (status: 'idle' | 'saving' | 'saved' | 'error') => void;
 		onDoubleClickAnnotation?: (annotationId: string) => void;
@@ -47,6 +48,7 @@
 		initialAnnotations = [],
 		width = 800,
 		height = 600,
+		responsive = false,
 		onAnnotationsChange,
 		onSaveStatusChange,
 		onDoubleClickAnnotation
@@ -56,8 +58,11 @@
 	const client = getContextClient();
 
 	let canvasElement: HTMLCanvasElement | undefined = $state();
+	let canvasContainer: HTMLDivElement | undefined = $state();
 	let ctx: CanvasRenderingContext2D | null = null;
 	let image: HTMLImageElement | null = null;
+	let actualWidth = $state(width);
+	let actualHeight = $state(height);
 
 	// Image scaling and positioning for aspect ratio preservation
 	let imageScale = $state(1);
@@ -298,8 +303,8 @@
 			return;
 		}
 
-		const canvasWidth = canvasElement.width;
-		const canvasHeight = canvasElement.height;
+		const canvasWidth = actualWidth;
+		const canvasHeight = actualHeight;
 		const imageWidth = image.naturalWidth;
 		const imageHeight = image.naturalHeight;
 
@@ -385,6 +390,14 @@
 		drawCanvas();
 	}
 
+	export function setMode(newMode: 'select' | 'draw') {
+		mode = newMode;
+	}
+
+	export function getMode() {
+		return mode;
+	}
+
 	function handleKeyDown(event: KeyboardEvent) {
 		// Handle Ctrl+S or Cmd+S for manual save
 		if ((event.ctrlKey || event.metaKey) && event.key === 's') {
@@ -410,14 +423,55 @@
 		}
 	}
 
+	// Handle responsive sizing
+	function updateCanvasSize() {
+		if (!responsive || !canvasContainer) return;
+
+		const containerRect = canvasContainer.getBoundingClientRect();
+		const newWidth = containerRect.width;
+		const newHeight = containerRect.height;
+
+		if (newWidth !== actualWidth || newHeight !== actualHeight) {
+			actualWidth = newWidth;
+			actualHeight = newHeight;
+
+			if (canvasElement) {
+				canvasElement.width = actualWidth;
+				canvasElement.height = actualHeight;
+
+				// Update offscreen canvas size
+				if (offscreenCanvas) {
+					offscreenCanvas.width = actualWidth;
+					offscreenCanvas.height = actualHeight;
+				}
+
+				// Recalculate image fitting
+				fitImageToCanvas();
+				staticElementsCached = false;
+				cacheStaticElements();
+				drawCanvas();
+			}
+		}
+	}
+
 	onMount(() => {
 		if (canvasElement) {
 			ctx = canvasElement.getContext('2d');
 
+			// Set initial canvas size
+			if (responsive && canvasContainer) {
+				updateCanvasSize();
+			} else {
+				actualWidth = width;
+				actualHeight = height;
+				canvasElement.width = actualWidth;
+				canvasElement.height = actualHeight;
+			}
+
 			// Create offscreen canvas for caching
 			offscreenCanvas = document.createElement('canvas');
-			offscreenCanvas.width = canvasElement.width;
-			offscreenCanvas.height = canvasElement.height;
+			offscreenCanvas.width = actualWidth;
+			offscreenCanvas.height = actualHeight;
 			offscreenCtx = offscreenCanvas.getContext('2d');
 
 			loadImage();
@@ -426,12 +480,31 @@
 		// Add keyboard event listener
 		window.addEventListener('keydown', handleKeyDown);
 
-		return () => {
-			window.removeEventListener('keydown', handleKeyDown);
-			if (rafId) {
-				cancelAnimationFrame(rafId);
+		// Add resize listener for responsive mode
+		if (responsive) {
+			const resizeObserver = new ResizeObserver(() => {
+				updateCanvasSize();
+			});
+
+			if (canvasContainer) {
+				resizeObserver.observe(canvasContainer);
 			}
-		};
+
+			return () => {
+				window.removeEventListener('keydown', handleKeyDown);
+				resizeObserver.disconnect();
+				if (rafId) {
+					cancelAnimationFrame(rafId);
+				}
+			};
+		} else {
+			return () => {
+				window.removeEventListener('keydown', handleKeyDown);
+				if (rafId) {
+					cancelAnimationFrame(rafId);
+				}
+			};
+		}
 	});
 
 	function loadImage() {
@@ -457,17 +530,17 @@
 		if (!ctx || !canvasElement) return;
 
 		// Clear canvas
-		ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+		ctx.clearRect(0, 0, actualWidth, actualHeight);
 
 		// Draw placeholder background
 		ctx.fillStyle = '#f3f4f6';
-		ctx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+		ctx.fillRect(0, 0, actualWidth, actualHeight);
 
 		// Draw placeholder text
 		ctx.fillStyle = '#9ca3af';
 		ctx.font = '16px sans-serif';
 		ctx.textAlign = 'center';
-		ctx.fillText('Image failed to load', canvasElement.width / 2, canvasElement.height / 2);
+		ctx.fillText('Image failed to load', actualWidth / 2, actualHeight / 2);
 
 		// Reset text align for other operations
 		ctx.textAlign = 'left';
@@ -479,10 +552,10 @@
 
 		// Clear offscreen canvas
 		offscreenCtx.fillStyle = '#f8f9fa';
-		offscreenCtx.fillRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+		offscreenCtx.fillRect(0, 0, actualWidth, actualHeight);
 
 		// Draw checkerboard pattern
-		drawCheckerboardPatternToContext(offscreenCtx, offscreenCanvas);
+		drawCheckerboardPatternToContext(offscreenCtx);
 
 		// Draw image if loaded
 		if (image && image.complete && image.naturalWidth > 0) {
@@ -516,11 +589,7 @@
 			offscreenCtx.fillStyle = '#9ca3af';
 			offscreenCtx.font = '16px sans-serif';
 			offscreenCtx.textAlign = 'center';
-			offscreenCtx.fillText(
-				'Loading image...',
-				offscreenCanvas.width / 2,
-				offscreenCanvas.height / 2
-			);
+			offscreenCtx.fillText('Loading image...', actualWidth / 2, actualHeight / 2);
 			offscreenCtx.textAlign = 'left';
 		}
 
@@ -536,7 +605,7 @@
 		} else {
 			// Fallback to direct drawing
 			ctx.fillStyle = '#f8f9fa';
-			ctx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+			ctx.fillRect(0, 0, actualWidth, actualHeight);
 
 			drawCheckerboardPattern();
 
@@ -558,7 +627,7 @@
 				ctx.fillStyle = '#9ca3af';
 				ctx.font = '16px sans-serif';
 				ctx.textAlign = 'center';
-				ctx.fillText('Loading image...', canvasElement.width / 2, canvasElement.height / 2);
+				ctx.fillText('Loading image...', actualWidth / 2, actualHeight / 2);
 				ctx.textAlign = 'left';
 			}
 		}
@@ -615,19 +684,16 @@
 	// Draw checkerboard pattern for areas outside image
 	function drawCheckerboardPattern() {
 		if (!ctx || !canvasElement) return;
-		drawCheckerboardPatternToContext(ctx, canvasElement);
+		drawCheckerboardPatternToContext(ctx);
 	}
 
-	function drawCheckerboardPatternToContext(
-		context: CanvasRenderingContext2D,
-		canvas: HTMLCanvasElement
-	) {
+	function drawCheckerboardPatternToContext(context: CanvasRenderingContext2D) {
 		const squareSize = 16;
 		const lightColor = '#ffffff';
 		const darkColor = '#f5f5f5';
 
-		for (let x = 0; x < canvas.width; x += squareSize) {
-			for (let y = 0; y < canvas.height; y += squareSize) {
+		for (let x = 0; x < actualWidth; x += squareSize) {
+			for (let y = 0; y < actualHeight; y += squareSize) {
 				// Skip if this square is within the image area
 				if (
 					x + squareSize > imageOffsetX &&
@@ -1049,65 +1115,14 @@
 	});
 </script>
 
-<div class="relative">
-	<!-- Mode Toggle Buttons and Save Status -->
-	<div class="mb-4 flex items-center justify-between">
-		<div class="flex gap-2">
-			<button
-				onclick={() => (mode = 'select')}
-				class="rounded px-3 py-2 text-sm font-medium transition-colors {mode === 'select'
-					? 'bg-blue-600 text-white'
-					: 'bg-gray-200 text-gray-700 hover:bg-gray-300'}"
-			>
-				Select (S)
-			</button>
-			<button
-				onclick={() => (mode = 'draw')}
-				class="rounded px-3 py-2 text-sm font-medium transition-colors {mode === 'draw'
-					? 'bg-blue-600 text-white'
-					: 'bg-gray-200 text-gray-700 hover:bg-gray-300'}"
-			>
-				Draw (D)
-			</button>
-		</div>
-
-		<!-- Save Status Indicator -->
-		<div class="flex items-center gap-2">
-			{#if hasUnsavedChanges && saveStatus !== 'saving'}
-				<span class="text-sm text-amber-600">• Unsaved changes</span>
-			{:else if saveStatus === 'saving'}
-				<span class="text-sm text-blue-600">Saving...</span>
-			{:else if saveStatus === 'saved'}
-				<span class="text-sm text-green-600">✓ Saved</span>
-			{:else if saveStatus === 'error'}
-				<span class="text-sm text-red-600">⚠ Save failed</span>
-			{/if}
-
-			<button
-				onclick={() => {
-					if (hasUnsavedChanges && saveDebounceTimer) {
-						clearTimeout(saveDebounceTimer);
-						saveAnnotations();
-					}
-				}}
-				disabled={!hasUnsavedChanges || saveStatus === 'saving'}
-				class="rounded px-3 py-1 text-sm font-medium transition-colors {hasUnsavedChanges &&
-				saveStatus !== 'saving'
-					? 'bg-blue-600 text-white hover:bg-blue-700'
-					: 'cursor-not-allowed bg-gray-200 text-gray-400'}"
-			>
-				Save (Ctrl+S)
-			</button>
-		</div>
-	</div>
-
+<div bind:this={canvasContainer} class={responsive ? 'h-full w-full' : 'relative'}>
 	<canvas
 		bind:this={canvasElement}
-		{width}
-		{height}
+		width={actualWidth}
+		height={actualHeight}
 		class="border border-gray-300 bg-white {mode === 'draw'
 			? 'cursor-crosshair'
-			: 'cursor-default'}"
+			: 'cursor-default'} {responsive ? 'h-full w-full' : ''}"
 		onmousedown={handleMouseDown}
 		onmousemove={handleMouseMove}
 		onmouseup={handleMouseUp}

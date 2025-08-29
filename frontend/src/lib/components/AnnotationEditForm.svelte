@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { getContextClient } from '@urql/svelte';
 	import {
 		UPDATE_ANNOTATION,
@@ -35,6 +36,7 @@
 	let editedConfidence = $state(annotation.confidence || undefined);
 	let isSaving = $state(false);
 	let error = $state<string | null>(null);
+	let descriptionTextarea: HTMLTextAreaElement;
 
 	let isFormDirty = $derived(
 		editedDescription !== (annotation.description || '') ||
@@ -110,6 +112,18 @@
 		if (isNaN(num)) return undefined;
 		return Math.max(0, Math.min(1, num));
 	}
+
+	// Auto-focus the description textarea when component mounts
+	onMount(() => {
+		if (descriptionTextarea) {
+			descriptionTextarea.focus();
+			// Move cursor to end of text
+			descriptionTextarea.setSelectionRange(
+				descriptionTextarea.value.length,
+				descriptionTextarea.value.length
+			);
+		}
+	});
 </script>
 
 <div class="rounded-lg border-2 border-blue-200 bg-blue-50 p-4">
@@ -129,6 +143,7 @@
 			</label>
 			<textarea
 				id="description"
+				bind:this={descriptionTextarea}
 				bind:value={editedDescription}
 				onkeydown={handleKeydown}
 				placeholder="Describe what you see..."
