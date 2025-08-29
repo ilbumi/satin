@@ -1,13 +1,19 @@
-query GetImages {
-	images {
-		id
-		url
-		width
-		height
-		ext
-		status
-		createdAt
-		updatedAt
+query GetImages($pagination: PaginationInput, $sort: SortInput) {
+	images(pagination: $pagination, sort: $sort) {
+		items {
+			id
+			url
+			status
+			createdAt
+			updatedAt
+		}
+		pageInfo {
+			hasNextPage
+			hasPreviousPage
+			startCursor
+			endCursor
+		}
+		totalCount
 	}
 }
 
@@ -15,22 +21,16 @@ query GetImage($id: String!) {
 	image(id: $id) {
 		id
 		url
-		width
-		height
-		ext
 		status
 		createdAt
 		updatedAt
 	}
 }
 
-query ImagesByStatus($statuses: [String!]!) {
+query GetImagesByStatus($statuses: [String!]!) {
 	imagesByStatus(statuses: $statuses) {
 		id
 		url
-		width
-		height
-		ext
 		status
 		createdAt
 		updatedAt

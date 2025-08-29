@@ -44,10 +44,10 @@ describe('+layout.svelte', () => {
 	it('renders navigation elements from BaseLayout', async () => {
 		render(Layout);
 
-		const homeLink = page.getByText('Home');
+		const imagesLink = page.getByText('Images');
 		const annotateLink = page.getByText('Annotate');
 
-		await expect.element(homeLink).toBeInTheDocument();
+		await expect.element(imagesLink).toBeInTheDocument();
 		await expect.element(annotateLink).toBeInTheDocument();
 	});
 });

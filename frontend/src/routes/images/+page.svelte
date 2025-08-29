@@ -9,7 +9,6 @@
 		GET_IMAGES,
 		UPDATE_IMAGE,
 		DELETE_IMAGE,
-		type ImageData,
 		type GetImagesQuery,
 		type ImageUpdateInput
 	} from '$lib/graphql/operations/images';
@@ -72,9 +71,20 @@
 		return filtered;
 	});
 
-	let paginatedImages = $derived((): ImageData[] => {
+	let paginatedImages = $derived(() => {
 		const startIndex = (currentPage - 1) * itemsPerPage;
-		return filteredImages().slice(startIndex, startIndex + itemsPerPage);
+		return filteredImages()
+			.slice(startIndex, startIndex + itemsPerPage)
+			.map((img) => ({
+				id: img.id,
+				url: img.url,
+				width: img.width ?? undefined,
+				height: img.height ?? undefined,
+				status: img.status,
+				createdAt: img.createdAt,
+				updatedAt: img.updatedAt,
+				ext: img.ext ?? undefined
+			}));
 	});
 
 	// Handle GraphQL errors

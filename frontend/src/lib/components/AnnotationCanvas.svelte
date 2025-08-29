@@ -114,7 +114,7 @@
 			height: annotation.boundingBox.height,
 			description: annotation.description,
 			tags: annotation.tags,
-			confidence: annotation.confidence,
+			confidence: annotation.confidence ?? undefined,
 			source: annotation.source,
 			createdAt: annotation.createdAt,
 			updatedAt: annotation.updatedAt,

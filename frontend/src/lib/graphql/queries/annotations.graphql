@@ -2,16 +2,16 @@ query GetAnnotationsByImage($imageId: String!) {
 	annotationsByImage(imageId: $imageId) {
 		id
 		imageId
+		description
+		tags
+		confidence
+		source
 		boundingBox {
 			x
 			y
 			width
 			height
 		}
-		tags
-		description
-		confidence
-		source
 		createdAt
 		updatedAt
 	}
@@ -21,16 +21,16 @@ query GetAnnotation($id: String!) {
 	annotation(id: $id) {
 		id
 		imageId
+		description
+		tags
+		confidence
+		source
 		boundingBox {
 			x
 			y
 			width
 			height
 		}
-		tags
-		description
-		confidence
-		source
 		createdAt
 		updatedAt
 	}

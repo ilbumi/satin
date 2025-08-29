@@ -74,7 +74,7 @@
 					...annotation,
 					description: mutationResult.data.description,
 					tags: mutationResult.data.tags,
-					confidence: mutationResult.data.confidence,
+					confidence: mutationResult.data.confidence ?? undefined,
 					updatedAt: mutationResult.data.updatedAt
 				};
 				onSave?.(updatedAnnotation);

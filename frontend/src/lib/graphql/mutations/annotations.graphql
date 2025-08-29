@@ -1,41 +1,77 @@
 mutation CreateAnnotation($input: AnnotationCreateInput!) {
 	createAnnotation(input: $input) {
-		id
-		imageId
-		boundingBox {
-			x
-			y
-			width
-			height
+		... on AnnotationSuccessResult {
+			success
+			message
+			data {
+				id
+				imageId
+				description
+				tags
+				confidence
+				source
+				boundingBox {
+					x
+					y
+					width
+					height
+				}
+				createdAt
+				updatedAt
+			}
 		}
-		tags
-		description
-		confidence
-		source
-		createdAt
-		updatedAt
+		... on ValidationError {
+			field
+			message
+		}
+		... on OperationError {
+			message
+			details
+		}
 	}
 }
 
 mutation UpdateAnnotation($id: String!, $input: AnnotationUpdateInput!) {
 	updateAnnotation(id: $id, input: $input) {
-		id
-		imageId
-		boundingBox {
-			x
-			y
-			width
-			height
+		... on AnnotationSuccessResult {
+			success
+			message
+			data {
+				id
+				imageId
+				description
+				tags
+				confidence
+				source
+				boundingBox {
+					x
+					y
+					width
+					height
+				}
+				createdAt
+				updatedAt
+			}
 		}
-		tags
-		description
-		confidence
-		source
-		createdAt
-		updatedAt
+		... on ValidationError {
+			field
+			message
+		}
+		... on OperationError {
+			message
+			details
+		}
+		... on NotFoundError {
+			id
+			resource
+			message
+		}
 	}
 }
 
 mutation DeleteAnnotation($id: String!) {
-	deleteAnnotation(id: $id)
+	deleteAnnotation(id: $id) {
+		deleted
+		message
+	}
 }

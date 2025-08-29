@@ -78,7 +78,7 @@
 				height: ann.boundingBox.height,
 				description: ann.description,
 				tags: ann.tags,
-				confidence: ann.confidence,
+				confidence: ann.confidence ?? undefined,
 				createdAt: ann.createdAt,
 				updatedAt: ann.updatedAt
 			}));

@@ -1,228 +1,57 @@
-import { gql } from '@urql/svelte';
+import type {
+	Annotation,
+	BoundingBox,
+	AnnotationCreateInput,
+	AnnotationUpdateInput,
+	BoundingBoxInput,
+	CreateAnnotationResult,
+	UpdateAnnotationResult,
+	DeleteResult
+} from '../generated';
 
-// Query to fetch active annotations for an image
-export const GET_ANNOTATIONS_BY_IMAGE = gql`
-	query GetAnnotationsByImage($imageId: String!) {
-		annotationsByImage(imageId: $imageId) {
-			id
-			imageId
-			boundingBox {
-				x
-				y
-				width
-				height
-			}
-			tags
-			description
-			confidence
-			source
-			createdAt
-			updatedAt
-		}
-	}
-`;
+// Import generated GraphQL documents
+import {
+	GetAnnotationsByImageDocument,
+	GetAnnotationDocument,
+	CreateAnnotationDocument,
+	UpdateAnnotationDocument,
+	DeleteAnnotationDocument,
+	BulkSaveAnnotationsDocument
+} from '../generated';
 
-// Query to fetch a single annotation by ID
-export const GET_ANNOTATION = gql`
-	query GetAnnotation($id: String!) {
-		annotation(id: $id) {
-			id
-			imageId
-			boundingBox {
-				x
-				y
-				width
-				height
-			}
-			tags
-			description
-			confidence
-			source
-			createdAt
-			updatedAt
-		}
-	}
-`;
+// Export GraphQL documents
+export const GET_ANNOTATIONS_BY_IMAGE = GetAnnotationsByImageDocument;
+export const GET_ANNOTATION = GetAnnotationDocument;
+export const CREATE_ANNOTATION = CreateAnnotationDocument;
+export const UPDATE_ANNOTATION = UpdateAnnotationDocument;
+export const DELETE_ANNOTATION = DeleteAnnotationDocument;
+export const BULK_SAVE_ANNOTATIONS = BulkSaveAnnotationsDocument;
 
-// Mutation to create a new annotation
-export const CREATE_ANNOTATION = gql`
-	mutation CreateAnnotation($input: AnnotationCreateInput!) {
-		createAnnotation(input: $input) {
-			__typename
-			... on AnnotationSuccessResult {
-				data {
-					id
-					imageId
-					boundingBox {
-						x
-						y
-						width
-						height
-					}
-					tags
-					description
-					confidence
-					source
-					createdAt
-					updatedAt
-				}
-			}
-			... on NotFoundError {
-				resource
-				id
-				message
-			}
-			... on ValidationError {
-				field
-				message
-			}
-			... on OperationError {
-				message
-				details
-			}
-		}
-	}
-`;
+// Re-export types with more descriptive names for legacy compatibility
+export type AnnotationData = Annotation;
+export type BoundingBoxData = BoundingBox;
 
-// Mutation to update an existing annotation
-export const UPDATE_ANNOTATION = gql`
-	mutation UpdateAnnotation($id: String!, $input: AnnotationUpdateInput!) {
-		updateAnnotation(id: $id, input: $input) {
-			__typename
-			... on AnnotationSuccessResult {
-				data {
-					id
-					imageId
-					boundingBox {
-						x
-						y
-						width
-						height
-					}
-					tags
-					description
-					confidence
-					source
-					createdAt
-					updatedAt
-				}
-			}
-			... on NotFoundError {
-				resource
-				id
-				message
-			}
-			... on ValidationError {
-				field
-				message
-			}
-			... on OperationError {
-				message
-				details
-			}
-		}
-	}
-`;
-
-// Mutation to delete an annotation
-export const DELETE_ANNOTATION = gql`
-	mutation DeleteAnnotation($id: String!) {
-		deleteAnnotation(id: $id) {
-			deleted
-			message
-		}
-	}
-`;
-
-// TypeScript types for GraphQL operations
-export interface BoundingBoxData {
-	x: number;
-	y: number;
-	width: number;
-	height: number;
-}
-
-export interface AnnotationData {
-	id: string;
-	imageId: string;
-	boundingBox: BoundingBoxData;
-	tags: string[];
-	description: string;
-	confidence?: number;
-	source: string;
-	createdAt: string;
-	updatedAt: string;
-}
-
+// Query result types
 export interface GetAnnotationsByImageQuery {
-	annotationsByImage: AnnotationData[];
+	annotationsByImage: Annotation[];
 }
 
 export interface GetAnnotationQuery {
-	annotation: AnnotationData | null;
+	annotation: Annotation | null;
 }
 
-// Error type definitions (same as in images.ts)
-export interface ValidationError {
-	__typename: 'ValidationError';
-	field: string;
-	message: string;
-}
-
-export interface NotFoundError {
-	__typename: 'NotFoundError';
-	resource: string;
-	id: string;
-	message: string;
-}
-
-export interface OperationError {
-	__typename: 'OperationError';
-	message: string;
-	details?: string | null;
-}
-
+// Mutation result types
 export interface CreateAnnotationMutation {
-	createAnnotation:
-		| { __typename: 'AnnotationSuccessResult'; data: AnnotationData }
-		| { __typename: 'NotFoundError'; resource: string; id: string; message: string }
-		| { __typename: 'ValidationError'; field: string; message: string }
-		| { __typename: 'OperationError'; message: string; details?: string | null };
+	createAnnotation: CreateAnnotationResult;
 }
 
 export interface UpdateAnnotationMutation {
-	updateAnnotation:
-		| { __typename: 'AnnotationSuccessResult'; data: AnnotationData }
-		| { __typename: 'NotFoundError'; resource: string; id: string; message: string }
-		| { __typename: 'ValidationError'; field: string; message: string }
-		| { __typename: 'OperationError'; message: string; details?: string | null };
+	updateAnnotation: UpdateAnnotationResult;
 }
 
 export interface DeleteAnnotationMutation {
-	deleteAnnotation: {
-		deleted: boolean;
-		message: string;
-	};
+	deleteAnnotation: DeleteResult;
 }
 
-export interface BoundingBoxInput {
-	x: number;
-	y: number;
-	width: number;
-	height: number;
-}
-
-export interface AnnotationCreateInput {
-	imageId: string;
-	boundingBox: BoundingBoxInput;
-	tags?: string[];
-	description?: string;
-	confidence?: number;
-}
-
-export interface AnnotationUpdateInput {
-	boundingBox?: BoundingBoxInput;
-	tags?: string[];
-	description?: string;
-	confidence?: number;
-}
+// Re-export input types
+export type { AnnotationCreateInput, AnnotationUpdateInput, BoundingBoxInput };

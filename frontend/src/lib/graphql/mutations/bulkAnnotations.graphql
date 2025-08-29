@@ -3,32 +3,32 @@ mutation BulkSaveAnnotations($input: BulkAnnotationSaveInput!) {
 		created {
 			id
 			imageId
+			description
+			tags
+			confidence
+			source
 			boundingBox {
 				x
 				y
 				width
 				height
 			}
-			tags
-			description
-			confidence
-			source
 			createdAt
 			updatedAt
 		}
 		updated {
 			id
 			imageId
+			description
+			tags
+			confidence
+			source
 			boundingBox {
 				x
 				y
 				width
 				height
 			}
-			tags
-			description
-			confidence
-			source
 			createdAt
 			updatedAt
 		}
