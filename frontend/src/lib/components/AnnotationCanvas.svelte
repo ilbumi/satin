@@ -1187,16 +1187,14 @@
 
 				scheduleCanvasUpdate();
 			}
-		} else if (isDrawing) {
+		} else if (isDrawing && annotationCtx) {
 			// Handle new box drawing - draw in canvas coordinates but will be converted when saved
-			scheduleAnnotationDraw();
-
-			// Draw current box being drawn in canvas coordinates
-			ctx.strokeStyle = '#ef4444';
-			ctx.lineWidth = 2;
-			ctx.setLineDash([5, 5]);
-			ctx.strokeRect(startX, startY, canvasX - startX, canvasY - startY);
-			ctx.setLineDash([]);
+			// Draw current box being drawn in canvas coordinates on the annotation layer
+			annotationCtx.strokeStyle = '#ef4444';
+			annotationCtx.lineWidth = 2;
+			annotationCtx.setLineDash([5, 5]);
+			annotationCtx.strokeRect(startX, startY, canvasX - startX, canvasY - startY);
+			annotationCtx.setLineDash([]);
 		}
 	}
 
