@@ -2,7 +2,7 @@ import { page } from '@vitest/browser/context';
 import { describe, expect, it, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import ToastContainer from './ToastContainer.svelte';
-import { addToast, clearToasts } from '$lib/stores/toast';
+import { addToast, clearToasts } from '$lib/stores/toast.svelte';
 
 describe('ToastContainer', () => {
 	beforeEach(() => {

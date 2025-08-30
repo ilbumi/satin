@@ -51,19 +51,6 @@ class OperationError:
         return OperationError(message=message, details=details)
 
 
-@strawberry.type
-class RateLimitError:
-    """Rate limit exceeded error."""
-
-    retry_after_seconds: int
-    message: str = "Rate limit exceeded"
-
-    @staticmethod
-    def create(retry_after: int = 60) -> "RateLimitError":
-        """Create a rate limit error."""
-        return RateLimitError(retry_after_seconds=retry_after)
-
-
 # Success result types
 @strawberry.type
 class SuccessResult[T]:
@@ -90,37 +77,3 @@ class DeleteResult:
     def not_found(resource: str) -> "DeleteResult":
         """Create a not found delete result."""
         return DeleteResult(deleted=False, message=f"{resource} not found")
-
-
-# Batch operation types
-@strawberry.type
-class BatchOperationResult:
-    """Result of a batch operation with partial success support."""
-
-    total_count: int
-    success_count: int
-    failed_count: int
-    message: str
-
-    @property
-    def all_succeeded(self) -> bool:
-        """Check if all operations succeeded."""
-        return self.success_count == self.total_count
-
-    @staticmethod
-    def create(total: int, success: int) -> "BatchOperationResult":
-        """Create a batch operation result."""
-        failed = total - success
-        if success == total:
-            message = f"All {total} operations completed successfully"
-        elif success == 0:
-            message = f"All {total} operations failed"
-        else:
-            message = f"{success} of {total} operations succeeded, {failed} failed"
-
-        return BatchOperationResult(
-            total_count=total,
-            success_count=success,
-            failed_count=failed,
-            message=message,
-        )

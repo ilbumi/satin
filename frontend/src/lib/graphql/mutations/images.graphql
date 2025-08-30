@@ -1,41 +1,59 @@
-mutation CreateImage($input: CreateImageInput!) {
+mutation CreateImage($input: ImageCreateInput!) {
 	createImage(input: $input) {
-		id
-		url
-		width
-		height
-		format
-		status
-		createdAt
-		updatedAt
+		... on ImageSuccessResult {
+			success
+			message
+			data {
+				id
+				url
+				status
+				createdAt
+				updatedAt
+			}
+		}
+		... on ValidationError {
+			field
+			message
+		}
+		... on OperationError {
+			message
+			details
+		}
 	}
 }
 
-mutation UpdateImage($id: ID!, $input: UpdateImageInput!) {
+mutation UpdateImage($id: String!, $input: ImageUpdateInput!) {
 	updateImage(id: $id, input: $input) {
-		id
-		url
-		width
-		height
-		format
-		status
-		createdAt
-		updatedAt
+		... on ImageSuccessResult {
+			success
+			message
+			data {
+				id
+				url
+				status
+				createdAt
+				updatedAt
+			}
+		}
+		... on ValidationError {
+			field
+			message
+		}
+		... on OperationError {
+			message
+			details
+		}
+		... on NotFoundError {
+			id
+			resource
+			message
+		}
 	}
 }
 
-mutation DeleteImage($id: ID!) {
+mutation DeleteImage($id: String!) {
 	deleteImage(id: $id) {
-		success
+		deleted
 		message
-	}
-}
-
-mutation RequestMLPreAnnotation($imageId: ID!, $mlServiceId: String!) {
-	requestMLPreAnnotation(imageId: $imageId, mlServiceId: $mlServiceId) {
-		jobId
-		status
-		message
-		estimatedCompletionTime
 	}
 }

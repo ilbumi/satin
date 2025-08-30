@@ -10,8 +10,8 @@ describe('BaseLayout', () => {
 		const heading = page.getByText('Satin');
 		await expect.element(heading).toBeInTheDocument();
 
-		const homeLink = page.getByText('Home');
-		await expect.element(homeLink).toBeInTheDocument();
+		const imagesLink = page.getByText('Images');
+		await expect.element(imagesLink).toBeInTheDocument();
 
 		const annotateLink = page.getByText('Annotate');
 		await expect.element(annotateLink).toBeInTheDocument();

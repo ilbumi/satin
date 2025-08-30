@@ -1,14 +1,21 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { getContextClient } from '@urql/svelte';
-	import { showError, showSuccess } from '$lib/stores/toast';
+	import { showError, showSuccess } from '$lib/stores/toast.svelte';
 	import { CREATE_IMAGE, type ImageCreateInput } from '$lib/graphql/operations/images';
 	import { handleMutationResult } from '$lib/utils/graphql-errors';
+	import { useDialog } from '$lib/hooks/useDialog.svelte';
 
 	interface Props {
 		open: boolean;
 		onClose: () => void;
-		onSubmit: () => void; // Changed to simple callback after successful creation
+		onSubmit: () => void;
+	}
+
+	interface DialogFormData {
+		imageUrl: string;
+		isValidating: boolean;
+		isSubmitting: boolean;
+		urlError: string;
 	}
 
 	let { open, onClose, onSubmit }: Props = $props();
@@ -16,38 +23,44 @@
 	// URQL client for mutations
 	const client = getContextClient();
 
-	let imageUrl = $state('');
-	let isValidating = $state(false);
-	let isSubmitting = $state(false);
-	let urlError = $state('');
+	// Use dialog hook for state management
+	const dialog = useDialog<DialogFormData>({
+		imageUrl: '',
+		isValidating: false,
+		isSubmitting: false,
+		urlError: ''
+	});
+
 	let dialogElement: HTMLDialogElement | undefined = $state();
 
-	let isValidUrl = $derived(imageUrl.trim() !== '' && urlError === '' && !isValidating);
+	let isValidUrl = $derived(
+		dialog.formData.imageUrl.trim() !== '' &&
+			dialog.formData.urlError === '' &&
+			!dialog.formData.isValidating
+	);
 
-	onMount(() => {
-		if (open && dialogElement) {
-			dialogElement.showModal();
+	// Sync external open state with internal dialog state
+	$effect(() => {
+		if (open !== dialog.isOpen) {
+			if (open) {
+				dialog.open();
+			} else {
+				dialog.close();
+			}
 		}
 	});
 
+	// Handle dialog DOM state
 	$effect(() => {
-		if (open && dialogElement) {
+		if (dialog.isOpen && dialogElement) {
 			dialogElement.showModal();
-			resetForm();
-		} else if (!open && dialogElement) {
+		} else if (!dialog.isOpen && dialogElement) {
 			dialogElement.close();
 		}
 	});
 
-	function resetForm() {
-		imageUrl = '';
-		urlError = '';
-		isValidating = false;
-		isSubmitting = false;
-	}
-
 	function handleClose() {
-		resetForm();
+		dialog.handleClose();
 		onClose();
 	}
 
@@ -59,14 +72,14 @@
 
 	function validateUrl(url: string): boolean {
 		if (!url.trim()) {
-			urlError = 'Image URL is required';
+			dialog.updateData({ urlError: 'Image URL is required' });
 			return false;
 		}
 
 		try {
 			const parsedUrl = new URL(url);
 			if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-				urlError = 'URL must use HTTP or HTTPS protocol';
+				dialog.updateData({ urlError: 'URL must use HTTP or HTTPS protocol' });
 				return false;
 			}
 			const ipAddress = parsedUrl.hostname.split('.');
@@ -74,43 +87,45 @@
 				parsedUrl.hostname === 'localhost' ||
 				(ipAddress.length === 4 && ipAddress[0] === '127')
 			) {
-				urlError = 'Localhost URLs are not allowed';
+				dialog.updateData({ urlError: 'Localhost URLs are not allowed' });
 				return false;
 			}
-			urlError = '';
+			dialog.updateData({ urlError: '' });
 			return true;
 		} catch {
-			urlError = 'Please enter a valid URL';
+			dialog.updateData({ urlError: 'Please enter a valid URL' });
 			return false;
 		}
 	}
 
 	async function validateImageUrl(url: string): Promise<boolean> {
-		isValidating = true;
+		dialog.updateData({ isValidating: true });
 
 		try {
 			const response = await fetch(url, { method: 'HEAD', mode: 'no-cors' });
 			const contentType = response.headers.get('content-type');
 
 			if (contentType && !contentType.startsWith('image/')) {
-				urlError = 'URL does not point to an image file';
+				dialog.updateData({ urlError: 'URL does not point to an image file' });
 				return false;
 			}
 
 			return true;
 		} catch {
-			urlError = 'Unable to validate image URL. Please check the URL is accessible.';
+			dialog.updateData({
+				urlError: 'Unable to validate image URL. Please check the URL is accessible.'
+			});
 			return false;
 		} finally {
-			isValidating = false;
+			dialog.updateData({ isValidating: false });
 		}
 	}
 
 	async function handleUrlChange() {
-		const url = imageUrl.trim();
+		const url = dialog.formData.imageUrl.trim();
 
 		if (!url) {
-			urlError = '';
+			dialog.updateData({ urlError: '' });
 			return;
 		}
 
@@ -124,12 +139,12 @@
 	async function handleSubmit(event: Event) {
 		event.preventDefault();
 
-		const url = imageUrl.trim();
+		const url = dialog.formData.imageUrl.trim();
 		if (!validateUrl(url)) {
 			return;
 		}
 
-		isSubmitting = true;
+		dialog.updateData({ isSubmitting: true });
 
 		try {
 			const input: ImageCreateInput = { url };
@@ -140,7 +155,8 @@
 
 			if (mutationResult.success) {
 				showSuccess('Image added successfully!');
-				onSubmit(); // Notify parent to refetch data
+				// Cache will automatically update due to cache configuration
+				onSubmit(); // Notify parent component
 				handleClose();
 			} else {
 				showError(mutationResult.error || 'Failed to add image');
@@ -148,7 +164,7 @@
 		} catch (error) {
 			showError(error instanceof Error ? error.message : 'Failed to add image');
 		} finally {
-			isSubmitting = false;
+			dialog.updateData({ isSubmitting: false });
 		}
 	}
 
@@ -194,16 +210,17 @@
 					id="image-url"
 					type="url"
 					required
-					bind:value={imageUrl}
+					bind:value={dialog.formData.imageUrl}
 					oninput={handleUrlChange}
 					placeholder="https://example.com/image.jpg"
-					class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 {urlError
+					class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 {dialog
+						.formData.urlError
 						? 'border-red-300 focus:border-red-500 focus:ring-red-500'
 						: ''}"
-					disabled={isSubmitting}
+					disabled={dialog.formData.isSubmitting}
 				/>
 
-				{#if isValidating}
+				{#if dialog.formData.isValidating}
 					<div class="mt-2 flex items-center text-sm text-blue-600">
 						<div
 							class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"
@@ -212,8 +229,8 @@
 					</div>
 				{/if}
 
-				{#if urlError}
-					<p class="mt-2 text-sm text-red-600" role="alert">{urlError}</p>
+				{#if dialog.formData.urlError}
+					<p class="mt-2 text-sm text-red-600" role="alert">{dialog.formData.urlError}</p>
 				{/if}
 
 				<p class="mt-2 text-xs text-gray-500">
@@ -226,21 +243,21 @@
 					type="button"
 					onclick={handleClose}
 					class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
-					disabled={isSubmitting}
+					disabled={dialog.formData.isSubmitting}
 				>
 					Cancel
 				</button>
 				<button
 					type="submit"
-					disabled={!isValidUrl || isSubmitting}
+					disabled={!isValidUrl || dialog.formData.isSubmitting}
 					class="flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 				>
-					{#if isSubmitting}
+					{#if dialog.formData.isSubmitting}
 						<div
 							class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
 						></div>
 					{/if}
-					{isSubmitting ? 'Adding...' : 'Add Image'}
+					{dialog.formData.isSubmitting ? 'Adding...' : 'Add Image'}
 				</button>
 			</div>
 		</form>

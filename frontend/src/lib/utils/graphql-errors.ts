@@ -157,9 +157,12 @@ export function handleMutationResult<T>(
 
 	// Check for success result wrapper (e.g., ImageSuccessResult, AnnotationSuccessResult)
 	if ('__typename' in response && (response.__typename as string).endsWith('SuccessResult')) {
+		console.log('handleMutationResult: Processing SuccessResult wrapper', response);
+		const extractedData = (response as { data: unknown }).data as T;
+		console.log('handleMutationResult: Extracted data', extractedData);
 		return {
 			success: true,
-			data: (response as { data: unknown }).data as T
+			data: extractedData
 		};
 	}
 

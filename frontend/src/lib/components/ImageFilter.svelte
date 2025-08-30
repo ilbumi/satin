@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { createDebounced } from '$lib/utils/state';
+
 	interface Props {
 		searchQuery: string;
 		selectedStatuses: string[];
@@ -20,6 +22,32 @@
 		onSortChange,
 		onClearFilters
 	}: Props = $props();
+
+	// Local search state for immediate UI feedback and debouncing
+	let internalSearchQuery = $state(searchQuery);
+
+	// Debounced search with 300ms delay
+	const { set: debouncedSearch, cancel } = createDebounced(onSearchChange, 300);
+
+	// Effect to sync internal state when external searchQuery is cleared
+	$effect(() => {
+		// If the external searchQuery has been cleared (and internal isn't empty), sync internal state
+		if (searchQuery === '' && internalSearchQuery !== '') {
+			internalSearchQuery = searchQuery;
+		}
+	});
+
+	function handleSearchInput(value: string) {
+		internalSearchQuery = value;
+		debouncedSearch(value);
+	}
+
+	// Cleanup on unmount
+	$effect(() => {
+		return () => {
+			cancel();
+		};
+	});
 
 	function handleStatusFilter(status: string) {
 		if (selectedStatuses.includes(status)) {
@@ -55,10 +83,10 @@
 				<input
 					id="search"
 					type="text"
-					value={searchQuery}
+					value={internalSearchQuery}
 					oninput={(e) => {
 						const target = e.target as HTMLInputElement;
-						onSearchChange(target.value);
+						handleSearchInput(target.value);
 					}}
 					placeholder="Search by URL or filename..."
 					class="block w-full rounded-md border-gray-300 py-2 pr-3 pl-10 shadow-sm focus:border-blue-500 focus:ring-blue-500"
@@ -137,8 +165,8 @@
 					}}
 					class="block w-full rounded-md border-gray-300 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
 				>
-					<option value="desc">Newest First</option>
-					<option value="asc">Oldest First</option>
+					<option value="desc">Descending</option>
+					<option value="asc">Ascending</option>
 				</select>
 				<button
 					onclick={onClearFilters}
@@ -151,18 +179,18 @@
 	</div>
 
 	<!-- Active Filters Summary -->
-	{#if searchQuery || selectedStatuses.length < statusOptions.length}
+	{#if internalSearchQuery || selectedStatuses.length < statusOptions.length}
 		<div class="mt-4 border-t border-gray-200 pt-4">
 			<div class="flex flex-wrap items-center gap-2">
 				<span class="text-sm text-gray-600">Active filters:</span>
 
-				{#if searchQuery}
+				{#if internalSearchQuery}
 					<span
 						class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800"
 					>
-						Search: "{searchQuery}"
+						Search: "{internalSearchQuery}"
 						<button
-							onclick={() => onSearchChange('')}
+							onclick={() => handleSearchInput('')}
 							class="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-blue-600 hover:bg-blue-200"
 						>
 							×

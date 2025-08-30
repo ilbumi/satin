@@ -1,9 +1,8 @@
 <script lang="ts">
-	import Sidebar from '$lib/components/Sidebar.svelte';
-	import AnnotationCanvas from '$lib/components/AnnotationCanvas.svelte';
 	import AnnotationEditForm from '$lib/components/AnnotationEditForm.svelte';
+	import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
 	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { queryStore, getContextClient } from '@urql/svelte';
 	import { GET_IMAGE, type GetImageQuery } from '$lib/graphql/operations/images';
 	import {
@@ -11,6 +10,17 @@
 		type GetAnnotationsByImageQuery
 	} from '$lib/graphql/operations/annotations';
 	import { goto } from '$app/navigation';
+
+	// Dynamically import AnnotationCanvas to reduce initial bundle size
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	let AnnotationCanvas: any = $state(null);
+	let canvasLoading = $state(true);
+
+	onMount(async () => {
+		const { default: CanvasComponent } = await import('$lib/components/AnnotationCanvas.svelte');
+		AnnotationCanvas = CanvasComponent;
+		canvasLoading = false;
+	});
 
 	interface BoundingBox {
 		id: string;
@@ -25,16 +35,15 @@
 		updatedAt: string;
 	}
 
-	let sidebarCollapsed = $state(false);
-	let isMobile = $state(false);
 	let annotations = $state<BoundingBox[]>([]);
 	let selectedAnnotationId = $state<string | null>(null);
 	let editingAnnotationId = $state<string | null>(null);
-	let canvasRef: AnnotationCanvas | undefined = $state();
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	let canvasRef: any = $state();
 	let saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
 	// Get image ID from route parameters
-	let imageId = $derived($page.params.imageId);
+	let imageId = $derived(page.params.imageId);
 
 	// GraphQL client and queries
 	const client = getContextClient();
@@ -70,28 +79,31 @@
 		(imageQuery ? $imageQuery!.error : null) || (annotationsQuery ? $annotationsQuery!.error : null)
 	);
 
-	onMount(() => {
-		const checkMobile = () => {
-			isMobile = window.innerWidth < 768;
-			// Auto-collapse sidebar on mobile by default
-			if (isMobile && !sidebarCollapsed) {
-				sidebarCollapsed = true;
-			}
-		};
+	// Sync backend annotations to local annotations array for sidebar display
+	$effect(() => {
+		if (backendAnnotations && backendAnnotations.length > 0 && annotations.length === 0) {
+			annotations = backendAnnotations.map((ann) => ({
+				id: ann.id,
+				x: ann.boundingBox.x,
+				y: ann.boundingBox.y,
+				width: ann.boundingBox.width,
+				height: ann.boundingBox.height,
+				description: ann.description,
+				tags: ann.tags,
+				confidence: ann.confidence ?? undefined,
+				createdAt: ann.createdAt,
+				updatedAt: ann.updatedAt
+			}));
+		}
+	});
 
-		checkMobile();
-		window.addEventListener('resize', checkMobile);
+	onMount(() => {
 		window.addEventListener('keydown', handleKeydown);
 
 		return () => {
-			window.removeEventListener('resize', checkMobile);
 			window.removeEventListener('keydown', handleKeydown);
 		};
 	});
-
-	function toggleSidebar() {
-		sidebarCollapsed = !sidebarCollapsed;
-	}
 
 	function handleAnnotationsChange(newAnnotations: BoundingBox[]) {
 		annotations = newAnnotations;
@@ -137,6 +149,10 @@
 		startEditingAnnotation(annotationId);
 	}
 
+	function handleSelectionChange(annotationId: string | null) {
+		selectedAnnotationId = annotationId;
+	}
+
 	// Keyboard shortcuts
 	function handleKeydown(event: KeyboardEvent) {
 		// Don't trigger shortcuts when typing in inputs
@@ -147,6 +163,7 @@
 		switch (event.key.toLowerCase()) {
 			case 'e':
 				if (selectedAnnotationId && editingAnnotationId !== selectedAnnotationId) {
+					event.preventDefault();
 					startEditingAnnotation(selectedAnnotationId);
 				}
 				break;
@@ -178,14 +195,18 @@
 	>
 </svelte:head>
 
-<div class="max-w-full">
-	<div class="mb-8 flex items-center justify-between">
-		<div class="flex items-center space-x-4">
+<!-- Fullscreen container with flex layout -->
+<div class="flex h-full w-full flex-col">
+	<!-- Slim toolbar at the top -->
+	<div
+		class="flex h-12 w-full items-center justify-between border-b border-gray-200 bg-white px-4 shadow-sm"
+	>
+		<div class="flex items-center gap-3">
 			<!-- Back button -->
 			<button
 				onclick={() => goto('/images')}
-				class="flex items-center space-x-2 rounded-lg bg-gray-100 px-3 py-2 text-gray-700 hover:bg-gray-200"
-				title="Back to Images"
+				class="flex items-center gap-1 rounded px-2 py-1 text-sm text-gray-600 hover:bg-gray-100"
+				title="Back to Images (Alt+←)"
 			>
 				<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 					<path
@@ -195,190 +216,199 @@
 						d="M10 19l-7-7m0 0l7-7m-7 7h18"
 					/>
 				</svg>
-				<span class="hidden sm:block">Back</span>
+				<span class="hidden sm:inline">Back</span>
 			</button>
 
-			<div>
-				<h1 class="text-3xl font-bold text-gray-800">Image Annotation</h1>
-				{#if image}
-					<p class="mt-1 text-sm text-gray-600">
-						{new URL(image.url).pathname.split('/').pop()} • {image.status}
-					</p>
-				{/if}
+			<!-- Image name -->
+			{#if image}
+				<div class="flex items-center gap-2">
+					<span class="text-sm font-medium text-gray-700">
+						{new URL(image.url).pathname.split('/').pop()}
+					</span>
+					<span class="text-xs text-gray-500">•</span>
+					<span class="text-xs text-gray-500">{image.status}</span>
+				</div>
+			{/if}
+		</div>
+
+		<!-- Center space -->
+		<div class="flex-1"></div>
+
+		<!-- Right side tools -->
+		<div class="flex items-center gap-3">
+			<!-- Mode Toggle -->
+			<div class="flex rounded-md border border-gray-200">
+				<button
+					onclick={() => canvasRef?.setMode && canvasRef.setMode('select')}
+					class="rounded-l-md px-3 py-1 text-sm font-medium transition-colors"
+					class:bg-blue-600={canvasRef?.getMode && canvasRef.getMode() === 'select'}
+					class:text-white={canvasRef?.getMode && canvasRef.getMode() === 'select'}
+					class:text-gray-700={!canvasRef?.getMode || canvasRef.getMode() !== 'select'}
+					class:hover:bg-gray-100={!canvasRef?.getMode || canvasRef.getMode() !== 'select'}
+					title="Select Mode (S)"
+				>
+					Select
+				</button>
+				<button
+					onclick={() => canvasRef?.setMode && canvasRef.setMode('draw')}
+					class="rounded-r-md px-3 py-1 text-sm font-medium transition-colors"
+					class:bg-blue-600={canvasRef?.getMode && canvasRef.getMode() === 'draw'}
+					class:text-white={canvasRef?.getMode && canvasRef.getMode() === 'draw'}
+					class:text-gray-700={!canvasRef?.getMode || canvasRef.getMode() !== 'draw'}
+					class:hover:bg-gray-100={!canvasRef?.getMode || canvasRef.getMode() !== 'draw'}
+					title="Draw Mode (D)"
+				>
+					Draw
+				</button>
 			</div>
 
-			<!-- Save Status and Controls -->
-			<div class="flex items-center space-x-3">
-				<!-- Save Status -->
+			<!-- Save Status -->
+			<div class="flex items-center gap-2">
 				{#if saveStatus === 'saving'}
-					<div class="flex items-center space-x-2 text-sm text-gray-600">
-						<div
-							class="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"
-						></div>
-						<span>Saving...</span>
-					</div>
+					<div
+						class="h-3 w-3 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"
+					></div>
+					<span class="text-xs text-gray-600">Saving...</span>
 				{:else if saveStatus === 'saved'}
-					<div class="flex items-center space-x-2 text-sm text-green-600">
-						<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M5 13l4 4L19 7"
-							/>
-						</svg>
-						<span>Saved</span>
-					</div>
+					<svg class="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M5 13l4 4L19 7"
+						/>
+					</svg>
+					<span class="text-xs text-green-600">Saved</span>
 				{:else if saveStatus === 'error'}
-					<div class="flex items-center space-x-2 text-sm text-red-600">
-						<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M6 18L18 6M6 6l12 12"
-							/>
-						</svg>
-						<span>Error saving</span>
-					</div>
+					<svg class="h-4 w-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M6 18L18 6M6 6l12 12"
+						/>
+					</svg>
+					<span class="text-xs text-red-600">Error</span>
 				{/if}
 			</div>
 		</div>
-
-		<!-- Mobile Sidebar Toggle -->
-		<button
-			onclick={toggleSidebar}
-			class="rounded-lg bg-blue-600 p-2 text-white hover:bg-blue-700 md:hidden"
-			aria-label="Toggle sidebar"
-		>
-			<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M4 6h16M4 12h16M4 18h16"
-				/>
-			</svg>
-		</button>
 	</div>
 
-	<!-- Error State -->
-	{#if error}
-		<div class="rounded-lg bg-red-50 p-8 text-center">
-			<svg
-				class="mx-auto mb-4 h-16 w-16 text-red-400"
-				fill="none"
-				viewBox="0 0 24 24"
-				stroke="currentColor"
-			>
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
-				/>
-			</svg>
-			<h3 class="mb-2 text-lg font-semibold text-red-800">Failed to load image</h3>
-			<p class="mb-4 text-red-600">{error.message}</p>
-			<div class="space-x-4">
-				<button
-					onclick={() => imageQuery?.reexecute({ requestPolicy: 'network-only' })}
-					class="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
-				>
-					Try Again
-				</button>
-				<button
-					onclick={() => goto('/images')}
-					class="rounded-lg bg-gray-600 px-4 py-2 text-white hover:bg-gray-700"
-				>
-					Back to Images
-				</button>
-			</div>
-		</div>
-	{:else if loading}
-		<!-- Loading State -->
-		<div class="flex items-center justify-center p-8">
-			<div class="flex items-center space-x-4">
-				<div
-					class="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"
-				></div>
-				<span class="text-lg text-gray-600">Loading image...</span>
-			</div>
-		</div>
-	{:else if !image}
-		<!-- Image not found -->
-		<div class="rounded-lg bg-yellow-50 p-8 text-center">
-			<svg
-				class="mx-auto mb-4 h-16 w-16 text-yellow-400"
-				fill="none"
-				viewBox="0 0 24 24"
-				stroke="currentColor"
-			>
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0012 15c-2.34 0-4.47-.881-6.08-2.33l-.147-.15A7.969 7.969 0 005 10.5C5 5.813 8.813 2 13.5 2S22 5.813 22 10.5c0 1.537-.43 2.976-1.177 4.201l-1.653 2.713a1 1 0 01-1.708-1.04l1.654-2.714A5.972 5.972 0 0020 10.5C20 6.916 17.084 4 13.5 4S7 6.916 7 10.5c0 1.537.43 2.976 1.177 4.201l1.653 2.713a1 1 0 001.708-1.04l-1.654-2.714A5.972 5.972 0 0112 15c-2.34 0-4.47-.881-6.08-2.33l-.147-.15A7.969 7.969 0 015 10.5C5 5.813 8.813 2 13.5 2S22 5.813 22 10.5c0 1.537-.43 2.976-1.177 4.201l-1.653 2.713a1 1 0 01-1.708-1.04l1.654-2.714A5.972 5.972 0 0020 10.5C20 6.916 17.084 4 13.5 4S7 6.916 7 10.5"
-				/>
-			</svg>
-			<h3 class="mb-2 text-lg font-semibold text-yellow-800">Image not found</h3>
-			<p class="mb-4 text-yellow-600">
-				The image you're looking for doesn't exist or has been deleted.
-			</p>
-			<button
-				onclick={() => goto('/images')}
-				class="rounded-lg bg-yellow-600 px-4 py-2 text-white hover:bg-yellow-700"
-			>
-				Back to Images
-			</button>
-		</div>
-	{:else}
-		<!-- Main Content -->
-		<div class="flex gap-6">
-			<!-- Main Canvas Area -->
-			<div class="flex-1">
-				<AnnotationCanvas
-					bind:this={canvasRef}
-					imageUrl={image.url}
-					imageId={image.id}
-					initialAnnotations={backendAnnotations}
-					onAnnotationsChange={handleAnnotationsChange}
-					onSaveStatusChange={handleSaveStatusChange}
-					onDoubleClickAnnotation={handleDoubleClickAnnotation}
-				/>
-			</div>
-
-			<!-- Sidebar -->
-			<Sidebar isCollapsed={sidebarCollapsed} onToggle={toggleSidebar}>
-				<div class="space-y-6 p-6">
-					<!-- Annotation Tools -->
-					<div>
-						<h3 class="mb-4 text-lg font-semibold">Annotation Tools</h3>
-						<div class="space-y-2">
-							<button
-								class="w-full rounded border border-blue-200 bg-blue-50 p-2 text-left hover:bg-blue-100"
-							>
-								🔲 Bounding Box
-							</button>
-						</div>
+	<!-- Main content area -->
+	<div class="relative flex w-full flex-1 overflow-hidden">
+		{#if error}
+			<!-- Error State -->
+			<div class="flex flex-1 items-center justify-center bg-gray-50">
+				<div class="text-center">
+					<svg
+						class="mx-auto mb-4 h-16 w-16 text-red-400"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
+						/>
+					</svg>
+					<h3 class="mb-2 text-lg font-semibold text-red-800">Failed to load image</h3>
+					<p class="mb-4 text-red-600">{error.message}</p>
+					<div class="space-x-4">
+						<button
+							onclick={() => imageQuery?.reexecute({ requestPolicy: 'network-only' })}
+							class="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
+						>
+							Try Again
+						</button>
+						<button
+							onclick={() => goto('/images')}
+							class="rounded-lg bg-gray-600 px-4 py-2 text-white hover:bg-gray-700"
+						>
+							Back to Images
+						</button>
 					</div>
+				</div>
+			</div>
+		{:else if loading}
+			<!-- Loading State -->
+			<div class="flex flex-1 items-center justify-center bg-gray-50">
+				<div class="flex items-center space-x-4">
+					<div
+						class="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"
+					></div>
+					<span class="text-lg text-gray-600">Loading image...</span>
+				</div>
+			</div>
+		{:else if !image}
+			<!-- Image not found -->
+			<div class="flex flex-1 items-center justify-center bg-gray-50">
+				<div class="text-center">
+					<svg
+						class="mx-auto mb-4 h-16 w-16 text-yellow-400"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0012 15c-2.34 0-4.47-.881-6.08-2.33l-.147-.15A7.969 7.969 0 005 10.5C5 5.813 8.813 2 13.5 2S22 5.813 22 10.5c0 1.537-.43 2.976-1.177 4.201l-1.653 2.713a1 1 0 01-1.708-1.04l1.654-2.714A5.972 5.972 0 0020 10.5C20 6.916 17.084 4 13.5 4S7 6.916 7 10.5c0 1.537.43 2.976 1.177 4.201l1.653 2.713a1 1 0 001.708-1.04l-1.654-2.714A5.972 5.972 0 0112 15c-2.34 0-4.47-.881-6.08-2.33l-.147-.15A7.969 7.969 0 005 10.5C5 5.813 8.813 2 13.5 2S22 5.813 22 10.5c0 1.537-.43 2.976-1.177 4.201l-1.653 2.713a1 1 0 01-1.708-1.04l1.654-2.714A5.972 5.972 0 0020 10.5C20 6.916 17.084 4 13.5 4S7 6.916 7 10.5"
+						/>
+					</svg>
+					<h3 class="mb-2 text-lg font-semibold text-yellow-800">Image not found</h3>
+					<p class="mb-4 text-yellow-600">
+						The image you're looking for doesn't exist or has been deleted.
+					</p>
+					<button
+						onclick={() => goto('/images')}
+						class="rounded-lg bg-yellow-600 px-4 py-2 text-white hover:bg-yellow-700"
+					>
+						Back to Images
+					</button>
+				</div>
+			</div>
+		{:else}
+			<!-- Main Canvas Area (full width minus sidebar) -->
+			<div class="flex-1 bg-gray-100 p-2">
+				{#if canvasLoading}
+					<div class="flex h-96 items-center justify-center">
+						<LoadingSpinner size="lg" />
+						<span class="ml-3 text-gray-600">Loading annotation canvas...</span>
+					</div>
+				{:else if AnnotationCanvas}
+					<AnnotationCanvas
+						bind:this={canvasRef}
+						imageUrl={image.url}
+						imageId={image.id}
+						initialAnnotations={backendAnnotations}
+						onAnnotationsChange={handleAnnotationsChange}
+						onSaveStatusChange={handleSaveStatusChange}
+						onDoubleClickAnnotation={handleDoubleClickAnnotation}
+						onSelectionChange={handleSelectionChange}
+						responsive={true}
+					/>
+				{/if}
+			</div>
 
-					<!-- Labels -->
+			<!-- Fixed Sidebar -->
+			<div class="w-64 overflow-y-auto border-l border-gray-200 bg-white">
+				<div class="space-y-4 p-4">
+					<!-- Annotations header -->
 					<div>
-						<h3 class="mb-4 text-lg font-semibold">Labels</h3>
-						<div class="space-y-2">
-							<div class="text-sm text-gray-500">No labels defined</div>
-							<button class="text-sm text-blue-600 hover:underline"> + Add Label </button>
-						</div>
+						<h3 class="text-lg font-semibold text-gray-800">Annotations ({annotations.length})</h3>
 					</div>
 
 					<!-- Annotations List -->
 					<div>
-						<h3 class="mb-4 text-lg font-semibold">Annotations ({annotations.length})</h3>
 						{#if annotations.length === 0}
-							<div class="text-sm text-gray-500">No annotations yet</div>
+							<div class="py-8 text-center text-sm text-gray-500">
+								No annotations yet.<br />Draw boxes on the image to annotate.
+							</div>
 						{:else}
-							<div class="space-y-2">
+							<div class="max-h-[calc(100vh-200px)] space-y-2 overflow-y-auto">
 								{#each annotations as annotation (annotation.id)}
 									{#if editingAnnotationId === annotation.id}
 										<!-- Edit Form -->
@@ -390,7 +420,7 @@
 									{:else}
 										<!-- Normal Annotation Display -->
 										<div
-											class="cursor-pointer rounded border p-3 transition-colors {selectedAnnotationId ===
+											class="cursor-pointer rounded border p-2 transition-colors {selectedAnnotationId ===
 											annotation.id
 												? 'border-blue-500 bg-blue-50'
 												: 'border-gray-200 hover:border-gray-300'}"
@@ -399,30 +429,56 @@
 											role="button"
 											tabindex="0"
 										>
-											<div class="mb-2 flex items-center justify-between">
-												<span class="text-sm font-medium">
-													{annotation.description || 'No description'}
+											<div class="mb-1 flex items-center justify-between">
+												<span class="truncate text-xs font-medium">
+													{annotation.description || 'Unnamed'}
 												</span>
-												<div class="flex gap-1">
+												<div class="flex gap-0.5">
 													<button
 														onclick={(e) => {
 															e.stopPropagation();
 															startEditingAnnotation(annotation.id);
 														}}
-														class="text-xs text-blue-500 hover:text-blue-700"
-														title="Edit annotation (E)"
+														class="p-0.5 text-blue-500 hover:text-blue-700"
+														title="Edit (E)"
+														aria-label="Edit annotation"
 													>
-														✏️
+														<svg
+															class="h-3 w-3"
+															fill="none"
+															viewBox="0 0 24 24"
+															stroke="currentColor"
+														>
+															<path
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																stroke-width="2"
+																d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+															/>
+														</svg>
 													</button>
 													<button
 														onclick={(e) => {
 															e.stopPropagation();
 															deleteAnnotation(annotation.id);
 														}}
-														class="text-xs text-red-500 hover:text-red-700"
-														title="Delete annotation (Delete)"
+														class="p-0.5 text-red-500 hover:text-red-700"
+														title="Delete (Del)"
+														aria-label="Delete annotation"
 													>
-														🗑️
+														<svg
+															class="h-3 w-3"
+															fill="none"
+															viewBox="0 0 24 24"
+															stroke="currentColor"
+														>
+															<path
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																stroke-width="2"
+																d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+															/>
+														</svg>
 													</button>
 												</div>
 											</div>
@@ -439,9 +495,8 @@
 												</div>
 											{/if}
 
-											<div class="text-xs text-gray-600">
+											<div class="text-xs text-gray-500">
 												{Math.round(annotation.width)}×{Math.round(annotation.height)}
-												at ({Math.round(annotation.x)}, {Math.round(annotation.y)})
 												{#if annotation.confidence}
 													• {Math.round(annotation.confidence * 100)}%
 												{/if}
@@ -453,26 +508,23 @@
 						{/if}
 					</div>
 
-					<!-- Keyboard Shortcuts -->
-					<div>
-						<h3 class="mb-4 text-lg font-semibold">Keyboard Shortcuts</h3>
-						<div class="space-y-1 text-xs text-gray-600">
+					<!-- Quick help (collapsed by default) -->
+					<details class="mt-4 border-t border-gray-200 pt-4">
+						<summary class="cursor-pointer text-xs font-medium text-gray-600 hover:text-gray-800"
+							>Keyboard Shortcuts</summary
+						>
+						<div class="mt-2 space-y-1 text-xs text-gray-500">
 							<div>
 								<kbd class="rounded bg-gray-100 px-1">S</kbd> /
-								<kbd class="rounded bg-gray-100 px-1">D</kbd> - Select / Draw mode
+								<kbd class="rounded bg-gray-100 px-1">D</kbd> - Select/Draw
 							</div>
-							<div><kbd class="rounded bg-gray-100 px-1">E</kbd> - Edit selected annotation</div>
-							<div><kbd class="rounded bg-gray-100 px-1">Tab</kbd> - Navigate annotations</div>
-							<div>
-								<kbd class="rounded bg-gray-100 px-1">Esc</kbd> - Cancel edit / Clear selection
-							</div>
-							<div>
-								<kbd class="rounded bg-gray-100 px-1">Del</kbd> - Delete selected annotation
-							</div>
+							<div><kbd class="rounded bg-gray-100 px-1">E</kbd> - Edit selected</div>
+							<div><kbd class="rounded bg-gray-100 px-1">Del</kbd> - Delete selected</div>
+							<div><kbd class="rounded bg-gray-100 px-1">Esc</kbd> - Clear selection</div>
 						</div>
-					</div>
+					</details>
 				</div>
-			</Sidebar>
-		</div>
-	{/if}
+			</div>
+		{/if}
+	</div>
 </div>

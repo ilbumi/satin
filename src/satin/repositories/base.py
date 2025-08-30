@@ -153,8 +153,12 @@ class BaseRepository[ModelType: SatinBaseModel, CreateSchemaType: BaseModel, Upd
         if filter_dict is None:
             filter_dict = {}
 
-        # Get total count
-        total_count = await self.count(filter_dict)
+        # Use estimated count for unfiltered queries (super fast)
+        # For filtered queries, use regular count for accuracy
+        if not filter_dict:
+            total_count = await self.estimated_count()
+        else:
+            total_count = await self.count(filter_dict)
 
         # Get paginated items
         items = [item async for item in self.find_paginated(filter_dict, skip, limit, sort)]
@@ -266,6 +270,15 @@ class BaseRepository[ModelType: SatinBaseModel, CreateSchemaType: BaseModel, Upd
         if filter_dict is None:
             filter_dict = {}
         return await self._collection.count_documents(filter_dict)
+
+    async def estimated_count(self) -> int:
+        """Get estimated document count (very fast, ignores filters).
+
+        Uses MongoDB's estimated_document_count() which reads from collection metadata
+        instead of scanning documents. This is ~1000x faster than count_documents()
+        but ignores filters and may be slightly inaccurate during heavy writes.
+        """
+        return await self._collection.estimated_document_count()
 
     async def exists(self, filter_dict: dict[str, Any]) -> bool:
         """Check if document exists matching filter."""

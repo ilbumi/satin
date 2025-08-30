@@ -1,0 +1,37 @@
+mutation BulkSaveAnnotations($input: BulkAnnotationSaveInput!) {
+	bulkSaveAnnotations(input: $input) {
+		created {
+			id
+			imageId
+			description
+			tags
+			confidence
+			source
+			boundingBox {
+				x
+				y
+				width
+				height
+			}
+			createdAt
+			updatedAt
+		}
+		updated {
+			id
+			imageId
+			description
+			tags
+			confidence
+			source
+			boundingBox {
+				x
+				y
+				width
+				height
+			}
+			createdAt
+			updatedAt
+		}
+		deleted
+	}
+}
