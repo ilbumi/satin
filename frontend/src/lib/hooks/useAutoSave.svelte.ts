@@ -16,7 +16,7 @@ export function useAutoSave<T>(
 
 	let status = $state<SaveStatus>('idle');
 	let hasUnsavedChanges = $state(false);
-	const saveTimer: ReturnType<typeof setTimeout> | null = null;
+	let statusResetTimer: ReturnType<typeof setTimeout> | null = null;
 
 	// Notify status changes
 	$effect(() => {
@@ -33,11 +33,17 @@ export function useAutoSave<T>(
 			await saveFunction(data);
 			status = 'saved';
 
+			// Clear existing timer before setting new one
+			if (statusResetTimer) {
+				clearTimeout(statusResetTimer);
+			}
+
 			// Reset to idle after showing saved status
-			setTimeout(() => {
+			statusResetTimer = setTimeout(() => {
 				if (status === 'saved') {
 					status = 'idle';
 				}
+				statusResetTimer = null;
 			}, 1000);
 		} catch (error) {
 			status = 'error';
@@ -51,9 +57,10 @@ export function useAutoSave<T>(
 	// Cleanup on unmount
 	$effect(() => {
 		return () => {
-			cancel();
-			if (saveTimer) {
-				clearTimeout(saveTimer);
+			cancel(); // Cancel debounced saves
+			if (statusResetTimer) {
+				clearTimeout(statusResetTimer);
+				statusResetTimer = null;
 			}
 		};
 	});

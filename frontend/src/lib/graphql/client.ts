@@ -1,17 +1,15 @@
-import { createClient, fetchExchange } from '@urql/svelte';
-import { browser } from '$app/environment';
-import { graphcacheExchange } from './cache';
+import { createClient, fetchExchange, cacheExchange } from '@urql/svelte';
 
 export const client = createClient({
 	url: 'http://localhost:8000/graphql',
 	exchanges: [
-		// Use our configured graphcache exchange instead of basic cacheExchange
-		graphcacheExchange,
+		// Temporarily use basic cache exchange for debugging
+		cacheExchange,
 		fetchExchange
 	],
 	fetchOptions: () => ({
 		credentials: 'include'
 	}),
-	// More aggressive caching with normalized cache
-	requestPolicy: browser ? 'cache-first' : 'cache-and-network'
+	// Use cache-and-network for fresh data
+	requestPolicy: 'cache-and-network'
 });

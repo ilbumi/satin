@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import { SvelteMap } from 'svelte/reactivity';
 
 export interface Toast {
 	id: string;
@@ -16,6 +17,9 @@ function generateToastId(): string {
 // Module-level shared state using Svelte 5 runes
 const toasts = $state<Toast[]>([]);
 
+// Track active timers to prevent memory leaks
+const activeTimers = new SvelteMap<string, ReturnType<typeof setTimeout>>();
+
 export function addToast(toast: Omit<Toast, 'id'>): string {
 	const id = generateToastId();
 	const newToast: Toast = {
@@ -28,15 +32,25 @@ export function addToast(toast: Omit<Toast, 'id'>): string {
 
 	// Auto-remove toast after duration (only in browser)
 	if (browser && newToast.duration && newToast.duration > 0) {
-		setTimeout(() => {
+		const timerId = setTimeout(() => {
 			removeToast(id);
+			activeTimers.delete(id);
 		}, newToast.duration);
+		activeTimers.set(id, timerId);
 	}
 
 	return id;
 }
 
 export function removeToast(id: string): void {
+	// Clear timer if exists
+	const timerId = activeTimers.get(id);
+	if (timerId) {
+		clearTimeout(timerId);
+		activeTimers.delete(id);
+	}
+
+	// Remove toast from array
 	const index = toasts.findIndex((toast) => toast.id === id);
 	if (index !== -1) {
 		toasts.splice(index, 1);
@@ -44,6 +58,11 @@ export function removeToast(id: string): void {
 }
 
 export function clearToasts(): void {
+	// Clear all active timers
+	activeTimers.forEach((timerId) => clearTimeout(timerId));
+	activeTimers.clear();
+
+	// Clear toasts array
 	toasts.length = 0;
 }
 

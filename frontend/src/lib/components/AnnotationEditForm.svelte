@@ -37,6 +37,7 @@
 	let isSaving = $state(false);
 	let error = $state<string | null>(null);
 	let descriptionTextarea: HTMLTextAreaElement;
+	let hasOptimisticUpdate = $state(false);
 
 	let isFormDirty = $derived(
 		editedDescription !== (annotation.description || '') ||
@@ -49,7 +50,23 @@
 
 		try {
 			isSaving = true;
+			hasOptimisticUpdate = true;
 			error = null;
+
+			// Create optimistic update immediately for UI responsiveness
+			const optimisticAnnotation: Annotation = {
+				...annotation,
+				description: editedDescription.trim() || undefined,
+				tags: editedTags
+					.split(',')
+					.map((tag) => tag.trim())
+					.filter((tag) => tag.length > 0),
+				confidence: editedConfidence,
+				updatedAt: new Date().toISOString()
+			};
+
+			// Apply optimistic update immediately
+			onSave?.(optimisticAnnotation);
 
 			const input: AnnotationUpdateInput = {
 				description: editedDescription.trim() || undefined,
@@ -70,6 +87,7 @@
 			const mutationResult = handleMutationResult<AnnotationData>(result, 'updateAnnotation');
 
 			if (mutationResult.success && mutationResult.data) {
+				// Apply the real backend data (overwrites optimistic update)
 				const updatedAnnotation: Annotation = {
 					...annotation,
 					description: mutationResult.data.description,
@@ -78,11 +96,15 @@
 					updatedAt: mutationResult.data.updatedAt
 				};
 				onSave?.(updatedAnnotation);
+				hasOptimisticUpdate = false;
 			} else {
 				throw new Error(mutationResult.error || 'Failed to update annotation');
 			}
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to save annotation';
+			hasOptimisticUpdate = false;
+			// Revert optimistic update on error by re-applying original data
+			onSave?.(annotation);
 		} finally {
 			isSaving = false;
 		}
@@ -132,6 +154,13 @@
 	{#if error}
 		<div class="mb-3 rounded bg-red-100 p-2 text-sm text-red-700">
 			{error}
+		</div>
+	{:else if hasOptimisticUpdate}
+		<div class="mb-3 flex items-center rounded bg-blue-100 p-2 text-sm text-blue-700">
+			<div
+				class="mr-2 h-3 w-3 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"
+			></div>
+			Saving changes...
 		</div>
 	{/if}
 

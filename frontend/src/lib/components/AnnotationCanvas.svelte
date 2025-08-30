@@ -60,8 +60,10 @@
 	const client = getContextClient();
 
 	let canvasElement: HTMLCanvasElement | undefined = $state();
+	let annotationCanvas: HTMLCanvasElement | undefined = $state();
 	let canvasContainer: HTMLDivElement | undefined = $state();
 	let ctx: CanvasRenderingContext2D | null = null;
+	let annotationCtx: CanvasRenderingContext2D | null = null;
 	let image: HTMLImageElement | null = null;
 	let actualWidth = $state(width);
 	let actualHeight = $state(height);
@@ -89,17 +91,17 @@
 	let saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
 	let hasUnsavedChanges = $state(false);
 	let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-	const SAVE_DEBOUNCE_MS = 1000; // 1 second after last change
+	const SAVE_DEBOUNCE_MS = 500; // Reduced to 500ms for faster saves
 
 	// Double-click tracking
 	let lastClickTime = 0;
 	let lastClickedBoxId: string | null = null;
 
-	// Performance optimization: RAF and throttling
+	// Performance optimization: RAF for smooth updates
 	let rafId: number | null = null;
-	let lastMouseMoveTime = 0;
-	const MOUSE_THROTTLE_MS = 16; // 60fps
+	let annotationRafId: number | null = null;
 	let pendingCanvasUpdate = false;
+	let pendingAnnotationUpdate = false;
 
 	// Offscreen canvas for caching static elements
 	let offscreenCanvas: HTMLCanvasElement | null = null;
@@ -421,13 +423,13 @@
 			selectedBoxId = null;
 			onSelectionChange?.(null);
 		}
-		drawCanvas();
+		scheduleAnnotationDraw();
 	}
 
 	export function selectAnnotationById(id: string) {
 		selectedBoxId = id;
 		onSelectionChange?.(id || null);
-		drawCanvas();
+		scheduleAnnotationDraw();
 	}
 
 	export function setMode(newMode: 'select' | 'draw') {
@@ -453,11 +455,11 @@
 			selectedBoxId = null;
 			onSelectionChange?.(null);
 			markAsUnsaved(); // Mark as unsaved and debounce save
-			drawCanvas();
+			scheduleAnnotationDraw();
 		} else if (event.key === 'Escape') {
 			selectedBoxId = null;
 			onSelectionChange?.(null);
-			drawCanvas();
+			scheduleAnnotationDraw();
 		} else if (event.key === 's' || event.key === 'S') {
 			mode = 'select';
 		} else if (event.key === 'd' || event.key === 'D') {
@@ -465,7 +467,9 @@
 		}
 	}
 
-	// Handle responsive sizing
+	// Handle responsive sizing with debouncing
+	let resizeTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
 	function updateCanvasSize() {
 		if (!responsive || !canvasContainer) return;
 
@@ -473,13 +477,25 @@
 		const newWidth = containerRect.width;
 		const newHeight = containerRect.height;
 
-		if (newWidth !== actualWidth || newHeight !== actualHeight) {
-			actualWidth = newWidth;
-			actualHeight = newHeight;
+		// Instead of changing canvas dimensions (which clears content),
+		// use CSS to scale the canvas to fit the container
+		if (newWidth > 0 && newHeight > 0 && canvasElement && annotationCanvas) {
+			// Set CSS size to match container
+			canvasElement.style.width = `${newWidth}px`;
+			canvasElement.style.height = `${newHeight}px`;
+			annotationCanvas.style.width = `${newWidth}px`;
+			annotationCanvas.style.height = `${newHeight}px`;
 
-			if (canvasElement) {
+			// Only set canvas dimensions once when first loading
+			if (actualWidth === 0 || actualHeight === 0) {
+				// Set internal resolution once and keep it fixed
+				actualWidth = Math.max(800, newWidth);
+				actualHeight = Math.max(600, newHeight);
+
 				canvasElement.width = actualWidth;
 				canvasElement.height = actualHeight;
+				annotationCanvas.width = actualWidth;
+				annotationCanvas.height = actualHeight;
 
 				// Update offscreen canvas size
 				if (offscreenCanvas) {
@@ -487,18 +503,27 @@
 					offscreenCanvas.height = actualHeight;
 				}
 
-				// Recalculate image fitting
+				// Initial setup - fit image and draw
 				fitImageToCanvas();
 				staticElementsCached = false;
-				cacheStaticElements();
-				drawCanvas();
+
+				if (image && image.complete && image.naturalWidth > 0) {
+					cacheStaticElements();
+					drawCanvas();
+				} else if (imageUrl) {
+					loadImage();
+				} else {
+					drawPlaceholder();
+					drawAnnotationsOnly();
+				}
 			}
 		}
 	}
 
 	onMount(() => {
-		if (canvasElement) {
+		if (canvasElement && annotationCanvas) {
 			ctx = canvasElement.getContext('2d');
+			annotationCtx = annotationCanvas.getContext('2d');
 
 			// Set initial canvas size
 			if (responsive && canvasContainer) {
@@ -508,6 +533,8 @@
 				actualHeight = height;
 				canvasElement.width = actualWidth;
 				canvasElement.height = actualHeight;
+				annotationCanvas.width = actualWidth;
+				annotationCanvas.height = actualHeight;
 			}
 
 			// Create offscreen canvas for caching
@@ -522,10 +549,19 @@
 		// Add keyboard event listener
 		window.addEventListener('keydown', handleKeyDown);
 
-		// Add resize listener for responsive mode
+		// Add resize listener for responsive mode with debouncing
 		if (responsive) {
 			const resizeObserver = new ResizeObserver(() => {
-				updateCanvasSize();
+				// Clear previous timeout
+				if (resizeTimeoutId) {
+					clearTimeout(resizeTimeoutId);
+				}
+
+				// Debounce resize calls to prevent rapid successive updates
+				resizeTimeoutId = setTimeout(() => {
+					updateCanvasSize();
+					resizeTimeoutId = null;
+				}, 16); // ~60fps for smooth responsiveness
 			});
 
 			if (canvasContainer) {
@@ -538,12 +574,18 @@
 				if (rafId) {
 					cancelAnimationFrame(rafId);
 				}
+				if (annotationRafId) {
+					cancelAnimationFrame(annotationRafId);
+				}
 			};
 		} else {
 			return () => {
 				window.removeEventListener('keydown', handleKeyDown);
 				if (rafId) {
 					cancelAnimationFrame(rafId);
+				}
+				if (annotationRafId) {
+					cancelAnimationFrame(annotationRafId);
 				}
 			};
 		}
@@ -552,9 +594,17 @@
 	function loadImage() {
 		if (!imageUrl || !ctx) return;
 
+		// If image is already loading, don't start another load
+		if (image && !image.complete && image.src === imageUrl) {
+			return;
+		}
+
 		image = new Image();
 		image.crossOrigin = 'anonymous';
 		image.onload = () => {
+			// Ensure we still have valid canvas contexts after image loads
+			if (!ctx || !annotationCtx) return;
+
 			fitImageToCanvas();
 			staticElementsCached = false; // Invalidate cache
 			cacheStaticElements(); // Re-cache with new image
@@ -563,7 +613,10 @@
 		image.onerror = () => {
 			console.warn('Failed to load image:', imageUrl);
 			// Create a placeholder when image fails
-			drawPlaceholder();
+			if (ctx) {
+				drawPlaceholder();
+				drawAnnotationsOnly();
+			}
 		};
 		image.src = imageUrl;
 	}
@@ -592,6 +645,9 @@
 	function cacheStaticElements() {
 		if (!offscreenCtx || !offscreenCanvas) return;
 
+		// Only cache if we have valid canvas dimensions
+		if (actualWidth <= 0 || actualHeight <= 0) return;
+
 		// Clear offscreen canvas
 		offscreenCtx.fillStyle = '#f8f9fa';
 		offscreenCtx.fillRect(0, 0, actualWidth, actualHeight);
@@ -599,141 +655,219 @@
 		// Draw checkerboard pattern
 		drawCheckerboardPatternToContext(offscreenCtx);
 
-		// Draw image if loaded
-		if (image && image.complete && image.naturalWidth > 0) {
-			offscreenCtx.drawImage(
-				image,
-				imageOffsetX,
-				imageOffsetY,
-				scaledImageWidth,
-				scaledImageHeight
-			);
+		// Draw image if loaded and properly scaled
+		if (
+			image &&
+			image.complete &&
+			image.naturalWidth > 0 &&
+			scaledImageWidth > 0 &&
+			scaledImageHeight > 0 &&
+			imageScale > 0
+		) {
+			try {
+				offscreenCtx.drawImage(
+					image,
+					imageOffsetX,
+					imageOffsetY,
+					scaledImageWidth,
+					scaledImageHeight
+				);
 
-			// Draw subtle border around image
-			offscreenCtx.strokeStyle = '#e5e7eb';
-			offscreenCtx.lineWidth = 1;
-			offscreenCtx.strokeRect(
-				imageOffsetX - 0.5,
-				imageOffsetY - 0.5,
-				scaledImageWidth + 1,
-				scaledImageHeight + 1
-			);
-		} else {
-			// Draw placeholder
-			offscreenCtx.fillStyle = '#f3f4f6';
-			offscreenCtx.fillRect(
-				imageOffsetX,
-				imageOffsetY,
-				scaledImageWidth || 400,
-				scaledImageHeight || 300
-			);
-
-			offscreenCtx.fillStyle = '#9ca3af';
-			offscreenCtx.font = '16px sans-serif';
-			offscreenCtx.textAlign = 'center';
-			offscreenCtx.fillText('Loading image...', actualWidth / 2, actualHeight / 2);
-			offscreenCtx.textAlign = 'left';
-		}
-
-		staticElementsCached = true;
-	}
-
-	function drawCanvas() {
-		if (!ctx || !canvasElement) return;
-
-		// Use cached static elements if available
-		if (staticElementsCached && offscreenCanvas) {
-			ctx.drawImage(offscreenCanvas, 0, 0);
-		} else {
-			// Fallback to direct drawing
-			ctx.fillStyle = '#f8f9fa';
-			ctx.fillRect(0, 0, actualWidth, actualHeight);
-
-			drawCheckerboardPattern();
-
-			if (image && image.complete && image.naturalWidth > 0) {
-				ctx.drawImage(image, imageOffsetX, imageOffsetY, scaledImageWidth, scaledImageHeight);
-
-				ctx.strokeStyle = '#e5e7eb';
-				ctx.lineWidth = 1;
-				ctx.strokeRect(
+				// Draw subtle border around image
+				offscreenCtx.strokeStyle = '#e5e7eb';
+				offscreenCtx.lineWidth = 1;
+				offscreenCtx.strokeRect(
 					imageOffsetX - 0.5,
 					imageOffsetY - 0.5,
 					scaledImageWidth + 1,
 					scaledImageHeight + 1
 				);
-			} else {
-				ctx.fillStyle = '#f3f4f6';
-				ctx.fillRect(imageOffsetX, imageOffsetY, scaledImageWidth || 400, scaledImageHeight || 300);
 
-				ctx.fillStyle = '#9ca3af';
-				ctx.font = '16px sans-serif';
-				ctx.textAlign = 'center';
-				ctx.fillText('Loading image...', actualWidth / 2, actualHeight / 2);
-				ctx.textAlign = 'left';
+				staticElementsCached = true;
+			} catch (error) {
+				console.warn('Failed to draw image to cache:', error);
+				// Draw placeholder on error
+				drawPlaceholderToContext(offscreenCtx);
+				staticElementsCached = false;
+			}
+		} else {
+			// Draw placeholder when image is not ready
+			drawPlaceholderToContext(offscreenCtx);
+			staticElementsCached = false; // Don't mark as cached since it's just placeholder
+		}
+	}
+
+	// Helper function to draw placeholder to any context
+	function drawPlaceholderToContext(context: CanvasRenderingContext2D) {
+		const placeholderWidth = scaledImageWidth || 400;
+		const placeholderHeight = scaledImageHeight || 300;
+		const placeholderX = imageOffsetX || (actualWidth - placeholderWidth) / 2;
+		const placeholderY = imageOffsetY || (actualHeight - placeholderHeight) / 2;
+
+		context.fillStyle = '#f3f4f6';
+		context.fillRect(placeholderX, placeholderY, placeholderWidth, placeholderHeight);
+
+		context.fillStyle = '#9ca3af';
+		context.font = '16px sans-serif';
+		context.textAlign = 'center';
+		context.fillText('Loading image...', actualWidth / 2, actualHeight / 2);
+		context.textAlign = 'left';
+	}
+
+	// Draw only the annotations layer - much faster for interactions
+	function drawAnnotationsOnly() {
+		if (!annotationCtx || !annotationCanvas) return;
+
+		// Clear annotation canvas
+		annotationCtx.clearRect(0, 0, actualWidth, actualHeight);
+
+		// Draw all bounding boxes
+		for (const box of boundingBoxes) {
+			if (box._isDeleted) continue;
+			drawBoundingBox(annotationCtx, box, box.id === selectedBoxId);
+		}
+
+		// Draw resize handles for selected box
+		if (selectedBoxId) {
+			const selectedBox = boundingBoxes.find((box) => box.id === selectedBoxId);
+			if (selectedBox) {
+				drawResizeHandles(annotationCtx, selectedBox);
+			}
+		}
+	}
+
+	// Optimized annotation drawing with RAF
+	function scheduleAnnotationDraw() {
+		if (pendingAnnotationUpdate) return;
+
+		pendingAnnotationUpdate = true;
+		annotationRafId = requestAnimationFrame(() => {
+			drawAnnotationsOnly();
+			pendingAnnotationUpdate = false;
+		});
+	}
+
+	function drawCanvas() {
+		if (!ctx || !canvasElement) return;
+
+		// Ensure we have valid dimensions
+		if (actualWidth <= 0 || actualHeight <= 0) return;
+
+		// Use cached static elements if available and valid
+		if (
+			staticElementsCached &&
+			offscreenCanvas &&
+			offscreenCanvas.width === actualWidth &&
+			offscreenCanvas.height === actualHeight
+		) {
+			try {
+				ctx.drawImage(offscreenCanvas, 0, 0);
+			} catch (error) {
+				console.warn('Failed to draw from cache, falling back to direct draw:', error);
+				staticElementsCached = false; // Invalidate cache
+				// Continue to fallback drawing below
 			}
 		}
 
-		// Draw saved bounding boxes (convert from image to canvas coordinates)
-		// Filter out deleted boxes so they disappear immediately
-		const visibleBoxes = boundingBoxes.filter((box) => !box._isDeleted);
+		// Fallback to direct drawing if cache is not available or failed
+		if (!staticElementsCached || !offscreenCanvas) {
+			ctx.fillStyle = '#f8f9fa';
+			ctx.fillRect(0, 0, actualWidth, actualHeight);
 
-		// Draw non-selected boxes first, then selected box last (so it appears on top)
-		const nonSelectedBoxes = visibleBoxes.filter((box) => box.id !== selectedBoxId);
-		const selectedBox = visibleBoxes.find((box) => box.id === selectedBoxId);
+			drawCheckerboardPattern();
 
-		[...nonSelectedBoxes, ...(selectedBox ? [selectedBox] : [])].forEach((box) => {
-			// Convert image coordinates to canvas coordinates for display
-			const topLeft = imageToCanvasCoords(box.x, box.y);
-			const bottomRight = imageToCanvasCoords(box.x + box.width, box.y + box.height);
+			if (
+				image &&
+				image.complete &&
+				image.naturalWidth > 0 &&
+				scaledImageWidth > 0 &&
+				scaledImageHeight > 0
+			) {
+				try {
+					ctx.drawImage(image, imageOffsetX, imageOffsetY, scaledImageWidth, scaledImageHeight);
 
-			const canvasX = topLeft.x;
-			const canvasY = topLeft.y;
-			const canvasWidth = bottomRight.x - topLeft.x;
-			const canvasHeight = bottomRight.y - topLeft.y;
-
-			const isSelected = box.id === selectedBoxId;
-
-			// Ensure we save and restore canvas state to avoid interference
-			ctx!.save();
-			ctx!.strokeStyle = isSelected ? '#f59e0b' : '#3b82f6';
-			ctx!.lineWidth = isSelected ? 3 : 2;
-			ctx!.strokeRect(canvasX, canvasY, canvasWidth, canvasHeight);
-			ctx!.restore();
-
-			// Draw selection handles for selected box
-			if (isSelected) {
-				const handleSize = 8;
-				ctx!.save();
-				ctx!.fillStyle = '#f59e0b';
-				ctx!.strokeStyle = '#fff';
-				ctx!.lineWidth = 1;
-
-				// Corner handles with white border for visibility
-				const handles = [
-					{ x: canvasX, y: canvasY }, // top-left
-					{ x: canvasX + canvasWidth, y: canvasY }, // top-right
-					{ x: canvasX, y: canvasY + canvasHeight }, // bottom-left
-					{ x: canvasX + canvasWidth, y: canvasY + canvasHeight } // bottom-right
-				];
-
-				handles.forEach((handle) => {
-					ctx!.fillRect(
-						handle.x - handleSize / 2,
-						handle.y - handleSize / 2,
-						handleSize,
-						handleSize
+					ctx.strokeStyle = '#e5e7eb';
+					ctx.lineWidth = 1;
+					ctx.strokeRect(
+						imageOffsetX - 0.5,
+						imageOffsetY - 0.5,
+						scaledImageWidth + 1,
+						scaledImageHeight + 1
 					);
-					ctx!.strokeRect(
-						handle.x - handleSize / 2,
-						handle.y - handleSize / 2,
-						handleSize,
-						handleSize
-					);
-				});
-				ctx!.restore();
+				} catch (error) {
+					console.warn('Failed to draw image directly:', error);
+					drawPlaceholder();
+				}
+			} else {
+				drawPlaceholder();
 			}
+		}
+
+		// Background canvas complete - now draw annotations on the overlay
+		drawAnnotationsOnly();
+	}
+
+	// Helper function to draw a single bounding box
+	function drawBoundingBox(
+		context: CanvasRenderingContext2D,
+		box: BoundingBox,
+		isSelected: boolean
+	) {
+		// Convert image coordinates to canvas coordinates for display
+		const topLeft = imageToCanvasCoords(box.x, box.y);
+		const bottomRight = imageToCanvasCoords(box.x + box.width, box.y + box.height);
+
+		const canvasX = topLeft.x;
+		const canvasY = topLeft.y;
+		const canvasWidth = bottomRight.x - topLeft.x;
+		const canvasHeight = bottomRight.y - topLeft.y;
+
+		context.save();
+		context.strokeStyle = isSelected ? '#f59e0b' : '#3b82f6';
+		context.lineWidth = isSelected ? 3 : 2;
+		context.strokeRect(canvasX, canvasY, canvasWidth, canvasHeight);
+		context.restore();
+	}
+
+	// Helper function to draw resize handles
+	function drawResizeHandles(context: CanvasRenderingContext2D, box: BoundingBox) {
+		const topLeft = imageToCanvasCoords(box.x, box.y);
+		const bottomRight = imageToCanvasCoords(box.x + box.width, box.y + box.height);
+
+		const canvasX = topLeft.x;
+		const canvasY = topLeft.y;
+		const canvasWidth = bottomRight.x - topLeft.x;
+		const canvasHeight = bottomRight.y - topLeft.y;
+
+		const handleSize = 8;
+		context.save();
+		context.fillStyle = '#f59e0b';
+		context.strokeStyle = '#fff';
+		context.lineWidth = 1;
+
+		// Corner handles with white border for visibility
+		const handles = [
+			{ x: canvasX, y: canvasY }, // top-left
+			{ x: canvasX + canvasWidth, y: canvasY }, // top-right
+			{ x: canvasX, y: canvasY + canvasHeight }, // bottom-left
+			{ x: canvasX + canvasWidth, y: canvasY + canvasHeight } // bottom-right
+		];
+
+		handles.forEach((handle) => {
+			context.fillRect(
+				handle.x - handleSize / 2,
+				handle.y - handleSize / 2,
+				handleSize,
+				handleSize
+			);
+			context.strokeRect(
+				handle.x - handleSize / 2,
+				handle.y - handleSize / 2,
+				handleSize,
+				handleSize
+			);
 		});
+		context.restore();
 	}
 
 	// Draw checkerboard pattern for areas outside image
@@ -823,17 +957,20 @@
 	}
 
 	function handleMouseDown(event: MouseEvent) {
-		if (!canvasElement) return;
+		if (!annotationCanvas) return;
 
-		const rect = canvasElement.getBoundingClientRect();
-		const canvasX = event.clientX - rect.left;
-		const canvasY = event.clientY - rect.top;
+		const rect = annotationCanvas.getBoundingClientRect();
+		// Scale mouse coordinates to match internal canvas resolution
+		const scaleX = actualWidth / rect.width;
+		const scaleY = actualHeight / rect.height;
+		const canvasX = (event.clientX - rect.left) * scaleX;
+		const canvasY = (event.clientY - rect.top) * scaleY;
 
 		// Only allow interactions within the image area
 		if (!isPointInImageArea(canvasX, canvasY)) {
 			selectedBoxId = null;
 			onSelectionChange?.(null);
-			drawCanvas();
+			scheduleAnnotationDraw();
 			return;
 		}
 
@@ -878,14 +1015,14 @@
 
 				selectedBoxId = clickedBox.id;
 				onSelectionChange?.(clickedBox.id);
-				drawCanvas();
+				scheduleAnnotationDraw();
 				return;
 			}
 
 			// Click on empty area - deselect
 			selectedBoxId = null;
 			onSelectionChange?.(null);
-			drawCanvas();
+			scheduleAnnotationDraw();
 		} else if (mode === 'draw') {
 			// Draw mode: only create new boxes
 			selectedBoxId = null;
@@ -907,18 +1044,14 @@
 	}
 
 	function handleMouseMove(event: MouseEvent) {
-		if (!ctx || !canvasElement) return;
+		if (!ctx || !annotationCanvas) return;
 
-		// Throttle mouse move events
-		const now = Date.now();
-		if (now - lastMouseMoveTime < MOUSE_THROTTLE_MS) {
-			return;
-		}
-		lastMouseMoveTime = now;
-
-		const rect = canvasElement.getBoundingClientRect();
-		const canvasX = event.clientX - rect.left;
-		const canvasY = event.clientY - rect.top;
+		const rect = annotationCanvas.getBoundingClientRect();
+		// Scale mouse coordinates to match internal canvas resolution
+		const scaleX = actualWidth / rect.width;
+		const scaleY = actualHeight / rect.height;
+		const canvasX = (event.clientX - rect.left) * scaleX;
+		const canvasY = (event.clientY - rect.top) * scaleY;
 
 		if (isResizing && selectedBoxId && dragHandle && originalBox) {
 			// Handle box resizing - work in canvas coordinates but convert deltas to image space
@@ -1022,7 +1155,7 @@
 			}
 		} else if (isDrawing) {
 			// Handle new box drawing - draw in canvas coordinates but will be converted when saved
-			drawCanvas();
+			scheduleAnnotationDraw();
 
 			// Draw current box being drawn in canvas coordinates
 			ctx.strokeStyle = '#ef4444';
@@ -1034,10 +1167,13 @@
 	}
 
 	function handleMouseUp(event: MouseEvent) {
-		if (isDrawing && canvasElement) {
-			const rect = canvasElement.getBoundingClientRect();
-			const canvasEndX = event.clientX - rect.left;
-			const canvasEndY = event.clientY - rect.top;
+		if (isDrawing && annotationCanvas) {
+			const rect = annotationCanvas.getBoundingClientRect();
+			// Scale mouse coordinates to match internal canvas resolution
+			const scaleX = actualWidth / rect.width;
+			const scaleY = actualHeight / rect.height;
+			const canvasEndX = (event.clientX - rect.left) * scaleX;
+			const canvasEndY = (event.clientY - rect.top) * scaleY;
 
 			const canvasWidth = canvasEndX - startX;
 			const canvasHeight = canvasEndY - startY;
@@ -1101,7 +1237,7 @@
 		dragHandle = null;
 		originalBox = null;
 
-		drawCanvas();
+		scheduleAnnotationDraw();
 	}
 
 	// Track if initial annotations have been loaded to prevent infinite loops
@@ -1177,13 +1313,28 @@
 </script>
 
 <div bind:this={canvasContainer} class={responsive ? 'h-full w-full' : 'relative'}>
+	<!-- Background canvas for image and static content -->
 	<canvas
 		bind:this={canvasElement}
 		width={actualWidth}
 		height={actualHeight}
-		class="border border-gray-300 bg-white {mode === 'draw'
+		class="absolute top-0 left-0 border border-gray-300 bg-white {responsive
+			? 'h-full w-full'
+			: ''}"
+		style={responsive ? `width: 100%; height: 100%;` : ''}
+	>
+		Your browser does not support the HTML5 canvas element.
+	</canvas>
+
+	<!-- Annotation overlay canvas for interactive elements -->
+	<canvas
+		bind:this={annotationCanvas}
+		width={actualWidth}
+		height={actualHeight}
+		class="absolute top-0 left-0 {mode === 'draw'
 			? 'cursor-crosshair'
 			: 'cursor-default'} {responsive ? 'h-full w-full' : ''}"
+		style={responsive ? `width: 100%; height: 100%;` : ''}
 		onmousedown={handleMouseDown}
 		onmousemove={handleMouseMove}
 		onmouseup={handleMouseUp}

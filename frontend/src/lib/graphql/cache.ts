@@ -3,6 +3,29 @@ import { cacheExchange } from '@urql/exchange-graphcache';
 import { GetImagesDocument, GetAnnotationsByImageDocument } from './generated';
 import schema from './introspection.json';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type CacheInstance = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type QueryDocument = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type DataUpdater = (data: any) => any;
+
+// Utility for efficient pagination-aware cache updates
+function updatePaginatedQuery(
+	cache: CacheInstance,
+	queryDocument: QueryDocument,
+	updater: DataUpdater,
+	variables?: Record<string, unknown>
+) {
+	// Update specific query if variables provided
+	if (variables) {
+		cache.updateQuery({ query: queryDocument, variables }, updater);
+	}
+
+	// Also update queries without variables (affects pagination)
+	cache.updateQuery({ query: queryDocument }, updater);
+}
+
 export const graphcacheExchange = cacheExchange({
 	// Pass schema for deterministic fragment matching
 	schema,
@@ -28,10 +51,10 @@ export const graphcacheExchange = cacheExchange({
 				>;
 
 				if (createResult.__typename === 'ImageSuccessResult' && createResult.data) {
-					// Update GetImages query cache
+					// Update all GetImages queries using pagination-aware utility
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					cache.updateQuery({ query: GetImagesDocument }, (data: any) => {
-						if (!data || !data.images) return data;
+					updatePaginatedQuery(cache, GetImagesDocument, (data: any) => {
+						if (!data?.images) return data;
 
 						return {
 							...data,
@@ -59,18 +82,23 @@ export const graphcacheExchange = cacheExchange({
 				if (deleteResult.deleted) {
 					const imageId = (args as { id: string }).id;
 
-					// Remove from GetImages query cache
+					// Update all GetImages queries using pagination-aware utility
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					cache.updateQuery({ query: GetImagesDocument }, (data: any) => {
-						if (!data || !data.images) return data;
+					updatePaginatedQuery(cache, GetImagesDocument, (data: any) => {
+						if (!data?.images?.items) return data;
+
+						const filteredItems = [];
+						for (const image of data.images.items) {
+							if (image.id !== imageId) {
+								filteredItems.push(image);
+							}
+						}
 
 						return {
 							...data,
 							images: {
 								...data.images,
-								items: data.images.items.filter(
-									(image: Record<string, unknown>) => image.id !== imageId
-								),
+								items: filteredItems,
 								totalCount: Math.max(0, data.images.totalCount - 1)
 							}
 						};
@@ -127,19 +155,22 @@ export const graphcacheExchange = cacheExchange({
 					// Remove the annotation from cache immediately
 					cache.invalidate({ __typename: 'Annotation', id: annotationId });
 
-					// Update all GetAnnotationsByImage queries to remove this annotation
+					// More efficient annotation removal - single pass through array
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					cache.updateQuery({ query: GetAnnotationsByImageDocument }, (data: any) => {
-						if (!data) return data;
+						if (!data?.annotationsByImage) return data;
 
-						// Check all imageId variations in the cache
-						const updatedData = { ...data };
-						if (data.annotationsByImage) {
-							updatedData.annotationsByImage = data.annotationsByImage.filter(
-								(ann: Record<string, unknown>) => ann.id !== annotationId
-							);
+						const filteredAnnotations = [];
+						for (const annotation of data.annotationsByImage) {
+							if (annotation.id !== annotationId) {
+								filteredAnnotations.push(annotation);
+							}
 						}
-						return updatedData;
+
+						return {
+							...data,
+							annotationsByImage: filteredAnnotations
+						};
 					});
 				}
 			}

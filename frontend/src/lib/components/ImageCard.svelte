@@ -2,18 +2,10 @@
 	import StatusBadge from './StatusBadge.svelte';
 	import { goto } from '$app/navigation';
 	import { showSuccess } from '$lib/stores/toast.svelte';
-
-	interface ImageData {
-		id: string;
-		url: string;
-		width?: number;
-		height?: number;
-		status: 'NEW' | 'ANNOTATED' | 'NEEDS_REANNOTATION';
-		createdAt: string;
-	}
+	import type { Image } from '$lib/graphql/generated';
 
 	interface Props {
-		image: ImageData;
+		image: Image;
 		onStatusChange?: (
 			imageId: string,
 			newStatus: 'NEW' | 'ANNOTATED' | 'NEEDS_REANNOTATION'
@@ -26,6 +18,11 @@
 	let imageLoaded = $state(false);
 	let imageError = $state(false);
 	let showActions = $state(false);
+
+	// Memoized computed values to prevent re-computation on every render
+	const formattedDate = $derived(new Date(image.createdAt).toLocaleDateString());
+	const imageUrl = $derived(new URL(image.url));
+	const fileName = $derived(imageUrl.pathname.split('/').pop() || 'Unknown');
 
 	function handleImageLoad() {
 		imageLoaded = true;
@@ -48,10 +45,6 @@
 
 	function handleDelete() {
 		onDelete?.(image.id);
-	}
-
-	function formatDate(dateStr: string): string {
-		return new Date(dateStr).toLocaleDateString();
 	}
 </script>
 
@@ -173,13 +166,13 @@
 		<div class="mb-2 flex items-center justify-between">
 			<StatusBadge status={image.status} />
 			<span class="text-xs text-gray-500">
-				{formatDate(image.createdAt)}
+				{formattedDate}
 			</span>
 		</div>
 
 		<div class="mb-2">
 			<p class="truncate text-sm font-medium text-gray-900" title={image.url}>
-				{new URL(image.url).pathname.split('/').pop() || 'Unknown'}
+				{fileName}
 			</p>
 			<p class="truncate text-xs text-gray-500" title={image.url}>
 				{image.url}

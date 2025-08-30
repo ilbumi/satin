@@ -1,6 +1,6 @@
 <script lang="ts">
-	import AnnotationCanvas from '$lib/components/AnnotationCanvas.svelte';
 	import AnnotationEditForm from '$lib/components/AnnotationEditForm.svelte';
+	import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { queryStore, getContextClient } from '@urql/svelte';
@@ -10,6 +10,17 @@
 		type GetAnnotationsByImageQuery
 	} from '$lib/graphql/operations/annotations';
 	import { goto } from '$app/navigation';
+
+	// Dynamically import AnnotationCanvas to reduce initial bundle size
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	let AnnotationCanvas: any = $state(null);
+	let canvasLoading = $state(true);
+
+	onMount(async () => {
+		const { default: CanvasComponent } = await import('$lib/components/AnnotationCanvas.svelte');
+		AnnotationCanvas = CanvasComponent;
+		canvasLoading = false;
+	});
 
 	interface BoundingBox {
 		id: string;
@@ -27,7 +38,8 @@
 	let annotations = $state<BoundingBox[]>([]);
 	let selectedAnnotationId = $state<string | null>(null);
 	let editingAnnotationId = $state<string | null>(null);
-	let canvasRef: AnnotationCanvas | undefined = $state();
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	let canvasRef: any = $state();
 	let saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
 	// Get image ID from route parameters
@@ -361,17 +373,24 @@
 		{:else}
 			<!-- Main Canvas Area (full width minus sidebar) -->
 			<div class="flex-1 bg-gray-100 p-2">
-				<AnnotationCanvas
-					bind:this={canvasRef}
-					imageUrl={image.url}
-					imageId={image.id}
-					initialAnnotations={backendAnnotations}
-					onAnnotationsChange={handleAnnotationsChange}
-					onSaveStatusChange={handleSaveStatusChange}
-					onDoubleClickAnnotation={handleDoubleClickAnnotation}
-					onSelectionChange={handleSelectionChange}
-					responsive={true}
-				/>
+				{#if canvasLoading}
+					<div class="flex h-96 items-center justify-center">
+						<LoadingSpinner size="lg" />
+						<span class="ml-3 text-gray-600">Loading annotation canvas...</span>
+					</div>
+				{:else if AnnotationCanvas}
+					<AnnotationCanvas
+						bind:this={canvasRef}
+						imageUrl={image.url}
+						imageId={image.id}
+						initialAnnotations={backendAnnotations}
+						onAnnotationsChange={handleAnnotationsChange}
+						onSaveStatusChange={handleSaveStatusChange}
+						onDoubleClickAnnotation={handleDoubleClickAnnotation}
+						onSelectionChange={handleSelectionChange}
+						responsive={true}
+					/>
+				{/if}
 			</div>
 
 			<!-- Fixed Sidebar -->

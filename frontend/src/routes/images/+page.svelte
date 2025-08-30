@@ -1,21 +1,26 @@
 <script lang="ts">
-	import { queryStore, getContextClient } from '@urql/svelte';
-	import ImageGrid from '$lib/components/ImageGrid.svelte';
-	import ImageFilter from '$lib/components/ImageFilter.svelte';
-	import AddImageDialog from '$lib/components/AddImageDialog.svelte';
+	import { onMount } from 'svelte';
+	import { getContextClient } from '@urql/svelte';
 	import Pagination from '$lib/components/Pagination.svelte';
+	import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
 	import { showSuccess, showError } from '$lib/stores/toast.svelte';
 	import {
 		GET_IMAGES,
 		UPDATE_IMAGE,
 		DELETE_IMAGE,
-		type GetImagesQuery,
-		type ImageUpdateInput
+		type ImageUpdateInput,
+		type ImageFilterInput
 	} from '$lib/graphql/operations/images';
+	import type { ImageStatus, Image } from '$lib/graphql/generated';
 	import { handleDeleteResult, handleMutationResult } from '$lib/utils/graphql-errors';
+	import ImageGrid from '$lib/components/ImageGrid.svelte';
+	import ImageFilter from '$lib/components/ImageFilter.svelte';
+	import AddImageDialog from '$lib/components/AddImageDialog.svelte';
+
+	let componentsLoading = $state(false);
 
 	let searchQuery = $state('');
-	let selectedStatuses = $state<string[]>(['NEW', 'ANNOTATED', 'NEEDS_REANNOTATION']);
+	let selectedStatuses = $state<ImageStatus[]>(['NEW', 'ANNOTATED', 'NEEDS_REANNOTATION']);
 	let sortBy = $state('createdAt');
 	let sortOrder = $state<'asc' | 'desc'>('desc');
 	let currentPage = $state(1);
@@ -24,75 +29,99 @@
 
 	// GraphQL stores and client
 	const client = getContextClient();
-	const imagesQuery = queryStore<GetImagesQuery>({
-		query: GET_IMAGES,
-		client
+
+	// GraphQL query state
+	let queryResult = $state<{
+		data?: { images?: { items?: Image[]; totalCount?: number } };
+	} | null>(null);
+	let loading = $state(true);
+	let error = $state<Error | null>(null);
+
+	// Build query variables reactively
+	const buildVariables = () => {
+		const filter: ImageFilterInput = {};
+
+		// Only add status filter if not all statuses are selected
+		if (selectedStatuses.length < 3) {
+			filter.statuses = selectedStatuses;
+		}
+
+		// Add search filter
+		if (searchQuery.trim()) {
+			filter.urlContains = searchQuery.trim();
+		}
+
+		// Build sort
+		const sort = {
+			field: sortBy,
+			order: sortOrder.toUpperCase() as 'ASC' | 'DESC'
+		};
+
+		// Build pagination
+		const pagination = {
+			limit: itemsPerPage,
+			offset: (currentPage - 1) * itemsPerPage
+		};
+
+		return {
+			filter: Object.keys(filter).length > 0 ? filter : undefined,
+			sort,
+			pagination
+		};
+	};
+
+	// Execute query function
+	const executeQuery = async () => {
+		try {
+			loading = true;
+			const variables = buildVariables();
+			const result = await client.query(GET_IMAGES, variables).toPromise();
+			queryResult = result;
+			error = null;
+		} catch (err) {
+			error = err instanceof Error ? err : new Error(String(err));
+			queryResult = null;
+		} finally {
+			loading = false;
+			initialLoadComplete = true;
+		}
+	};
+
+	// Load data on mount
+	onMount(() => {
+		executeQuery();
 	});
 
-	// Reactive data from GraphQL
-	let images = $derived($imagesQuery.data?.images?.items || []);
-	let loading = $derived($imagesQuery.fetching);
-	let error = $derived($imagesQuery.error);
-	let totalImages = $derived($imagesQuery.data?.images?.totalCount || 0);
+	// Track if initial load is complete
+	let initialLoadComplete = $state(false);
+
+	// Re-execute query when filters change
+	$effect(() => {
+		// Watch for changes in filter/sort parameters
+		// These dependencies are tracked by the reactive system
+		void [searchQuery, selectedStatuses, sortBy, sortOrder, currentPage, itemsPerPage];
+
+		// Re-execute query (skip initial run on mount)
+		if (initialLoadComplete) {
+			executeQuery();
+		}
+	});
+
+	// Reactive data
+	let images = $derived(queryResult?.data?.images?.items || []);
+	let totalImages = $derived(queryResult?.data?.images?.totalCount || 0);
 
 	// Handle GraphQL errors
+	let lastErrorMessage = $state<string | null>(null);
+
 	$effect(() => {
-		if (error) {
+		if (error && error.message !== lastErrorMessage) {
+			lastErrorMessage = error.message;
 			showError(`Failed to load images: ${error.message}`);
 		}
 	});
 
-	let filteredImages = $derived(() => {
-		let filtered = [...images];
-
-		// Apply search filter
-		if (searchQuery.trim()) {
-			const query = searchQuery.toLowerCase().trim();
-			filtered = filtered.filter(
-				(img) =>
-					img.url.toLowerCase().includes(query) ||
-					new URL(img.url).pathname.toLowerCase().includes(query)
-			);
-		}
-
-		// Apply status filter
-		if (selectedStatuses.length < 3) {
-			filtered = filtered.filter((img) => selectedStatuses.includes(img.status));
-		}
-
-		// Apply sorting
-		filtered.sort((a, b) => {
-			let aValue: string | number = a[sortBy as keyof typeof a] as string | number;
-			let bValue: string | number = b[sortBy as keyof typeof b] as string | number;
-
-			if (typeof aValue === 'string') aValue = aValue.toLowerCase();
-			if (typeof bValue === 'string') bValue = bValue.toLowerCase();
-
-			if (sortOrder === 'asc') {
-				return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-			} else {
-				return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-			}
-		});
-
-		return filtered;
-	});
-
-	let paginatedImages = $derived(() => {
-		const startIndex = (currentPage - 1) * itemsPerPage;
-		return filteredImages()
-			.slice(startIndex, startIndex + itemsPerPage)
-			.map((img) => ({
-				id: img.id,
-				url: img.url,
-				width: img.width ?? undefined,
-				height: img.height ?? undefined,
-				status: img.status,
-				createdAt: img.createdAt,
-				updatedAt: img.updatedAt,
-				ext: img.ext ?? undefined
-			}));
-	});
+	// No need for displayImages transformation - use images directly
 
 	function handleAddImage() {
 		showAddImageDialog = true;
@@ -142,7 +171,7 @@
 				})
 				.toPromise();
 
-			const mutationResult = handleMutationResult<ImageData>(result, 'updateImage');
+			const mutationResult = handleMutationResult<Image>(result, 'updateImage');
 
 			if (mutationResult.success) {
 				// Cache will automatically update due to normalized caching
@@ -208,16 +237,25 @@
 
 	<!-- Filters Section -->
 	<div class="mb-6">
-		<ImageFilter
-			{searchQuery}
-			{selectedStatuses}
-			{sortBy}
-			{sortOrder}
-			onSearchChange={handleSearchChange}
-			onStatusChange={handleStatusFilterChange}
-			onSortChange={handleSortChange}
-			onClearFilters={handleClearFilters}
-		/>
+		{#if componentsLoading}
+			<div class="rounded-lg bg-white p-6 shadow">
+				<div class="flex items-center justify-center">
+					<LoadingSpinner size="sm" />
+					<span class="ml-3 text-gray-600">Loading filters...</span>
+				</div>
+			</div>
+		{:else if ImageFilter}
+			<ImageFilter
+				{searchQuery}
+				{selectedStatuses}
+				{sortBy}
+				{sortOrder}
+				onSearchChange={handleSearchChange}
+				onStatusChange={handleStatusFilterChange}
+				onSortChange={handleSortChange}
+				onClearFilters={handleClearFilters}
+			/>
+		{/if}
 	</div>
 
 	<!-- Results Summary -->
@@ -242,7 +280,7 @@
 				Failed to load images
 			</div>
 		{:else if totalImages > 0}
-			Showing {Math.min(paginatedImages().length, itemsPerPage)} of {totalImages} images
+			Showing {images.length} of {totalImages} images
 			{#if searchQuery || selectedStatuses.length < 3}
 				(filtered)
 			{/if}
@@ -272,15 +310,20 @@
 				<h3 class="mb-2 text-lg font-semibold text-red-800">Unable to load images</h3>
 				<p class="mb-4 text-red-600">{error.message}</p>
 				<button
-					onclick={() => imagesQuery.reexecute({ requestPolicy: 'network-only' })}
+					onclick={() => executeQuery()}
 					class="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:outline-none"
 				>
 					Try Again
 				</button>
 			</div>
-		{:else}
+		{:else if componentsLoading}
+			<div class="flex items-center justify-center py-12">
+				<LoadingSpinner size="lg" />
+				<span class="ml-3 text-gray-600">Loading image grid...</span>
+			</div>
+		{:else if ImageGrid}
 			<ImageGrid
-				images={paginatedImages()}
+				{images}
 				{loading}
 				onStatusChange={handleImageStatusChange}
 				onDelete={handleDeleteImage}
@@ -290,7 +333,7 @@
 	</div>
 
 	<!-- Pagination -->
-	{#if !loading && totalImages > 0}
+	{#if !loading && totalImages > itemsPerPage}
 		<Pagination
 			{currentPage}
 			totalItems={totalImages}
@@ -305,8 +348,10 @@
 </div>
 
 <!-- Add Image Dialog -->
-<AddImageDialog
-	open={showAddImageDialog}
-	onClose={() => (showAddImageDialog = false)}
-	onSubmit={handleAddImageSubmit}
-/>
+{#if AddImageDialog}
+	<AddImageDialog
+		open={showAddImageDialog}
+		onClose={() => (showAddImageDialog = false)}
+		onSubmit={handleAddImageSubmit}
+	/>
+{/if}

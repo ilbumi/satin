@@ -9,7 +9,7 @@ class AppSettings(BaseSettings):
     backend_port: int = Field(default=8000)
     reload: bool = Field(default=False)
 
-    cors: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
+    cors: list[str] = Field(default_factory=lambda: ["http://localhost:5173", "http://localhost:5174"])
 
     model_config = SettingsConfigDict(env_prefix="SATIN_", env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

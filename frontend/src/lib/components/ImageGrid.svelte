@@ -1,18 +1,10 @@
 <script lang="ts">
 	import ImageCard from './ImageCard.svelte';
 	import LoadingSkeleton from './LoadingSkeleton.svelte';
-
-	interface ImageData {
-		id: string;
-		url: string;
-		width?: number;
-		height?: number;
-		status: 'NEW' | 'ANNOTATED' | 'NEEDS_REANNOTATION';
-		createdAt: string;
-	}
+	import type { Image } from '$lib/graphql/generated';
 
 	interface Props {
-		images: ImageData[];
+		images: Image[];
 		loading?: boolean;
 		onStatusChange?: (
 			imageId: string,
