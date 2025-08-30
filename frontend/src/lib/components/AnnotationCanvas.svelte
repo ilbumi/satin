@@ -474,23 +474,15 @@
 		if (!responsive || !canvasContainer) return;
 
 		const containerRect = canvasContainer.getBoundingClientRect();
-		const newWidth = containerRect.width;
-		const newHeight = containerRect.height;
+		const containerWidth = containerRect.width;
+		const containerHeight = containerRect.height;
 
-		// Instead of changing canvas dimensions (which clears content),
-		// use CSS to scale the canvas to fit the container
-		if (newWidth > 0 && newHeight > 0 && canvasElement && annotationCanvas) {
-			// Set CSS size to match container
-			canvasElement.style.width = `${newWidth}px`;
-			canvasElement.style.height = `${newHeight}px`;
-			annotationCanvas.style.width = `${newWidth}px`;
-			annotationCanvas.style.height = `${newHeight}px`;
-
+		if (containerWidth > 0 && containerHeight > 0 && canvasElement && annotationCanvas) {
 			// Only set canvas dimensions once when first loading
 			if (actualWidth === 0 || actualHeight === 0) {
 				// Set internal resolution once and keep it fixed
-				actualWidth = Math.max(800, newWidth);
-				actualHeight = Math.max(600, newHeight);
+				actualWidth = Math.max(800, containerWidth);
+				actualHeight = Math.max(600, containerHeight);
 
 				canvasElement.width = actualWidth;
 				canvasElement.height = actualHeight;
@@ -515,6 +507,48 @@
 				} else {
 					drawPlaceholder();
 					drawAnnotationsOnly();
+				}
+			}
+
+			// Calculate aspect ratio preserving scale for CSS
+			const canvasAspectRatio = actualWidth / actualHeight;
+			const containerAspectRatio = containerWidth / containerHeight;
+
+			let cssWidth: number;
+			let cssHeight: number;
+
+			if (canvasAspectRatio > containerAspectRatio) {
+				// Canvas is wider than container - fit to width
+				cssWidth = containerWidth;
+				cssHeight = containerWidth / canvasAspectRatio;
+			} else {
+				// Canvas is taller than container - fit to height
+				cssHeight = containerHeight;
+				cssWidth = containerHeight * canvasAspectRatio;
+			}
+
+			// Apply CSS scaling while maintaining aspect ratio
+			canvasElement.style.width = `${cssWidth}px`;
+			canvasElement.style.height = `${cssHeight}px`;
+			annotationCanvas.style.width = `${cssWidth}px`;
+			annotationCanvas.style.height = `${cssHeight}px`;
+
+			// Center the canvas if it doesn't fill the container completely
+			const leftOffset = (containerWidth - cssWidth) / 2;
+			const topOffset = (containerHeight - cssHeight) / 2;
+
+			canvasElement.style.marginLeft = `${leftOffset}px`;
+			canvasElement.style.marginTop = `${topOffset}px`;
+			annotationCanvas.style.marginLeft = `${leftOffset}px`;
+			annotationCanvas.style.marginTop = `${topOffset}px`;
+
+			// Recalculate image positioning for new container size
+			if (actualWidth > 0 && actualHeight > 0) {
+				fitImageToCanvas();
+				if (staticElementsCached) {
+					// Re-cache and redraw with new positioning
+					cacheStaticElements();
+					drawCanvas();
 				}
 			}
 		}
